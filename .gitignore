@@ -1,0 +1,48 @@
+# Java build output
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# Maven and Gradle
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+.gradle/
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse / VS Code
+.project
+.classpath
+.settings/
+.factorypath
+.vscode/
+
+# Environment files and sensitive local configuration
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+application-local.yaml
+application-*.properties
+application-*.yml
+application-*.yaml
+!application.properties
+!application.yml
+!application.yaml
+
+# OS files and logs
+.DS_Store
+Thumbs.db
+*.log
