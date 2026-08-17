@@ -2,8 +2,8 @@ package com.josenetoo_dev.veiculos_api.service;
 
 import com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioRequest;
 import com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioResponse;
-import com.josenetoo_dev.veiculos_api.exception.EmailJaCadastradoException;
-import com.josenetoo_dev.veiculos_api.exception.UsuarioNaoEncontradoException;
+import com.josenetoo_dev.veiculos_api.exception.ex.EmailJaCadastradoException;
+import com.josenetoo_dev.veiculos_api.exception.ex.UsuarioNaoEncontradoException;
 import com.josenetoo_dev.veiculos_api.model.Usuario;
 import com.josenetoo_dev.veiculos_api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;

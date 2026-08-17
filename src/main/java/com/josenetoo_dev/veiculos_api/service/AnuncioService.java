@@ -4,8 +4,8 @@ import com.josenetoo_dev.veiculos_api.dto.anuncio_dto.AnuncioRequest;
 import com.josenetoo_dev.veiculos_api.dto.anuncio_dto.AnuncioResponse;
 import com.josenetoo_dev.veiculos_api.enums.Categoria;
 import com.josenetoo_dev.veiculos_api.enums.StatusAnuncio;
-import com.josenetoo_dev.veiculos_api.exception.AnuncioNaoEncontradoException;
-import com.josenetoo_dev.veiculos_api.exception.UsuarioNaoEncontradoException;
+import com.josenetoo_dev.veiculos_api.exception.ex.AnuncioNaoEncontradoException;
+import com.josenetoo_dev.veiculos_api.exception.ex.UsuarioNaoEncontradoException;
 import com.josenetoo_dev.veiculos_api.model.Anuncio;
 import com.josenetoo_dev.veiculos_api.model.Usuario;
 import com.josenetoo_dev.veiculos_api.repository.AnuncioRepository;
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AnuncioService {
 
-    private final AnuncioRepository anuncioRepository;
+    private final AnuncioRepository     anuncioRepository;
     private final UsuarioRepository usuarioRepository;
 
     // CRUD basico + buscar por codigo, destaque, status e categoria
@@ -40,6 +40,7 @@ public class AnuncioService {
                         .orElseThrow(() -> new UsuarioNaoEncontradoException("Usuario não encontrado"));
 
         // TODO: Esse função deve ser trocada após a ingrassão da autenticação
+        // O usuario não deve ser escolhido
         anuncio.setUsuario(usuario);
 
         anuncio.setVersao(request.getVersao());
