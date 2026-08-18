@@ -24,7 +24,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             UsuarioNaoEncontradoException.class,
             AnuncioNaoEncontradoException.class,
-            PropostaNaoEncontradaException.class
+            PropostaNaoEncontradaException.class,
+            FotoNaoEncontradaException.class
     }) public ResponseEntity<  ErroResponse> naoEncontrado(RuntimeException ex) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
