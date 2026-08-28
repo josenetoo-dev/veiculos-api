@@ -58,6 +58,7 @@ public class AnuncioResponse {
 
     private Long usuarioId;
     private String usuarioNome;
+    private String fotoCapaUrl;
 
     public AnuncioResponse(Anuncio anuncio) {
         this.id = anuncio.getId();
@@ -83,5 +84,10 @@ public class AnuncioResponse {
         this.criadoEm = anuncio.getCriadoEm();
         this.usuarioId = anuncio.getUsuario().getId();
         this.usuarioNome = anuncio.getUsuario().getNome();
+    }
+
+    public AnuncioResponse(Anuncio anuncio, String fotoCapaUrl) {
+        this(anuncio);
+        this.fotoCapaUrl = fotoCapaUrl;
     }
 }

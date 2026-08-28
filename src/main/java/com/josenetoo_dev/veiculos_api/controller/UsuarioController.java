@@ -1,5 +1,6 @@
 package com.josenetoo_dev.veiculos_api.controller;
 
+import com.josenetoo_dev.veiculos_api.dto.usuario_dto.TrocarSenhaRequest;
 import com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioRequest;
 import com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioResponse;
 import com.josenetoo_dev.veiculos_api.service.UsuarioService;
@@ -9,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,12 +19,11 @@ import org.springframework.web.bind.annotation.*;
 public class UsuarioController {
     private final UsuarioService usuarioService;
 
-    @Operation(summary = "Criar usuario")
-    @PostMapping
-    public ResponseEntity<UsuarioResponse> criarUsuario(@Valid @RequestBody UsuarioRequest request) {
+    @Operation(summary = "Dados do usuario autenticado")
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioResponse> meusDados() {
         return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(usuarioService.criarUsuario(request));
+                .ok(usuarioService.buscarMeusDados());
     }
 
     @Operation
@@ -60,7 +59,7 @@ public class UsuarioController {
 
     @Operation(summary = "Trocar senha do usuario")
     @PutMapping("/{id}/senha")
-    public ResponseEntity<UsuarioResponse> atualizarSenha(@Valid @RequestBody UsuarioRequest request, @PathVariable Long id) {
+    public ResponseEntity<UsuarioResponse> atualizarSenha(@Valid @RequestBody TrocarSenhaRequest request, @PathVariable Long id) {
         return ResponseEntity
                 .ok(usuarioService.atualizarSenha(request, id));
     }

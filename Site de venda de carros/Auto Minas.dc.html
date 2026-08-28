@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Auto Minas — anúncios de veículos</title>
+<link rel="stylesheet" href="_ds/nocturne-cb851bc1-3316-4a40-a56f-c89f3486b206/styles.css">
+<script src="_ds/nocturne-cb851bc1-3316-4a40-a56f-c89f3486b206/_ds_bundle.js"></script>
+<script src="api.js"></script>
+<style>
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+  * { box-sizing: border-box; }
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: var(--color-accent-300); }
+  input, select, textarea { font-family: var(--font-body); }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  @keyframes amIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Chat/Mensagens — mesma paleta roxa do resto do site (--color-accent*). */
+  .chat-shell {
+    --chat-accent: var(--color-accent);
+    --chat-accent-100: var(--color-accent-100);
+    --chat-accent-300: var(--color-accent-300);
+    --chat-accent-700: var(--color-accent-700);
+    --chat-accent-900: var(--color-accent-900);
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    border: 1px solid var(--color-neutral-800);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    overflow: hidden;
+    height: calc(100vh - 230px);
+    min-height: 480px;
+  }
+  .chat-lista { display: flex; flex-direction: column; border-right: 1px solid var(--color-divider); min-width: 0; }
+  .chat-lista textarea { resize: none; }
+  .chat-detalhe { min-width: 0; min-height: 0; height: 100%; }
+  .chat-voltar { display: none; }
+  .chat-mensagens { scrollbar-width: thin; min-height: 0; }
+  @media (max-width: 860px) {
+    .chat-shell { grid-template-columns: 1fr; height: calc(100vh - 190px); }
+    .chat-shell:not(.mostrar-chat) .chat-detalhe { display: none; }
+    .chat-shell.mostrar-chat .chat-lista { display: none; }
+    .chat-shell.mostrar-chat .chat-voltar { display: inline-flex; }
+  }
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg)">
+
+<header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:24px;padding:14px 28px;background:rgba(22,24,38,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-divider)">
+  <span onClick="{{ irHome }}" style="cursor:pointer;display:flex;align-items:baseline;gap:8px">
+    <span style="font-family:var(--font-heading);font-size:17px;letter-spacing:-0.01em">Auto Minas</span>
+    <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-600)">veiculos-api</span>
+  </span>
+
+  <nav style="display:flex;gap:4px;margin-left:8px">
+    <sc-for list="{{ menu }}" as="m" hint-placeholder-count="4">
+      <span onClick="{{ m.onClick }}" style="{{ m.style }}">{{ m.label }}</span>
+    </sc-for>
+  </nav>
+
+  <span style="flex:1"></span>
+
+  <span style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--color-neutral-500)">
+    <span style="{{ pontoConexao }}"></span>{{ rotuloConexao }}
+  </span>
+
+  <sc-if value="{{ logado }}" hint-placeholder-val="{{ false }}">
+    <span style="display:flex;align-items:center;gap:10px">
+      <span onClick="{{ irConta }}" style="cursor:pointer;display:flex;align-items:center;gap:9px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--color-neutral-800);background:var(--color-neutral-900)">
+        <span style="width:26px;height:26px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent-700);color:var(--color-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:12px">{{ inicial }}</span>
+        <span style="font-size:13px">{{ primeiroNome }}</span>
+      </span>
+      <span onClick="{{ sair }}" class="btn btn-ghost" style="cursor:pointer;font-size:12.5px;padding:6px 12px">Sair</span>
+    </span>
+  </sc-if>
+</header>
+
+<main style="flex:1">
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<section style="max-width:1020px;margin:0 auto;padding:56px 28px 80px;display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start;animation:amIn .3s ease both">
+
+  <div style="padding-top:4px">
+    <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:14px">Conta Auto Minas</div>
+    <h1 style="font-family:var(--font-heading);font-weight:500;font-size:34px;letter-spacing:-0.02em;line-height:1.15;margin:0 0 14px;max-width:22ch">Entre para ver e publicar anúncios</h1>
+    <p style="font-size:14.5px;line-height:1.65;color:var(--color-neutral-400);max-width:48ch;margin:0 0 28px;text-wrap:pretty">O backend exige token em toda rota fora de <span style="color:var(--color-neutral-200)">/auth</span> — inclusive na listagem de anúncios. Por isso o estoque só aparece depois do login.</p>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <sc-for list="{{ oQueExiste }}" as="b" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start">
+          <span style="width:24px;height:24px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent-700);color:var(--color-accent);display:grid;place-items:center;font-size:10px">✓</span>
+          <div>
+            <div style="font-family:var(--font-heading);font-size:14.5px">{{ b.t }}</div>
+            <div style="font-size:12.5px;line-height:1.55;color:var(--color-neutral-500);margin-top:2px;max-width:42ch">{{ b.d }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding:26px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md)">
+    <div style="display:flex;gap:4px;padding:4px;border-radius:var(--radius-sm);background:var(--color-neutral-900);margin-bottom:20px">
+      <sc-for list="{{ modosAuth }}" as="m" hint-placeholder-count="2">
+        <span onClick="{{ m.onClick }}" class="{{ m.cls }}" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px 0;font-size:13px;border-radius:var(--radius-sm)">{{ m.label }}</span>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <sc-if value="{{ isCadastro }}" hint-placeholder-val="{{ false }}">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Nome</span>
+          <input value="{{ fNome }}" onChange="{{ setFNome }}" placeholder="Como aparece nos anúncios" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+        </label>
+      </sc-if>
+
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">E-mail</span>
+        <input type="email" value="{{ fEmail }}" onChange="{{ setFEmail }}" placeholder="voce@email.com" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+
+      <sc-if value="{{ isCadastro }}" hint-placeholder-val="{{ false }}">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Telefone</span>
+          <input value="{{ fTelefone }}" onChange="{{ setFTelefone }}" placeholder="(41) 99999-0000" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+        </label>
+      </sc-if>
+
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Senha</span>
+          <span onClick="{{ toggleSenha }}" style="cursor:pointer;font-size:11.5px;color:var(--color-accent)">{{ labelSenha }}</span>
+        </span>
+        <input type="{{ tipoSenha }}" value="{{ fSenha }}" onChange="{{ setFSenha }}" placeholder="sua senha" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+
+      <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:10px 12px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;line-height:1.5;color:var(--color-accent-100)">{{ erro }}</div>
+      </sc-if>
+
+      <span onClick="{{ autenticar }}" class="btn btn-primary btn-block" style="cursor:pointer;padding:12px;font-size:14.5px">{{ labelAuth }}</span>
+      <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600)">Sem login social e sem recuperação de senha: o backend só tem e-mail + senha. O token vale 24 horas.</div>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+<!-- ══════════════ HOME ══════════════ -->
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1180px;margin:0 auto;padding:52px 28px 72px;animation:amIn .3s ease both">
+  <div style="max-width:56ch;margin-bottom:34px">
+    <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:14px">Anúncios de veículos</div>
+    <h1 style="font-family:var(--font-heading);font-weight:500;font-size:38px;letter-spacing:-0.025em;line-height:1.12;margin:0 0 14px">Carros anunciados por quem tem conta na Auto Minas</h1>
+    <p style="font-size:15px;line-height:1.65;color:var(--color-neutral-400);margin:0;text-wrap:pretty">Tudo nesta página vem do banco: título, ficha, preço e vendedor. Escolha uma categoria ou abra o estoque completo.</p>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <sc-for list="{{ atalhosCategoria }}" as="c" hint-placeholder-count="5">
+      <span onClick="{{ c.onClick }}" class="{{ c.cls }}" style="cursor:pointer;padding:8px 15px;font-size:13px">{{ c.label }}</span>
+    </sc-for>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:34px">
+    <span onClick="{{ irEstoque }}" class="btn btn-secondary" style="cursor:pointer;padding:9px 18px;font-size:13.5px">Ver estoque completo</span>
+    <span style="font-size:12.5px;color:var(--color-neutral-600)">{{ resumoEstoque }}</span>
+  </div>
+
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px">
+    <h2 style="font-family:var(--font-heading);font-weight:500;font-size:19px;letter-spacing:-0.01em;margin:0">Anunciados recentemente</h2>
+    <span style="font-size:11.5px;color:var(--color-neutral-600)">ordenado por criadoEm, desc</span>
+  </div>
+
+  <sc-if value="{{ carregando }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:44px;text-align:center;font-size:13.5px;color:var(--color-neutral-500);border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg)">Carregando do backend…</div>
+  </sc-if>
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:18px;border-radius:var(--radius-md);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:13px;line-height:1.6;color:var(--color-accent-100)">{{ erro }}</div>
+  </sc-if>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:16px">
+    <sc-for list="{{ recentes }}" as="c" hint-placeholder-count="4">
+      <div onClick="{{ c.abrir }}" style="cursor:pointer;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800);overflow:hidden;box-shadow:var(--shadow-sm)">
+        <div style="{{ c.cardTopo }}">
+          <span style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-500)">{{ c.marcaCard }}</span>
+          <span style="font-family:var(--font-heading);font-weight:500;font-size:26px;letter-spacing:-0.02em;line-height:1.1;color:var(--color-neutral-200)">{{ c.modeloCard }}</span>
+          <span style="font-size:11px;color:var(--color-neutral-600)">{{ c.codigoCard }}</span>
+        </div>
+        <div style="padding:16px 17px 17px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px">
+            <span class="tag tag-outline" style="font-size:10.5px;padding:3px 9px">{{ c.categoria }}</span>
+            <span class="{{ c.tagStatus }}" style="font-size:10.5px;padding:3px 9px">{{ c.status }}</span>
+            <span class="tag tag-neutral" style="font-size:10.5px;padding:3px 9px">{{ c.mao }}</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:15.5px;line-height:1.3;margin-bottom:3px">{{ c.titulo }}</div>
+          <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:12px">{{ c.versao }}</div>
+          <div style="font-family:var(--font-heading);font-size:20px;letter-spacing:-0.02em;color:var(--color-accent-300)">{{ c.precoFmt }}</div>
+          <div style="font-size:12px;line-height:1.7;color:var(--color-neutral-500);margin-top:9px;border-top:1px solid var(--color-divider);padding-top:9px">{{ c.meta }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ vazioRecentes }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px;border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg);text-align:center">
+      <div style="font-family:var(--font-heading);font-size:16px;margin-bottom:7px">Nenhum anúncio no banco ainda</div>
+      <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:16px">A tabela anuncio está vazia. Publique o primeiro.</div>
+      <span onClick="{{ irAnunciar }}" class="btn btn-primary" style="cursor:pointer;padding:9px 18px;font-size:13.5px">Anunciar um carro</span>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<!-- ══════════════ ESTOQUE ══════════════ -->
+<sc-if value="{{ isEstoque }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1180px;margin:0 auto;padding:44px 28px 72px;animation:amIn .3s ease both">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:22px">
+    <div>
+      <h1 style="font-family:var(--font-heading);font-weight:500;font-size:28px;letter-spacing:-0.02em;margin:0 0 6px">Estoque</h1>
+      <div style="font-size:13px;color:var(--color-neutral-500)">{{ resumoEstoque }}</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+      <label style="display:flex;flex-direction:column;gap:5px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Categoria</span>
+        <select value="{{ filtroCategoria }}" onChange="{{ setCategoria }}" style="padding:9px 12px;font-size:13px;min-width:150px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm)">
+          <sc-for list="{{ opcoesCategoria }}" as="o" hint-placeholder-count="6">
+            <option value="{{ o.v }}">{{ o.label }}</option>
+          </sc-for>
+        </select>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:5px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Status</span>
+        <select value="{{ filtroStatus }}" onChange="{{ setStatus }}" style="padding:9px 12px;font-size:13px;min-width:130px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm)">
+          <sc-for list="{{ opcoesStatus }}" as="o" hint-placeholder-count="4">
+            <option value="{{ o.v }}">{{ o.label }}</option>
+          </sc-for>
+        </select>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:5px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Ordem</span>
+        <select value="{{ filtroSort }}" onChange="{{ setSort }}" style="padding:9px 12px;font-size:13px;min-width:160px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm)">
+          <sc-for list="{{ opcoesSort }}" as="o" hint-placeholder-count="4">
+            <option value="{{ o.v }}">{{ o.label }}</option>
+          </sc-for>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);margin-bottom:22px;flex-wrap:wrap">
+    <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Buscar por código</span>
+    <input value="{{ buscaCodigo }}" onChange="{{ setBuscaCodigo }}" onKeyDown="{{ teclaCodigo }}" placeholder="AM-12" style="flex:1;min-width:120px;padding:7px 11px;font-size:13px;color:var(--color-text);background:var(--color-bg);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+    <span onClick="{{ buscarCodigo }}" class="btn btn-secondary" style="cursor:pointer;padding:7px 15px;font-size:12.5px">Abrir</span>
+    <span style="font-size:11.5px;color:var(--color-neutral-600)">o backend não tem filtro por preço, km, marca ou modelo</span>
+  </div>
+
+  <sc-if value="{{ carregando }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:44px;text-align:center;font-size:13.5px;color:var(--color-neutral-500);border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg)">Carregando do backend…</div>
+  </sc-if>
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:18px;border-radius:var(--radius-md);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:13px;line-height:1.6;color:var(--color-accent-100);margin-bottom:20px">{{ erro }}</div>
+  </sc-if>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:16px">
+    <sc-for list="{{ lista }}" as="c" hint-placeholder-count="6">
+      <div onClick="{{ c.abrir }}" style="cursor:pointer;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800);overflow:hidden;box-shadow:var(--shadow-sm)">
+        <div style="{{ c.cardTopo }}">
+          <span style="font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-500)">{{ c.marcaCard }}</span>
+          <span style="font-family:var(--font-heading);font-weight:500;font-size:26px;letter-spacing:-0.02em;line-height:1.1;color:var(--color-neutral-200)">{{ c.modeloCard }}</span>
+          <span style="font-size:11px;color:var(--color-neutral-600)">{{ c.codigoCard }}</span>
+        </div>
+        <div style="padding:16px 17px 17px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px">
+            <span class="tag tag-outline" style="font-size:10.5px;padding:3px 9px">{{ c.categoria }}</span>
+            <span class="{{ c.tagStatus }}" style="font-size:10.5px;padding:3px 9px">{{ c.status }}</span>
+            <span class="tag tag-neutral" style="font-size:10.5px;padding:3px 9px">{{ c.mao }}</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:15.5px;line-height:1.3;margin-bottom:3px">{{ c.titulo }}</div>
+          <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:12px">{{ c.versao }}</div>
+          <div style="font-family:var(--font-heading);font-size:20px;letter-spacing:-0.02em;color:var(--color-accent-300)">{{ c.precoFmt }}</div>
+          <div style="font-size:12px;line-height:1.7;color:var(--color-neutral-500);margin-top:9px;border-top:1px solid var(--color-divider);padding-top:9px">{{ c.meta }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ vazioLista }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px;border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg);text-align:center;font-size:13.5px;color:var(--color-neutral-500)">Nenhum anúncio para esse filtro.</div>
+  </sc-if>
+
+  <sc-if value="{{ temPaginacao }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:28px">
+      <span onClick="{{ paginaAnterior }}" class="btn btn-secondary" style="{{ estiloAnterior }}">← Anterior</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">{{ rotuloPagina }}</span>
+      <span onClick="{{ paginaProxima }}" class="btn btn-secondary" style="{{ estiloProxima }}">Próxima →</span>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<!-- ══════════════ VEÍCULO ══════════════ -->
+<sc-if value="{{ isVeiculo }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1180px;margin:0 auto;padding:34px 28px 72px;animation:amIn .3s ease both">
+  <span onClick="{{ voltarEstoque }}" style="cursor:pointer;display:inline-block;font-size:12.5px;color:var(--color-neutral-500);margin-bottom:20px">← voltar ao estoque</span>
+
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:18px;border-radius:var(--radius-md);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:13px;color:var(--color-accent-100);margin-bottom:20px">{{ erro }}</div>
+  </sc-if>
+
+  <div style="display:grid;grid-template-columns:1fr 348px;gap:36px;align-items:start">
+    <div>
+      <sc-if value="{{ temFotosCarro }}" hint-placeholder-val="{{ false }}">
+        <div style="border-radius:var(--radius-lg);border:1px solid var(--color-neutral-800);overflow:hidden;margin-bottom:4px;background:var(--color-neutral-900)">
+          <img src="{{ fotoCapaCarro }}" alt="foto do veículo"
+            style="width:100%;max-height:420px;object-fit:contain;display:block;background:#000">
+          <sc-if value="{{ temMaisFotos }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:6px;padding:8px;background:var(--color-neutral-900);overflow-x:auto">
+              <sc-for list="{{ fotosMiniCarro }}" as="ft" hint-placeholder-count="3">
+                <img src="{{ ft }}" alt="foto"
+                  style="width:80px;height:60px;object-fit:cover;border-radius:4px;flex:none;border:1px solid var(--color-neutral-700);cursor:pointer">
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ semFotosCarro }}" hint-placeholder-val="{{ true }}">
+        <div style="{{ heroPlaceholder }}">
+          <span style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--color-neutral-500)">{{ carro.marca }}</span>
+          <span style="font-family:var(--font-heading);font-weight:500;font-size:46px;letter-spacing:-0.03em;line-height:1.05;color:var(--color-neutral-100)">{{ carro.modelo }}</span>
+          <span style="font-size:12px;color:var(--color-neutral-600)">{{ legendaGaleria }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ gerenciandoFotos }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:12px;padding:16px;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800)">
+          <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);margin-bottom:12px">Gerenciar fotos</div>
+          <sc-if value="{{ temFotosCarro }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+              <sc-for list="{{ fotosParaGerenciar }}" as="fp" hint-placeholder-count="3">
+                <div style="position:relative">
+                  <img src="{{ fp.url }}" style="width:100px;height:75px;object-fit:cover;border-radius:6px;border:1px solid var(--color-neutral-700)">
+                  <span onClick="{{ fp.apagar }}" style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;line-height:1">✕</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ semFotosCarro }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:12px">Nenhuma foto cadastrada.</div>
+          </sc-if>
+          <span onClick="{{ fecharGerenciarFotos }}" class="btn btn-ghost" style="cursor:pointer;padding:7px 14px;font-size:12.5px">Fechar</span>
+        </div>
+      </sc-if>
+
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin:22px 0 14px">
+        <span class="tag tag-outline" style="font-size:11px;padding:4px 11px">{{ carro.categoria }}</span>
+        <span class="{{ carro.tagStatus }}" style="font-size:11px;padding:4px 11px">{{ carro.status }}</span>
+        <span class="tag tag-neutral" style="font-size:11px;padding:4px 11px">{{ carro.mao }}</span>
+        <span class="tag tag-neutral" style="font-size:11px;padding:4px 11px">{{ carro.codigo }}</span>
+      </div>
+
+      <h1 style="font-family:var(--font-heading);font-weight:500;font-size:29px;letter-spacing:-0.02em;line-height:1.18;margin:0 0 6px">{{ carro.titulo }}</h1>
+      <div style="font-size:14px;color:var(--color-neutral-400);margin-bottom:26px">{{ carro.versao }}</div>
+
+      <h2 style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin:0 0 10px">Descrição do anúncio</h2>
+      <p style="font-size:14.5px;line-height:1.72;color:var(--color-neutral-300);margin:0 0 32px;max-width:66ch;white-space:pre-wrap;text-wrap:pretty">{{ carro.descricao }}</p>
+
+      <h2 style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin:0 0 12px">Ficha técnica</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:1px;background:var(--color-divider);border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+        <sc-for list="{{ ficha }}" as="f" hint-placeholder-count="12">
+          <div style="background:var(--color-surface);padding:13px 15px">
+            <div style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:5px">{{ f.k }}</div>
+            <div style="font-size:13.5px;line-height:1.45;color:var(--color-neutral-200)">{{ f.v }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <aside style="position:sticky;top:88px;display:flex;flex-direction:column;gap:16px">
+      <div style="padding:22px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md)">
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:7px">Preço pedido</div>
+        <div style="font-family:var(--font-heading);font-weight:500;font-size:31px;letter-spacing:-0.03em;color:var(--color-accent-300);margin-bottom:18px">{{ carro.precoFmt }}</div>
+
+        <sc-if value="{{ podeFazerProposta }}" hint-placeholder-val="{{ true }}">
+          <span onClick="{{ irProposta }}" class="btn btn-primary btn-block" style="cursor:pointer;padding:12px;font-size:14px">Fazer uma proposta</span>
+          <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600);margin-top:10px">Proposta é o único canal de negociação do backend: valor + descrição, e o vendedor aceita ou nega.</div>
+        </sc-if>
+
+        <sc-if value="{{ ehMeuAnuncio }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:12px;color:var(--color-neutral-500);margin-bottom:2px">Este anúncio é seu.</div>
+            <span onClick="{{ editarAnuncio }}" class="btn btn-secondary btn-block" style="cursor:pointer;padding:10px;font-size:13.5px">Editar anúncio</span>
+            <span onClick="{{ gerenciarFotos }}" class="btn btn-secondary btn-block" style="cursor:pointer;padding:10px;font-size:13.5px">Gerenciar fotos</span>
+            <span onClick="{{ excluirAnuncio }}" class="btn btn-ghost btn-block" style="cursor:pointer;padding:10px;font-size:13.5px">Excluir anúncio</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="padding:18px 20px;border-radius:var(--radius-lg);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:10px">Vendedor</div>
+        <div style="display:flex;align-items:center;gap:11px">
+          <span style="width:34px;height:34px;flex:none;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent-700);color:var(--color-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:14px">{{ vendedor.inicial }}</span>
+          <div>
+            <div style="font-size:14px">{{ vendedor.nome }}</div>
+            <div style="font-size:11.5px;color:var(--color-neutral-600)">{{ vendedor.detalhe }}</div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600);margin-top:12px">A tabela usuario tem apenas nome, e-mail e telefone — não há reputação, nota nem selo.</div>
+      </div>
+    </aside>
+  </div>
+</section>
+</sc-if>
+
+<!-- ══════════════ PROPOSTA ══════════════ -->
+<sc-if value="{{ isProposta }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1020px;margin:0 auto;padding:34px 28px 80px;animation:amIn .3s ease both">
+  <span onClick="{{ voltarVeiculo }}" style="cursor:pointer;display:inline-block;font-size:12.5px;color:var(--color-neutral-500);margin-bottom:20px">← voltar ao anúncio</span>
+
+  <div style="display:grid;grid-template-columns:1fr 330px;gap:36px;align-items:start">
+    <div>
+      <sc-if value="{{ propostaAberta }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:12px">Nova proposta</div>
+          <h1 style="font-family:var(--font-heading);font-weight:500;font-size:28px;letter-spacing:-0.02em;margin:0 0 10px">Diga quanto você paga</h1>
+          <p style="font-size:14px;line-height:1.65;color:var(--color-neutral-400);margin:0 0 26px;max-width:56ch;text-wrap:pretty">A proposta grava valor, descrição e o seu id de comprador. O vendedor pode aceitar ou negar; você pode cancelar enquanto estiver pendente.</p>
+
+          <div style="display:flex;flex-direction:column;gap:16px;max-width:520px">
+            <label style="display:flex;flex-direction:column;gap:7px">
+              <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Valor da proposta</span>
+              <span style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+                <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-500)">R$</span>
+                <input inputmode="numeric" value="{{ propValorInput }}" onChange="{{ setPropValor }}" placeholder="120.000" style="flex:1;min-width:0;padding:0;font-family:var(--font-heading);font-size:21px;letter-spacing:-0.02em;color:var(--color-text);background:transparent;border:none;outline:none">
+              </span>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:7px">
+              <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Descrição</span>
+              <textarea value="{{ propDescricao }}" onChange="{{ setPropDescricao }}" rows="5" placeholder="Condições, forma de pagamento, prazo para ver o carro…" style="width:100%;padding:12px 14px;font-size:14px;line-height:1.6;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;resize:vertical"></textarea>
+            </label>
+
+            <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:11px 13px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;line-height:1.5;color:var(--color-accent-100)">{{ erro }}</div>
+            </sc-if>
+
+            <span onClick="{{ enviarProposta }}" class="btn btn-primary" style="cursor:pointer;padding:12px 22px;font-size:14px;align-self:flex-start">{{ labelEnviarProposta }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ propostaEnviada }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="width:42px;height:42px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-size:17px;margin-bottom:18px">✓</div>
+          <h1 style="font-family:var(--font-heading);font-weight:500;font-size:27px;letter-spacing:-0.02em;margin:0 0 10px">Proposta registrada</h1>
+          <p style="font-size:14px;line-height:1.65;color:var(--color-neutral-400);margin:0 0 24px;max-width:54ch">Guardamos o id no seu navegador, porque o backend não tem rota de listagem de propostas. Ela aparece em Minha conta → Propostas.</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1px;background:var(--color-divider);border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden;max-width:520px;margin-bottom:22px">
+            <sc-for list="{{ resumoProposta }}" as="r" hint-placeholder-count="4">
+              <div style="background:var(--color-surface);padding:13px 15px">
+                <div style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:5px">{{ r.k }}</div>
+                <div style="font-size:13.5px;color:var(--color-neutral-200)">{{ r.v }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <span onClick="{{ irConta }}" class="btn btn-secondary" style="cursor:pointer;padding:10px 18px;font-size:13.5px">Ver minhas propostas</span>
+            <span onClick="{{ irEstoque }}" class="btn btn-ghost" style="cursor:pointer;padding:10px 18px;font-size:13.5px">Voltar ao estoque</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <aside style="padding:20px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);position:sticky;top:88px">
+      <div style="font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:12px">Anúncio</div>
+      <div style="{{ resumoPlaceholder }}">
+        <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-500)">{{ carro.marca }}</span>
+        <span style="font-family:var(--font-heading);font-size:21px;letter-spacing:-0.02em;color:var(--color-neutral-200)">{{ carro.modelo }}</span>
+      </div>
+      <div style="font-family:var(--font-heading);font-size:15px;line-height:1.3;margin:14px 0 4px">{{ carro.titulo }}</div>
+      <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:14px">{{ carro.versao }}</div>
+      <div style="font-family:var(--font-heading);font-size:22px;letter-spacing:-0.02em;color:var(--color-accent-300)">{{ carro.precoFmt }}</div>
+      <div style="font-size:12px;line-height:1.7;color:var(--color-neutral-500);margin-top:12px;border-top:1px solid var(--color-divider);padding-top:12px">{{ carro.meta }}</div>
+      <div style="font-size:12px;color:var(--color-neutral-600);margin-top:10px">Vendedor: {{ vendedor.nome }}</div>
+    </aside>
+  </div>
+</section>
+</sc-if>
+
+<!-- ══════════════ ANUNCIAR ══════════════ -->
+<sc-if value="{{ isAnunciar }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1020px;margin:0 auto;padding:44px 28px 80px;animation:amIn .3s ease both">
+  <div style="max-width:56ch;margin-bottom:30px">
+    <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:12px">{{ kickerAnunciar }}</div>
+    <h1 style="font-family:var(--font-heading);font-weight:500;font-size:30px;letter-spacing:-0.02em;margin:0 0 10px">{{ tituloAnunciar }}</h1>
+    <p style="font-size:14px;line-height:1.65;color:var(--color-neutral-400);margin:0;text-wrap:pretty">Preencha os dados do veículo e selecione as fotos. As fotos são enviadas após o anúncio ser criado.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:16px;max-width:760px">
+    <sc-for list="{{ camposTexto }}" as="c" hint-placeholder-count="8">
+      <label style="display:flex;flex-direction:column;gap:6px;grid-column:{{ c.span }}">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">{{ c.label }}</span>
+        <input value="{{ c.valor }}" onChange="{{ c.onChange }}" placeholder="{{ c.dica }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+    </sc-for>
+
+    <sc-for list="{{ camposEnum }}" as="c" hint-placeholder-count="3">
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">{{ c.label }}</span>
+        <select value="{{ c.valor }}" onChange="{{ c.onChange }}" style="width:100%;padding:10px 12px;font-size:13.5px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm)">
+          <sc-for list="{{ c.opcoes }}" as="o" hint-placeholder-count="4">
+            <option value="{{ o.v }}">{{ o.label }}</option>
+          </sc-for>
+        </select>
+      </label>
+    </sc-for>
+
+    <label style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Preço</span>
+      <span style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+        <span style="font-family:var(--font-heading);font-size:14px;color:var(--color-neutral-500)">R$</span>
+        <input inputmode="numeric" value="{{ fPrecoInput }}" onChange="{{ setFPreco }}" placeholder="120.000" style="flex:1;min-width:0;padding:0;font-family:var(--font-heading);font-size:18px;letter-spacing:-0.02em;color:var(--color-text);background:transparent;border:none;outline:none">
+      </span>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Segunda mão</span>
+      <span style="display:flex;gap:6px;padding:4px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+        <sc-for list="{{ opcoesMao }}" as="o" hint-placeholder-count="2">
+          <span onClick="{{ o.onClick }}" class="{{ o.cls }}" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:7px 0;font-size:12.5px;border-radius:var(--radius-sm)">{{ o.label }}</span>
+        </sc-for>
+      </span>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
+      <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Descrição</span>
+      <textarea value="{{ fDescricao }}" onChange="{{ setFDescricao }}" rows="5" placeholder="Estado do carro, revisões, o que está incluso…" style="width:100%;padding:12px 14px;font-size:14px;line-height:1.6;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;resize:vertical"></textarea>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
+      <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Fotos do veículo</span>
+      <div style="padding:16px;border:1px dashed var(--color-neutral-700);border-radius:var(--radius-sm);background:var(--color-neutral-900)">
+        <input type="file" id="inputFotos" multiple accept="image/*" onChange="{{ selecionarFotos }}"
+          style="width:100%;font-size:13px;color:var(--color-neutral-300);cursor:pointer">
+        <div style="font-size:12px;color:var(--color-neutral-600);margin-top:8px">{{ labelFotos }}</div>
+      </div>
+    </label>
+  </div>
+
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:760px;margin-top:18px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;line-height:1.5;color:var(--color-accent-100)">{{ erro }}</div>
+  </sc-if>
+  <sc-if value="{{ anuncioSalvo }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:760px;margin-top:18px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-accent-700);font-size:12.5px;color:var(--color-accent-100)">{{ mensagemSalvo }}</div>
+  </sc-if>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
+    <span onClick="{{ salvarAnuncio }}" class="btn btn-primary" style="cursor:pointer;padding:12px 24px;font-size:14px">{{ labelSalvarAnuncio }}</span>
+    <span onClick="{{ irConta }}" class="btn btn-ghost" style="cursor:pointer;padding:12px 20px;font-size:14px">Meus anúncios</span>
+  </div>
+  <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:12px;max-width:60ch;line-height:1.6">Ao editar, o backend devolve o status para ATIVO — não existe ação de pausar ou marcar como vendido.</div>
+</section>
+</sc-if>
+
+<!-- ══════════════ MINHA CONTA ══════════════ -->
+<sc-if value="{{ isConta }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1120px;margin:0 auto;padding:44px 28px 80px;animation:amIn .3s ease both">
+  <h1 style="font-family:var(--font-heading);font-weight:500;font-size:29px;letter-spacing:-0.02em;margin:0 0 4px">{{ nomeUsuario }}</h1>
+  <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:26px">{{ detalheUsuario }}</div>
+
+  <div style="display:flex;gap:6px;padding:4px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);margin-bottom:26px;max-width:520px">
+    <sc-for list="{{ abas }}" as="a" hint-placeholder-count="3">
+      <span onClick="{{ a.onClick }}" class="{{ a.cls }}" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px 0;font-size:13px;border-radius:var(--radius-sm)">{{ a.label }}</span>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:20px;padding:13px 15px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;line-height:1.5;color:var(--color-accent-100)">{{ erro }}</div>
+  </sc-if>
+
+  <!-- aba: meus dados -->
+  <sc-if value="{{ abaDados }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;max-width:640px">
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Nome</span>
+        <input value="{{ cNome }}" onChange="{{ setCNome }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">E-mail</span>
+        <input value="{{ cEmail }}" onChange="{{ setCEmail }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Telefone</span>
+        <input value="{{ cTelefone }}" onChange="{{ setCTelefone }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+      </label>
+    </div>
+    <div style="font-size:11.5px;line-height:1.6;color:var(--color-neutral-600);margin-top:14px;max-width:58ch">A tabela usuario não tem foto, endereço nem CPF.</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap">
+      <span onClick="{{ salvarDados }}" class="btn btn-primary" style="cursor:pointer;padding:11px 22px;font-size:13.5px">{{ labelSalvarDados }}</span>
+      <sc-if value="{{ dadosSalvos }}" hint-placeholder-val="{{ false }}">
+        <span style="font-size:12.5px;color:var(--color-accent)">Dados atualizados.</span>
+      </sc-if>
+    </div>
+
+    <div style="margin-top:34px;padding-top:24px;border-top:1px solid var(--color-divider);max-width:640px">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:14px">Trocar senha</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Senha atual</span>
+          <input type="password" value="{{ senhaAtual }}" onChange="{{ setSenhaAtual }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Nova senha</span>
+          <input type="password" value="{{ novaSenha }}" onChange="{{ setNovaSenha }}" style="width:100%;padding:10px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap">
+        <span onClick="{{ trocarSenha }}" class="btn btn-secondary" style="cursor:pointer;padding:10px 20px;font-size:13px">{{ labelTrocarSenha }}</span>
+        <sc-if value="{{ senhaTrocada }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12.5px;color:var(--color-accent)">Senha trocada.</span>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- aba: meus anúncios -->
+  <sc-if value="{{ abaAnuncios }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <sc-if value="{{ carregando }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:36px;text-align:center;font-size:13.5px;color:var(--color-neutral-500);border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg)">Carregando…</div>
+      </sc-if>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ meusAnuncios }}" as="a" hint-placeholder-count="2">
+          <div style="display:grid;grid-template-columns:88px 1fr auto;gap:18px;align-items:center;padding:15px 17px;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800)">
+            <div style="{{ a.mini }}">
+              <span style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600)">{{ a.marca }}</span>
+              <span style="font-family:var(--font-heading);font-size:14px;color:var(--color-neutral-300)">{{ a.modelo }}</span>
+            </div>
+            <div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px">
+                <span class="{{ a.tagStatus }}" style="font-size:10px;padding:3px 8px">{{ a.status }}</span>
+                <span class="tag tag-outline" style="font-size:10px;padding:3px 8px">{{ a.categoria }}</span>
+                <span class="tag tag-neutral" style="font-size:10px;padding:3px 8px">{{ a.codigo }}</span>
+              </div>
+              <div style="font-family:var(--font-heading);font-size:15px;margin-bottom:3px">{{ a.titulo }}</div>
+              <div style="font-size:12px;color:var(--color-neutral-500)">{{ a.meta }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">
+              <div style="font-family:var(--font-heading);font-size:17px;letter-spacing:-0.02em;color:var(--color-accent-300)">{{ a.precoFmt }}</div>
+              <span style="display:flex;gap:7px">
+                <span onClick="{{ a.abrir }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Ver</span>
+                <span onClick="{{ a.editar }}" class="btn btn-secondary" style="cursor:pointer;padding:6px 12px;font-size:12px">Editar</span>
+                <span onClick="{{ a.excluir }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Excluir</span>
+              </span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ semMeusAnuncios }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:38px;border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg);text-align:center">
+          <div style="font-family:var(--font-heading);font-size:15.5px;margin-bottom:6px">Você ainda não publicou nada</div>
+          <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:16px">Seus anúncios são filtrados por usuarioId na listagem geral — não há rota "meus anúncios" no backend.</div>
+          <span onClick="{{ irAnunciar }}" class="btn btn-primary" style="cursor:pointer;padding:9px 18px;font-size:13.5px">Criar anúncio</span>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- aba: propostas -->
+  <sc-if value="{{ abaPropostas }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="font-size:12px;line-height:1.6;color:var(--color-neutral-600);margin-bottom:18px;max-width:62ch">Propostas em que você é comprador ou dono do anúncio.</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ propostas }}" as="p" hint-placeholder-count="2">
+          <div style="padding:16px 18px;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800)">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center">
+              <div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                  <span class="{{ p.tagStatus }}" style="font-size:10px;padding:3px 8px">{{ p.status }}</span>
+                  <span class="tag tag-neutral" style="font-size:10px;padding:3px 8px">proposta #{{ p.id }}</span>
+                  <span class="tag tag-outline" style="font-size:10px;padding:3px 8px">anúncio {{ p.anuncioId }}</span>
+                </div>
+                <div style="font-family:var(--font-heading);font-size:19px;letter-spacing:-0.02em;color:var(--color-accent-300);margin-bottom:5px">{{ p.valorFmt }}</div>
+                <div style="font-size:13px;line-height:1.55;color:var(--color-neutral-400);max-width:60ch">{{ p.descricao }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">
+                <sc-if value="{{ p.podeAceitarNegar }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:flex;gap:7px">
+                    <span onClick="{{ p.aceitar }}" class="btn btn-secondary" style="cursor:pointer;padding:6px 12px;font-size:12px">Aceitar</span>
+                    <span onClick="{{ p.negar }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Negar</span>
+                  </span>
+                </sc-if>
+                <sc-if value="{{ p.podeContrapropor }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ p.contrapropor }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Fazer contraproposta</span>
+                </sc-if>
+                <sc-if value="{{ p.podeCancelar }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ p.cancelar }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Cancelar</span>
+                </sc-if>
+                <sc-if value="{{ p.aguardandoComprador }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:12px;color:var(--color-neutral-600)">Aguardando o comprador</span>
+                </sc-if>
+                <sc-if value="{{ p.fechada }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:12px;color:var(--color-neutral-600)">{{ p.notaFechada }}</span>
+                </sc-if>
+                <span onClick="{{ p.conversar }}" class="btn btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:12px">Conversar</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ p.temContraproposta }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+                <div style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:6px">Contraproposta do vendedor</div>
+                <div style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-300);margin-bottom:4px">{{ p.contrapropostaValorFmt }}</div>
+                <div style="font-size:12.5px;color:var(--color-neutral-400)">{{ p.contrapropostaDescricao }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ p.contrapondo }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;padding:14px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:10px;max-width:420px">
+                <label style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Valor da contraproposta</span>
+                  <input inputmode="numeric" value="{{ p.contraValorInput }}" onChange="{{ p.setContraValor }}" style="padding:9px 12px;font-size:14px;color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Descrição (opcional)</span>
+                  <textarea value="{{ p.contraDescricao }}" onChange="{{ p.setContraDescricao }}" rows="2" style="padding:9px 12px;font-size:13.5px;color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;resize:vertical"></textarea>
+                </label>
+                <span style="display:flex;gap:8px">
+                  <span onClick="{{ p.enviarContraproposta }}" class="btn btn-primary" style="cursor:pointer;padding:8px 16px;font-size:12.5px">{{ p.labelEnviarContraproposta }}</span>
+                  <span onClick="{{ p.cancelarContraproposta }}" class="btn btn-ghost" style="cursor:pointer;padding:8px 16px;font-size:12.5px">Cancelar</span>
+                </span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ semPropostas }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:38px;border:1px dashed var(--color-neutral-800);border-radius:var(--radius-lg);text-align:center;font-size:13.5px;color:var(--color-neutral-500)">Nenhuma proposta ainda.</div>
+      </sc-if>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<!-- ══════════════ MENSAGENS ══════════════ -->
+<sc-if value="{{ isMensagens }}" hint-placeholder-val="{{ false }}">
+<section style="max-width:1120px;margin:0 auto;padding:44px 28px 80px;animation:amIn .3s ease both">
+  <h1 style="font-family:var(--font-heading);font-weight:500;font-size:29px;letter-spacing:-0.02em;margin:0 0 4px">Mensagens</h1>
+  <div style="font-size:13px;color:var(--color-neutral-500);margin-bottom:22px">Converse sobre uma proposta com quem comprou ou anunciou o veículo.</div>
+
+  <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:18px;padding:13px 15px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;line-height:1.5;color:var(--color-accent-100)">{{ erro }}</div>
+  </sc-if>
+
+  <div class="{{ chatShellClasse }}">
+    <div class="chat-lista">
+      <div style="padding:16px 16px 10px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);flex:none">Conversas</div>
+      <sc-if value="{{ carregandoConversas }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:6px 16px 16px;font-size:12.5px;color:var(--color-neutral-500)">Carregando…</div>
+      </sc-if>
+      <div style="overflow-y:auto;flex:1">
+        <sc-for list="{{ chatConversas }}" as="c" hint-placeholder-count="3">
+          <div onClick="{{ c.abrir }}" style="{{ c.estilo }}">
+            <span style="width:40px;height:40px;flex:none;border-radius:50%;background:var(--chat-accent-900);border:1px solid var(--chat-accent-700);color:var(--chat-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:15px">{{ c.inicial }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+                <span style="font-size:13.5px;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.nome }}</span>
+                <span style="font-size:10.5px;color:var(--color-neutral-600);flex:none">{{ c.hora }}</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--chat-accent-300);margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.subtitulo }}</div>
+              <div style="font-size:12.5px;color:var(--color-neutral-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.previa }}</div>
+              <div style="font-size:11px;color:var(--color-neutral-600);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.anuncioTitulo }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ semConversas }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:38px 20px;text-align:center;font-size:13px;color:var(--color-neutral-500)">Nenhuma conversa ainda. Mande uma proposta para começar a conversar.</div>
+      </sc-if>
+    </div>
+
+    <div class="chat-detalhe">
+      <sc-if value="{{ semConversaAberta }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px;font-size:13.5px;color:var(--color-neutral-500)">Selecione uma conversa à esquerda.</div>
+      </sc-if>
+
+      <sc-if value="{{ temConversaAberta }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;height:100%">
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--color-divider);flex:none">
+            <span class="chat-voltar" onClick="{{ voltarLista }}" style="cursor:pointer;font-size:18px;line-height:1;color:var(--color-neutral-400)">←</span>
+            <span style="width:38px;height:38px;flex:none;border-radius:50%;background:var(--chat-accent-900);border:1px solid var(--chat-accent-700);color:var(--chat-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:15px">{{ chatSelecionada.inicial }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14.5px;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ chatSelecionada.nome }}</div>
+              <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ chatSelecionada.subtitulo }}</div>
+            </div>
+            <sc-if value="{{ chatSelecionada.temAnuncio }}" hint-placeholder-val="{{ false }}">
+              <span onClick="{{ chatSelecionada.verVeiculo }}" class="btn btn-secondary" style="cursor:pointer;padding:7px 14px;font-size:12px;white-space:nowrap">Ver veículo</span>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ chatSelecionada.temAnuncio }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-neutral-900);flex:none">
+              <span style="{{ chatSelecionada.miniFotoEstilo }}"></span>
+              <div style="min-width:0">
+                <div style="font-size:13.5px;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ chatSelecionada.anuncioTitulo }}</div>
+                <div style="font-size:12px;color:var(--chat-accent-300)">{{ chatSelecionada.anuncioPrecoFmt }} · {{ chatSelecionada.anuncioKm }}</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div class="chat-mensagens" style="flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+            <sc-if value="{{ carregandoChat }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12.5px;color:var(--color-neutral-500)">Carregando…</div>
+            </sc-if>
+            <sc-for list="{{ mensagensChat }}" as="m" hint-placeholder-count="3">
+              <div style="{{ m.linha }}">
+                <div style="{{ m.bolha }}">{{ m.conteudo }}</div>
+                <span style="font-size:10px;color:var(--color-neutral-600);margin-top:3px">{{ m.hora }}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{ semMensagensChat }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12.5px;color:var(--color-neutral-500)">Nenhuma mensagem ainda — comece a conversa.</div>
+            </sc-if>
+          </div>
+
+          <div style="padding:14px 18px;border-top:1px solid var(--color-divider);flex:none">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+              <sc-for list="{{ respostasRapidas }}" as="r" hint-placeholder-count="4">
+                <span onClick="{{ r.onClick }}" class="tag tag-outline" style="cursor:pointer;font-size:12px;padding:6px 12px;border-color:var(--chat-accent-700);color:var(--chat-accent-300)">{{ r.texto }}</span>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-end">
+              <textarea id="chatTextarea" value="{{ novoTextoChat }}" onChange="{{ setNovoTextoChat }}" rows="1" placeholder="Escreva sua mensagem" style="flex:1;min-width:0;padding:11px 14px;font-size:13.5px;line-height:1.4;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;resize:none"></textarea>
+              <span onClick="{{ enviarMensagemChat }}" class="btn btn-primary" style="cursor:pointer;padding:11px 20px;font-size:13px;white-space:nowrap;border-color:var(--chat-accent);color:var(--chat-accent)">{{ labelEnviarChat }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+</main>
+
+<footer style="border-top:1px solid var(--color-divider);padding:22px 28px;display:flex;flex-wrap:wrap;align-items:center;gap:14px">
+  <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Backend</span>
+  <input value="{{ baseUrlCampo }}" onChange="{{ setBaseUrl }}" placeholder="http://localhost:8080" style="width:250px;padding:8px 11px;font-size:12.5px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none">
+  <span onClick="{{ salvarBaseUrl }}" class="btn btn-secondary" style="cursor:pointer;padding:7px 14px;font-size:12px">Salvar e testar</span>
+  <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-neutral-500)">
+    <span style="{{ pontoConexao }}"></span>{{ detalheConexao }}
+  </span>
+  <span style="flex:1"></span>
+  <span style="font-size:11.5px;color:var(--color-neutral-600)">Só dados do banco: usuario, anuncio, proposta.</span>
+</footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;baseUrlPadrao&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://localhost:8080&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Backend&quot;},&quot;itensPorPagina&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:12,&quot;min&quot;:4,&quot;max&quot;:48,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Backend&quot;},&quot;mostrarCodigo&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Exibição&quot;}}">
+/* Nada de conteúdo aqui: todo dado vem de api.js (window.AutoMinasAPI),
+   que fala com o veiculos-api (Spring Boot) em REST. */
+const VAZIO = {id:null,codigo:"",titulo:"",versao:"",descricao:"",marca:"",modelo:"",ano:0,quilometragem:0,
+  preco:0,cor:"",combustivel:"",cambio:"",categoria:"",status:"",segundaMao:false,laudoCautelar:"",
+  documentacao:"",garantia:"",criadoEm:"",usuarioId:null,usuarioNome:""};
+
+class Component extends DCLogic {
+  state = {
+    rota:"login", alvo:"", erro:"", carregando:false, conexao:null, conexaoDetalhe:"testando…",
+    baseUrlCampo:"", usuario:null,
+    modoAuth:"Entrar", verSenha:false, fNome:"", fEmail:"", fSenha:"", fTelefone:"", autenticando:false,
+    recentes:[], lista:[], total:0, paginas:1, pagina:0,
+    filtroCategoria:"TODAS", filtroStatus:"TODOS", filtroSort:"criadoEm,desc", buscaCodigo:"",
+    carro:null, propValor:0, propDescricao:"", propostaCriada:null, enviandoProposta:false,
+    form:null, editandoId:null, salvandoAnuncio:false, anuncioSalvo:"",
+    aba:"Meus dados", cNome:"", cEmail:"", cTelefone:"", dadosSalvos:false, salvandoDados:false,
+    senhaAtual:"", novaSenha:"", trocandoSenha:false, senhaTrocada:false,
+    meusAnuncios:[], propostas:[],
+    fotosSelecionadas:[],
+    fotosCarro:[],
+    fotosCadastradasCarro:[],
+    gerenciandoFotos:false,
+    contrapondoId:null, contraValor:0, contraDescricao:"", enviandoContraproposta:false,
+    chatConversas:[], carregandoConversas:false, chatConversaId:null,
+    mensagensChat:[], carregandoChat:false, novoTextoChat:"", enviandoChat:false
+  };
+
+  api(){ return typeof window!=="undefined" ? window.AutoMinasAPI : null; }
+
+  componentDidMount(){
+    const api = this.api();
+    if(!api){ this.setState({erro:"api.js não carregou."}); return; }
+    this.setState({baseUrlCampo:this.props.baseUrlPadrao ? (localStorage.getItem("am_base_url")||this.props.baseUrlPadrao) : api.baseUrl()});
+    if(this.props.baseUrlPadrao && !localStorage.getItem("am_base_url")) api.definirBaseUrl(this.props.baseUrlPadrao);
+    this.testar();
+    const u = api.usuarioSalvo();
+    if(api.autenticado() && u){
+      this.setState({usuario:u, rota:"home", cNome:u.nome, cEmail:u.email, cTelefone:u.telefone});
+      this.carregarRecentes();
+    }
+  }
+
+  async testar(){
+    const api = this.api(); if(!api) return;
+    this.setState({conexao:null, conexaoDetalhe:"testando "+api.baseUrl()+"…"});
+    const r = await api.ping();
+    this.setState({conexao:r.online,
+      conexaoDetalhe:r.online ? api.baseUrl()+" respondeu ("+r.status+")" : "sem resposta em "+api.baseUrl()});
+  }
+
+  falhar(e){
+    if(e && e.sessaoExpirada){
+      this.setState({usuario:null, rota:"login", erro:e.message, carregando:false});
+      return;
+    }
+    this.setState({erro:(e && e.message) || "Erro inesperado.", carregando:false});
+  }
+
+  tamanho(){ return this.props.itensPorPagina ?? 12; }
+
+  async carregarRecentes(){
+    const api = this.api(); if(!api) return;
+    this.setState({carregando:true, erro:""});
+    try {
+      const pg = await api.anuncios({page:0, size:8, sort:"criadoEm,desc"});
+      this.setState({recentes:pg.itens, total:pg.total, carregando:false});
+    } catch(e){ this.setState({recentes:[]}); this.falhar(e); }
+  }
+
+  async carregarLista(pagina){
+    const api = this.api(); if(!api) return;
+    const s = this.state;
+    const p = pagina ?? s.pagina;
+    this.setState({carregando:true, erro:""});
+    try {
+      let pg;
+      const op = {page:p, size:this.tamanho(), sort:s.filtroSort};
+      if(s.filtroCategoria!=="TODAS") pg = await api.anunciosPorCategoria(s.filtroCategoria, op);
+      else if(s.filtroStatus!=="TODOS") pg = await api.anunciosPorStatus(s.filtroStatus, op);
+      else pg = await api.anuncios(op);
+      let itens = pg.itens;
+      if(s.filtroCategoria!=="TODAS" && s.filtroStatus!=="TODOS") itens = itens.filter(a=>a.status===s.filtroStatus);
+      this.setState({lista:itens, total:pg.total, paginas:pg.paginas||1, pagina:p, carregando:false});
+    } catch(e){ this.setState({lista:[]}); this.falhar(e); }
+  }
+
+  async carregarMeus(){
+    const api = this.api(); const s = this.state;
+    if(!api || !s.usuario) return;
+    this.setState({carregando:true, erro:""});
+    try {
+      const meus = [];
+      for(let p=0;p<10;p++){
+        const pg = await api.anuncios({page:p, size:100, sort:"criadoEm,desc"});
+        pg.itens.forEach(a=>{ if(a.usuarioId===s.usuario.id) meus.push(a); });
+        if(pg.ultima || pg.vazia) break;
+      }
+      this.setState({meusAnuncios:meus, carregando:false});
+    } catch(e){ this.falhar(e); }
+  }
+
+  async carregarPropostas(){
+    const api = this.api(); if(!api) return;
+    this.setState({carregando:true, erro:""});
+    try { this.setState({propostas:await api.minhasPropostas(), carregando:false}); }
+    catch(e){ this.falhar(e); }
+  }
+
+  ir(rota){
+    const api = this.api();
+    const publica = rota==="login";
+    if(!publica && (!api || !api.autenticado())){ this.setState({rota:"login", alvo:rota, erro:""}); window.scrollTo(0,0); return; }
+    this.setState({rota, erro:"", dadosSalvos:false, anuncioSalvo:""});
+    window.scrollTo(0,0);
+    if(rota==="home") this.carregarRecentes();
+    if(rota==="estoque") this.carregarLista(0);
+    if(rota==="conta"){ this.carregarMeus(); this.carregarPropostas(); }
+    if(rota==="mensagens") this.carregarConversas();
+  }
+
+  formVazio(){
+    const E = this.api().ENUMS;
+    return {titulo:"", marca:"", modelo:"", versao:"", ano:"", quilometragem:"", preco:0, cor:"",
+      combustivel:E.combustivel[2], cambio:E.cambio[0], categoria:E.categoria[0], segundaMao:true,
+      laudoCautelar:"", documentacao:"", garantia:"", descricao:""};
+  }
+
+  brl(n){ return "R$ " + Math.round(Number(n)||0).toLocaleString("pt-BR"); }
+  rot(v){ const R = this.api() ? this.api().ROTULOS : {}; return R[v] || v || "—"; }
+  data(iso){
+    if(!iso) return "—";
+    const d = new Date(iso);
+    return isNaN(d) ? String(iso) : d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"});
+  }
+
+  horaCurta(iso){
+    if(!iso) return "";
+    const d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  }
+
+  placeholderCard(a, altura, tam){
+    const semente = (String(a.marca||"?").charCodeAt(0)*7) % 360;
+    return "height:"+altura+";display:flex;flex-direction:column;justify-content:flex-end;gap:"+(tam>30?"8px":"4px")+";padding:"+(tam>30?"26px":"16px")+";"+
+      "background:linear-gradient(140deg, oklch(0.26 0.035 "+semente+"), var(--color-neutral-900) 72%);border-bottom:1px solid var(--color-divider)";
+  }
+  tagStatus(st){ return st==="ATIVO" ? "tag tag-accent" : "tag tag-neutral"; }
+
+  card(a){
+    const meta = [a.ano||"—", (a.quilometragem||0).toLocaleString("pt-BR")+" km", this.rot(a.cambio), this.rot(a.combustivel), a.cor].filter(Boolean).join(" · ");
+    const temFoto = !!(a.fotoCapaUrl);
+    const placeholderStyle = this.placeholderCard(a,"132px",26);
+    const cardTopo = temFoto
+      ? "height:132px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:16px;background-image:url("+a.fotoCapaUrl+");background-size:cover;background-position:center"
+      : placeholderStyle;
+    return {...a,
+      titulo:a.titulo || (a.marca+" "+a.modelo).trim() || "Sem título",
+      versao:a.versao || "—", marca:a.marca || "—", modelo:a.modelo || "—",
+      codigo:(this.props.mostrarCodigo ?? true) ? (a.codigo || "sem código") : "",
+      categoria:this.rot(a.categoria), status:this.rot(a.status), tagStatus:this.tagStatus(a.status),
+      mao:a.segundaMao ? "Segunda mão" : "Primeira mão",
+      precoFmt:this.brl(a.preco), meta,
+      temFoto, cardTopo,
+      // Texto do card: visível só quando não tem foto
+      marcaCard: temFoto ? "" : (a.marca||"—"),
+      modeloCard: temFoto ? "" : (a.modelo||"—"),
+      codigoCard: temFoto ? "" : ((this.props.mostrarCodigo ?? true) ? (a.codigo||"") : ""),
+      placeholder:temFoto ? "" : placeholderStyle,
+      mini:this.placeholderCard(a,"64px",14)+";border-radius:var(--radius-sm);border:none;align-items:flex-start",
+      abrir:()=>this.abrirCarro(a),
+      editar:()=>this.editar(a),
+      excluir:()=>this.excluir(a)
+    };
+  }
+
+  abrirCarro(a){
+    this.setState({carro:a, rota:"veiculo", erro:"", fotosCarro:[]});
+    window.scrollTo(0,0);
+    this.carregarFotosCarro(a.id);
+  }
+
+  async carregarFotosCarro(anuncioId){
+    const api = this.api(); if(!api || !anuncioId) return;
+    try {
+      const lista = await api.fotosDoAnuncio(anuncioId);
+      this.setState({
+        fotosCarro: lista.map(f=>f.url).filter(Boolean),
+        fotosCadastradasCarro: lista
+      });
+    } catch(e){ /* sem fotos, sem problema */ }
+  }
+
+  async apagarFoto(anuncioId, fotoId){
+    const api = this.api(); if(!api) return;
+    try {
+      await api.apagarFotoAnuncio(anuncioId, fotoId);
+      await this.carregarFotosCarro(anuncioId);
+    } catch(e){ this.setState({erro:"Erro ao apagar foto."}); }
+  }
+
+  editar(a){
+    this.setState({form:{titulo:a.titulo, marca:a.marca, modelo:a.modelo, versao:a.versao, ano:String(a.ano||""),
+      quilometragem:String(a.quilometragem||""), preco:a.preco, cor:a.cor, combustivel:a.combustivel,
+      cambio:a.cambio, categoria:a.categoria, segundaMao:a.segundaMao, laudoCautelar:a.laudoCautelar,
+      documentacao:a.documentacao, garantia:a.garantia, descricao:a.descricao},
+      editandoId:a.id, rota:"anunciar", erro:"", anuncioSalvo:""});
+    window.scrollTo(0,0);
+  }
+
+  async excluir(a){
+    const api = this.api();
+    if(!api || !window.confirm("Excluir o anúncio "+(a.codigo||a.id)+"? Isso apaga do banco.")) return;
+    try {
+      await api.excluirAnuncio(a.id);
+      this.setState({carro:null, rota:"conta", aba:"Meus anúncios", erro:""});
+      this.carregarMeus();
+    } catch(e){ this.falhar(e); }
+  }
+
+  async salvarAnuncio(){
+    const api = this.api(); const s = this.state;
+    const f = s.form || this.formVazio();
+    const falta = [["titulo","título"],["marca","marca"],["modelo","modelo"],["versao","versão"],["cor","cor"],
+      ["documentacao","documentação"],["garantia","garantia"],["descricao","descrição"]]
+      .filter(([k])=>!String(f[k]||"").trim()).map(([,n])=>n);
+    if(!Number(f.ano) || Number(f.ano)<1900) falta.push("ano (>= 1900)");
+    if(f.quilometragem==="" || Number(f.quilometragem)<0) falta.push("quilometragem");
+    if(!Number(f.preco)) falta.push("preço");
+    if(falta.length) return this.setState({erro:"Campos obrigatórios no backend: "+falta.join(", ")+"."});
+    if(!s.usuario || s.usuario.id==null) return this.setState({erro:"Não descobri seu id de usuário — entre de novo."});
+
+    const corpo = {titulo:f.titulo, marca:f.marca, modelo:f.modelo, versao:f.versao, descricao:f.descricao,
+      ano:Number(f.ano), quilometragem:Number(f.quilometragem), preco:Number(f.preco), cor:f.cor,
+      combustivel:f.combustivel, cambio:f.cambio, categoria:f.categoria, segundaMao:!!f.segundaMao,
+      status:"ATIVO", laudoCautelar:f.laudoCautelar||null, documentacao:f.documentacao, garantia:f.garantia};
+
+    this.setState({salvandoAnuncio:true, erro:"", anuncioSalvo:""});
+    try {
+      const salvo = s.editandoId
+        ? await api.atualizarAnuncio(s.editandoId, corpo)
+        : await api.criarAnuncio(corpo);
+
+      // Se tem fotos selecionadas, faz upload agora que temos o id do anúncio
+      const anuncioId = salvo && salvo.id;
+      const fotos = s.fotosSelecionadas || [];
+      if(anuncioId && fotos.length > 0){
+        this.setState({anuncioSalvo:"Enviando fotos…"});
+        await api.uploadFotos(anuncioId, fotos);
+      }
+
+      // Limpa as fotos selecionadas e reseta o input
+      const inputFotos = document.getElementById("inputFotos");
+      if(inputFotos) inputFotos.value = "";
+
+      this.setState({salvandoAnuncio:false, editandoId:null, form:this.formVazio(), fotosSelecionadas:[],
+        anuncioSalvo:(s.editandoId?"Anúncio atualizado":"Anúncio publicado")+
+          " — código "+((salvo&&salvo.codigo)||"gerado pelo backend")+
+          (fotos.length>0?" · "+fotos.length+" foto(s) enviada(s)":"")+"."});
+      this.carregarMeus();
+    } catch(e){ this.setState({salvandoAnuncio:false}); this.falhar(e); }
+  }
+
+  async enviarProposta(){
+    const api = this.api(); const s = this.state;
+    const c = s.carro || VAZIO;
+    if(!Number(s.propValor)) return this.setState({erro:"Informe o valor da proposta."});
+    if(!String(s.propDescricao).trim()) return this.setState({erro:"A descrição é obrigatória no backend."});
+    if(!s.usuario || s.usuario.id==null) return this.setState({erro:"Não descobri seu id de usuário — entre de novo."});
+    this.setState({enviandoProposta:true, erro:""});
+    try {
+      const p = await api.criarProposta({valor:Number(s.propValor), descricao:s.propDescricao, anuncioId:c.id});
+      this.setState({propostaCriada:p, enviandoProposta:false});
+      window.scrollTo(0,0);
+    } catch(e){ this.setState({enviandoProposta:false}); this.falhar(e); }
+  }
+
+  async acaoProposta(id, acao){
+    const api = this.api();
+    this.setState({erro:""});
+    try {
+      if(acao==="aceitar") await api.aceitarProposta(id);
+      if(acao==="negar") await api.negarProposta(id);
+      if(acao==="cancelar") await api.cancelarProposta(id);
+      this.carregarPropostas();
+    } catch(e){ this.falhar(e); }
+  }
+
+  abrirContraproposta(p){
+    this.setState({contrapondoId:p.id, contraValor:p.valor, contraDescricao:"", erro:""});
+  }
+
+  fecharContraproposta(){
+    this.setState({contrapondoId:null});
+  }
+
+  async enviarContraproposta(){
+    const api = this.api(); const s = this.state;
+    if(!Number(s.contraValor)) return this.setState({erro:"Informe o valor da contraproposta."});
+    this.setState({enviandoContraproposta:true, erro:""});
+    try {
+      await api.fazerContraproposta(s.contrapondoId, {valor:Number(s.contraValor), descricao:s.contraDescricao});
+      this.setState({enviandoContraproposta:false, contrapondoId:null});
+      this.carregarPropostas();
+    } catch(e){ this.setState({enviandoContraproposta:false}); this.falhar(e); }
+  }
+
+  /* ---------- Mensagens: lista de conversas + conversa aberta ---------- */
+
+  async carregarConversas(){
+    const api = this.api(); if(!api) return;
+    const meuId = this.state.usuario ? this.state.usuario.id : null;
+    this.setState({carregandoConversas:true, erro:""});
+    try {
+      const props = await api.minhasPropostas();
+      const cacheAnuncio = {};
+      const conversas = await Promise.all(props.map(async pr=>{
+        if(cacheAnuncio[pr.anuncioId]===undefined){
+          try { cacheAnuncio[pr.anuncioId] = await api.anuncio(pr.anuncioId); }
+          catch(e){ cacheAnuncio[pr.anuncioId] = null; }
+        }
+        const anuncio = cacheAnuncio[pr.anuncioId];
+        const souComprador = meuId!=null && pr.compradorId===meuId;
+        const outroId = souComprador ? (anuncio && anuncio.usuarioId) : pr.compradorId;
+        let outro = null;
+        try { outro = outroId!=null ? await api.usuario(outroId) : null; } catch(e){ outro = null; }
+        let ultima = null;
+        try { ultima = await api.ultimaMensagem(pr.id); } catch(e){ ultima = null; }
+        return { propostaId:pr.id, anuncio, outro, ultima, souComprador, criadoEmProposta:pr.criadoEm };
+      }));
+      conversas.sort((a,b)=> new Date((b.ultima&&b.ultima.criadoEm)||b.criadoEmProposta) - new Date((a.ultima&&a.ultima.criadoEm)||a.criadoEmProposta));
+      this.setState({chatConversas:conversas, carregandoConversas:false});
+    } catch(e){ this.setState({carregandoConversas:false}); this.falhar(e); }
+  }
+
+  irParaConversa(propostaId){
+    this.setState({rota:"mensagens", erro:""});
+    window.scrollTo(0,0);
+    this.carregarConversas();
+    this.abrirConversa(propostaId);
+  }
+
+  async abrirConversa(propostaId){
+    const api = this.api(); if(!api) return;
+    this.setState({chatConversaId:propostaId, carregandoChat:true, novoTextoChat:"", erro:""});
+    try {
+      const msgs = await api.mensagens(propostaId);
+      this.setState({mensagensChat:msgs, carregandoChat:false});
+    } catch(e){ this.setState({carregandoChat:false}); this.falhar(e); }
+  }
+
+  voltarParaLista(){
+    this.setState({chatConversaId:null});
+  }
+
+  async enviarMensagemChat(){
+    const api = this.api(); const s = this.state;
+    const texto = String(s.novoTextoChat||"").trim();
+    if(!texto || !s.chatConversaId) return;
+    this.setState({enviandoChat:true, erro:""});
+    try {
+      await api.enviarMensagem(s.chatConversaId, texto);
+      const msgs = await api.mensagens(s.chatConversaId);
+      this.setState({mensagensChat:msgs, novoTextoChat:"", enviandoChat:false});
+      this.carregarConversas();
+    } catch(e){ this.setState({enviandoChat:false}); this.falhar(e); }
+  }
+
+  usarRespostaRapida(texto){
+    this.setState({novoTextoChat:texto});
+    const campo = document.getElementById("chatTextarea");
+    if(campo) campo.focus();
+  }
+
+  async autenticar(){
+    const api = this.api(); const s = this.state;
+    if(!s.fEmail.includes("@")) return this.setState({erro:"Informe um e-mail válido."});
+    if(!s.fSenha) return this.setState({erro:"Informe a senha."});
+    if(s.modoAuth==="Criar conta"){
+      if(!s.fNome.trim()) return this.setState({erro:"O backend exige nome."});
+      if(!s.fTelefone.trim()) return this.setState({erro:"O backend exige telefone."});
+    }
+    this.setState({autenticando:true, erro:""});
+    try {
+      const u = s.modoAuth==="Criar conta"
+        ? await api.registrar({nome:s.fNome, email:s.fEmail, senha:s.fSenha, telefone:s.fTelefone})
+        : await api.entrar({email:s.fEmail, senha:s.fSenha});
+      const destino = s.alvo || "home";
+      this.setState({usuario:u, autenticando:false, fSenha:"", alvo:"", rota:destino,
+        cNome:u.nome, cEmail:u.email, cTelefone:u.telefone});
+      window.scrollTo(0,0);
+      if(destino==="home") this.carregarRecentes();
+      if(destino==="estoque") this.carregarLista(0);
+      if(destino==="conta"){ this.carregarMeus(); this.carregarPropostas(); }
+    } catch(e){ this.setState({autenticando:false}); this.falhar(e); }
+  }
+
+  async salvarDados(){
+    const api = this.api(); const s = this.state;
+    if(!s.usuario || s.usuario.id==null) return this.setState({erro:"Sem id de usuário."});
+    this.setState({salvandoDados:true, erro:"", dadosSalvos:false});
+    try {
+      const u = await api.atualizarUsuario(s.usuario.id, {nome:s.cNome, email:s.cEmail, telefone:s.cTelefone});
+      this.setState({usuario:u||s.usuario, salvandoDados:false, dadosSalvos:true});
+    } catch(e){ this.setState({salvandoDados:false}); this.falhar(e); }
+  }
+
+  async trocarSenha(){
+    const api = this.api(); const s = this.state;
+    if(!s.usuario || s.usuario.id==null) return this.setState({erro:"Sem id de usuário."});
+    if(!s.senhaAtual || !s.novaSenha) return this.setState({erro:"Informe a senha atual e a nova senha."});
+    this.setState({trocandoSenha:true, erro:"", senhaTrocada:false});
+    try {
+      await api.trocarSenha(s.usuario.id, {senhaAtual:s.senhaAtual, novaSenha:s.novaSenha});
+      this.setState({trocandoSenha:false, senhaTrocada:true, senhaAtual:"", novaSenha:""});
+    } catch(e){ this.setState({trocandoSenha:false}); this.falhar(e); }
+  }
+
+  renderVals(){
+    const s = this.state;
+    const api = this.api();
+    const E = api ? api.ENUMS : {cambio:[],categoria:[],statusAnuncio:[],combustivel:[]};
+    const logado = !!(api && api.autenticado() && s.usuario);
+    const c = s.carro || VAZIO;
+    const cardCarro = this.card(c);
+    const f = s.form || this.formVazio();
+    const meuId = s.usuario ? s.usuario.id : null;
+    const p = s.propostaCriada;
+
+    const menuDefs = logado
+      ? [{r:"home",label:"Início"},{r:"estoque",label:"Estoque"},{r:"anunciar",label:"Anunciar"},{r:"mensagens",label:"Mensagens"},{r:"conta",label:"Minha conta"}]
+      : [];
+    const menu = menuDefs.map(m=>{
+      const on = s.rota===m.r || (m.r==="estoque" && (s.rota==="veiculo"||s.rota==="proposta"));
+      return {label:m.label, onClick:()=>{ if(m.r==="anunciar" && s.rota!=="anunciar") this.setState({form:this.formVazio(), editandoId:null}); this.ir(m.r); },
+        style:"cursor:pointer;white-space:nowrap;padding:7px 11px;border-radius:var(--radius-sm);font-size:13px;transition:color .15s,background .15s;"+
+          (on ? "color:var(--color-accent);background:var(--color-accent-900);box-shadow:inset 0 -2px 0 var(--color-accent)"
+              : "color:var(--color-neutral-300);background:transparent")};
+    });
+
+    const corPonto = s.conexao===null ? "var(--color-neutral-600)" : s.conexao ? "var(--color-accent)" : "oklch(0.62 0.14 25)";
+
+    const camposTexto = [
+      {k:"titulo", label:"Título do anúncio", dica:"Corolla XEi 2021 único dono", span:"1/-1"},
+      {k:"marca", label:"Marca", dica:"Toyota", span:"auto"},
+      {k:"modelo", label:"Modelo", dica:"Corolla", span:"auto"},
+      {k:"versao", label:"Versão", dica:"2.0 Flex CVT", span:"auto"},
+      {k:"ano", label:"Ano", dica:"2021", span:"auto"},
+      {k:"quilometragem", label:"Quilometragem", dica:"48200", span:"auto"},
+      {k:"cor", label:"Cor", dica:"Prata", span:"auto"},
+      {k:"documentacao", label:"Documentação", dica:"IPVA 2026 pago, sem multas", span:"1/-1"},
+      {k:"garantia", label:"Garantia", dica:"3 meses motor e câmbio", span:"auto"},
+      {k:"laudoCautelar", label:"Laudo cautelar (opcional)", dica:"Aprovado — sem sinistro", span:"auto"}
+    ].map(campo=>({label:campo.label, dica:campo.dica, span:campo.span, valor:f[campo.k]||"",
+      onChange:e=>this.setState({form:{...f,[campo.k]:e.target.value}, erro:"", anuncioSalvo:""})}));
+
+    const camposEnum = [
+      {k:"categoria", label:"Categoria", lista:E.categoria},
+      {k:"cambio", label:"Câmbio", lista:E.cambio},
+      {k:"combustivel", label:"Combustível", lista:E.combustivel}
+    ].map(campo=>({label:campo.label, valor:f[campo.k],
+      opcoes:(campo.lista||[]).map(v=>({v, label:this.rot(v)})),
+      onChange:e=>this.setState({form:{...f,[campo.k]:e.target.value}, erro:""})}));
+
+    const propostas = s.propostas.map(pr=>{
+      const euSouComprador = meuId != null && pr.compradorId === meuId;
+      const euSouDono = !euSouComprador;
+      const aberta = pr.status==="PENDENTE" || pr.status==="CONTRAPROPOSTA";
+      // Proposta original: dono decide e pode contrapropor. Depois de uma contraproposta,
+      // quem decide passa a ser o comprador (é a oferta do dono que ele está avaliando).
+      const souQuemDecideAgora = pr.status==="CONTRAPROPOSTA" ? euSouComprador : euSouDono;
+      return {
+        id:pr.id, anuncioId:pr.anuncioId ?? "—", descricao:pr.descricao || "—",
+        valorFmt:this.brl(pr.valor), status:this.rot(pr.status),
+        tagStatus:pr.status==="ACEITA" ? "tag tag-accent" : aberta ? "tag tag-outline" : "tag tag-neutral",
+        podeCancelar:aberta && euSouComprador,
+        podeAceitarNegar:aberta && souQuemDecideAgora,
+        podeContrapropor:pr.status==="PENDENTE" && euSouDono,
+        temContraproposta:pr.status==="CONTRAPROPOSTA" && pr.contrapropostaFeita,
+        contrapropostaValorFmt:this.brl(pr.contrapropostaValor),
+        contrapropostaDescricao:pr.contrapropostaDescricao || "—",
+        aguardandoComprador:pr.status==="CONTRAPROPOSTA" && euSouDono,
+        fechada:!aberta,
+        notaFechada:"proposta "+this.rot(pr.status).toLowerCase(),
+        aceitar:()=>this.acaoProposta(pr.id,"aceitar"),
+        negar:()=>this.acaoProposta(pr.id,"negar"),
+        cancelar:()=>this.acaoProposta(pr.id,"cancelar"),
+        contrapropor:()=>this.abrirContraproposta(pr),
+
+        /* contraproposta: formulário inline */
+        contrapondo:s.contrapondoId===pr.id,
+        contraValorInput:s.contraValor ? Number(s.contraValor).toLocaleString("pt-BR") : "",
+        setContraValor:e=>this.setState({contraValor:Number(String(e.target.value).replace(/\D/g,""))||0}),
+        contraDescricao:s.contraDescricao,
+        setContraDescricao:e=>this.setState({contraDescricao:e.target.value}),
+        labelEnviarContraproposta:s.enviandoContraproposta ? "Enviando…" : "Enviar contraproposta",
+        enviarContraproposta:()=>this.enviarContraproposta(),
+        cancelarContraproposta:()=>this.fecharContraproposta(),
+
+        conversar:()=>this.irParaConversa(pr.id)
+      };
+    });
+
+    /* ---------- Mensagens: lista de conversas + conversa aberta ---------- */
+    const chatConversasView = s.chatConversas.map(cv=>{
+      const nomeOutro = (cv.outro && cv.outro.nome) || "Usuário";
+      const anuncioTitulo = cv.anuncio ? (cv.anuncio.titulo || (cv.anuncio.marca+" "+cv.anuncio.modelo).trim()) : "Anúncio removido";
+      const ultimaHora = cv.ultima ? cv.ultima.criadoEm : cv.criadoEmProposta;
+      const selecionada = s.chatConversaId===cv.propostaId;
+      return {
+        id:cv.propostaId,
+        inicial:nomeOutro.charAt(0).toUpperCase(),
+        nome:nomeOutro,
+        subtitulo:cv.souComprador ? "Vendedor do anúncio" : "Interessado no seu anúncio",
+        hora:this.horaCurta(ultimaHora),
+        previa:cv.ultima ? cv.ultima.conteudo : "Nenhuma mensagem ainda",
+        anuncioTitulo,
+        selecionada,
+        estilo:"display:flex;gap:12px;align-items:flex-start;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--color-divider);"+
+          (selecionada ? "background:var(--chat-accent-900)" : "background:transparent"),
+        abrir:()=>this.abrirConversa(cv.propostaId)
+      };
+    });
+    const semConversas = !s.carregandoConversas && chatConversasView.length===0;
+
+    const convAtual = s.chatConversas.find(cv=>cv.propostaId===s.chatConversaId) || null;
+    const anuncioConv = convAtual && convAtual.anuncio;
+    const miniFotoEstilo = anuncioConv
+      ? (anuncioConv.fotoCapaUrl
+          ? "width:56px;height:56px;flex:none;border-radius:var(--radius-sm);background-image:url("+anuncioConv.fotoCapaUrl+");background-size:cover;background-position:center"
+          : this.placeholderCard(anuncioConv,"56px",10)+";width:56px;flex:none;border-radius:var(--radius-sm)")
+      : "";
+    const chatSelecionada = convAtual ? {
+      nome:(convAtual.outro && convAtual.outro.nome) || "Usuário",
+      inicial:((convAtual.outro && convAtual.outro.nome) || "U").charAt(0).toUpperCase(),
+      subtitulo:convAtual.souComprador ? "Vendedor do anúncio" : "Interessado no seu anúncio",
+      temAnuncio:!!anuncioConv,
+      anuncioTitulo:anuncioConv ? (anuncioConv.titulo || (anuncioConv.marca+" "+anuncioConv.modelo).trim()) : "Anúncio removido",
+      anuncioPrecoFmt:anuncioConv ? this.brl(anuncioConv.preco) : "",
+      anuncioKm:anuncioConv ? (anuncioConv.quilometragem||0).toLocaleString("pt-BR")+" km" : "",
+      miniFotoEstilo,
+      verVeiculo:anuncioConv ? ()=>this.abrirCarro(anuncioConv) : null
+    } : null;
+
+    const mensagensChatView = s.mensagensChat.map(m=>{
+      const deMeuUsuario = meuId!=null && m.remetenteId===meuId;
+      return {
+        id:m.id, conteudo:m.conteudo, hora:this.horaCurta(m.criadoEm),
+        linha:"display:flex;flex-direction:column;"+(deMeuUsuario?"align-items:flex-end":"align-items:flex-start"),
+        bolha:"max-width:78%;padding:9px 12px;border-radius:var(--radius-sm);font-size:13.5px;line-height:1.5;"+
+          (deMeuUsuario
+            ? "background:var(--chat-accent-900);border:1px solid var(--chat-accent-700);color:var(--chat-accent-100)"
+            : "background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);color:var(--color-neutral-200)")
+      };
+    });
+
+    const respostasRapidas = ["Ainda está disponível?","Aceita troca?","Qual a melhor parcela?","Posso agendar test-drive?"]
+      .map(texto=>({texto, onClick:()=>this.usarRespostaRapida(texto)}));
+
+    return {
+      /* navegação e estado global */
+      menu, logado,
+      isLogin:s.rota==="login", isHome:s.rota==="home", isEstoque:s.rota==="estoque",
+      isVeiculo:s.rota==="veiculo", isProposta:s.rota==="proposta", isAnunciar:s.rota==="anunciar", isConta:s.rota==="conta",
+      isMensagens:s.rota==="mensagens",
+      irHome:()=>this.ir(logado?"home":"login"), irEstoque:()=>this.ir("estoque"), irConta:()=>this.ir("conta"),
+      irAnunciar:()=>{ this.setState({form:this.formVazio(), editandoId:null}); this.ir("anunciar"); },
+      sair:()=>{ if(api) api.sair(); this.setState({usuario:null, rota:"login", recentes:[], lista:[], meusAnuncios:[], propostas:[],
+        chatConversas:[], chatConversaId:null, mensagensChat:[], erro:""}); window.scrollTo(0,0); },
+      primeiroNome:(s.usuario && s.usuario.nome ? s.usuario.nome.split(" ")[0] : "conta"),
+      inicial:(s.usuario && s.usuario.nome ? s.usuario.nome.charAt(0).toUpperCase() : "?"),
+      erro:s.erro, temErro:!!s.erro, carregando:s.carregando,
+
+      /* conexão */
+      pontoConexao:"width:7px;height:7px;border-radius:50%;flex:none;background:"+corPonto,
+      rotuloConexao:s.conexao===null ? "testando" : s.conexao ? "backend online" : "backend offline",
+      detalheConexao:s.conexaoDetalhe,
+      baseUrlCampo:s.baseUrlCampo,
+      setBaseUrl:e=>this.setState({baseUrlCampo:e.target.value}),
+      salvarBaseUrl:()=>{ if(api){ api.definirBaseUrl(s.baseUrlCampo); this.testar(); } },
+
+      /* login */
+      modosAuth:["Entrar","Criar conta"].map(k=>({label:k, cls:s.modoAuth===k?"tag tag-accent":"tag tag-outline",
+        onClick:()=>this.setState({modoAuth:k, erro:""})})),
+      isCadastro:s.modoAuth==="Criar conta",
+      labelAuth:s.autenticando ? "Enviando…" : (s.modoAuth==="Entrar" ? "Entrar" : "Criar conta"),
+      fNome:s.fNome, fEmail:s.fEmail, fSenha:s.fSenha, fTelefone:s.fTelefone,
+      setFNome:e=>this.setState({fNome:e.target.value, erro:""}),
+      setFEmail:e=>this.setState({fEmail:e.target.value, erro:""}),
+      setFSenha:e=>this.setState({fSenha:e.target.value, erro:""}),
+      setFTelefone:e=>this.setState({fTelefone:e.target.value, erro:""}),
+      tipoSenha:s.verSenha?"text":"password", labelSenha:s.verSenha?"Ocultar":"Mostrar",
+      toggleSenha:()=>this.setState({verSenha:!s.verSenha}),
+      autenticar:()=>this.autenticar(),
+      oQueExiste:[
+        {t:"Estoque real", d:"Anúncios paginados de GET /v1/anuncio, com filtro por categoria e status."},
+        {t:"Publicar e editar", d:"Seus anúncios com todos os campos da tabela: marca, modelo, ano, km, cor, câmbio, combustível."},
+        {t:"Propostas", d:"Valor e descrição gravados no banco; aceitar, negar ou cancelar."},
+        {t:"Seus dados", d:"Nome, e-mail e telefone — o que a tabela usuario guarda."}],
+
+      /* home / estoque */
+      recentes:s.recentes.map(a=>this.card(a)),
+      vazioRecentes:!s.carregando && !s.erro && s.recentes.length===0,
+      lista:s.lista.map(a=>this.card(a)),
+      vazioLista:!s.carregando && !s.erro && s.lista.length===0,
+      resumoEstoque:s.total ? s.total+" anúncios no banco" : "nenhum anúncio no banco",
+      atalhosCategoria:[{v:"TODAS",label:"Todas"}].concat((E.categoria||[]).map(v=>({v,label:this.rot(v)}))).map(o=>({
+        label:o.label, cls:s.filtroCategoria===o.v?"tag tag-accent":"tag tag-outline",
+        onClick:()=>{ this.setState({filtroCategoria:o.v, pagina:0}); this.ir("estoque"); }})),
+      opcoesCategoria:[{v:"TODAS",label:"Todas as categorias"}].concat((E.categoria||[]).map(v=>({v,label:this.rot(v)}))),
+      opcoesStatus:[{v:"TODOS",label:"Todos os status"}].concat((E.statusAnuncio||[]).map(v=>({v,label:this.rot(v)}))),
+      opcoesSort:[{v:"criadoEm,desc",label:"Mais recentes"},{v:"preco,asc",label:"Menor preço"},
+        {v:"preco,desc",label:"Maior preço"},{v:"quilometragem,asc",label:"Menor km"},{v:"ano,desc",label:"Mais novo"}],
+      filtroCategoria:s.filtroCategoria, filtroStatus:s.filtroStatus, filtroSort:s.filtroSort,
+      setCategoria:e=>{ this.setState({filtroCategoria:e.target.value}, ()=>this.carregarLista(0)); },
+      setStatus:e=>{ this.setState({filtroStatus:e.target.value}, ()=>this.carregarLista(0)); },
+      setSort:e=>{ this.setState({filtroSort:e.target.value}, ()=>this.carregarLista(0)); },
+      buscaCodigo:s.buscaCodigo,
+      setBuscaCodigo:e=>this.setState({buscaCodigo:e.target.value, erro:""}),
+      teclaCodigo:e=>{ if(e.key==="Enter") this.buscarPorCodigo(); },
+      buscarCodigo:()=>this.buscarPorCodigo(),
+      temPaginacao:s.paginas>1,
+      rotuloPagina:"página "+(s.pagina+1)+" de "+s.paginas,
+      estiloAnterior:"cursor:pointer;padding:9px 16px;font-size:13px;"+(s.pagina<=0?"opacity:0.45;pointer-events:none":""),
+      estiloProxima:"cursor:pointer;padding:9px 16px;font-size:13px;"+(s.pagina>=s.paginas-1?"opacity:0.45;pointer-events:none":""),
+      paginaAnterior:()=>this.carregarLista(Math.max(0,s.pagina-1)),
+      paginaProxima:()=>this.carregarLista(Math.min(s.paginas-1,s.pagina+1)),
+
+      /* veículo */
+      carro:cardCarro,
+      heroPlaceholder:this.placeholderCard(c,"268px",46)+";border-radius:var(--radius-lg);border:1px solid var(--color-neutral-800)",
+      resumoPlaceholder:this.placeholderCard(c,"104px",21)+";border-radius:var(--radius-md);border:none",
+      voltarEstoque:()=>this.ir("estoque"),
+      ficha:[
+        {k:"Código",v:c.codigo||"—"},{k:"Marca",v:c.marca||"—"},{k:"Modelo",v:c.modelo||"—"},
+        {k:"Versão",v:c.versao||"—"},{k:"Ano",v:c.ano||"—"},
+        {k:"Quilometragem",v:(c.quilometragem||0).toLocaleString("pt-BR")+" km"},
+        {k:"Cor",v:c.cor||"—"},{k:"Combustível",v:this.rot(c.combustivel)},{k:"Câmbio",v:this.rot(c.cambio)},
+        {k:"Categoria",v:this.rot(c.categoria)},{k:"Status",v:this.rot(c.status)},
+        {k:"Mão",v:c.segundaMao?"Segunda mão":"Primeira mão"},
+        {k:"Laudo cautelar",v:c.laudoCautelar||"não informado"},{k:"Documentação",v:c.documentacao||"—"},
+        {k:"Garantia",v:c.garantia||"—"},{k:"Anunciado em",v:this.data(c.criadoEm)}],
+      vendedor:{nome:c.usuarioNome || (c.usuarioId ? "Usuário #"+c.usuarioId : "—"),
+        inicial:(c.usuarioNome||"U").charAt(0).toUpperCase(),
+        detalhe:c.usuarioId ? "usuarioId "+c.usuarioId : "sem vendedor no registro"},
+      legendaGaleria:c.id ? "Nenhuma foto cadastrada para este anúncio" : "sem fotos",
+      temFotosCarro:s.fotosCarro && s.fotosCarro.length > 0,
+      semFotosCarro:!s.fotosCarro || s.fotosCarro.length === 0,
+      fotoCapaCarro:s.fotosCarro && s.fotosCarro[0] || "",
+      temMaisFotos:s.fotosCarro && s.fotosCarro.length > 1,
+      fotosMiniCarro:(s.fotosCarro || []).slice(1).map(url=>url),
+      gerenciandoFotos:s.gerenciandoFotos,
+      gerenciarFotos:()=>this.setState({gerenciandoFotos:true}),
+      fecharGerenciarFotos:()=>this.setState({gerenciandoFotos:false}),
+      fotosParaGerenciar:(s.fotosCadastradasCarro||[]).map(f=>({
+        url:f.url,
+        apagar:()=>this.apagarFoto(c.id, f.id)
+      })),
+      ehMeuAnuncio:!!(c.id && meuId!=null && c.usuarioId===meuId),
+      podeFazerProposta:!!(c.id && !(meuId!=null && c.usuarioId===meuId)),
+      editarAnuncio:()=>this.editar(c),
+      excluirAnuncio:()=>this.excluir(c),
+      irProposta:()=>{ this.setState({rota:"proposta", propValor:c.preco, propDescricao:"", propostaCriada:null, erro:""}); window.scrollTo(0,0); },
+
+      /* proposta */
+      voltarVeiculo:()=>{ this.setState({rota:"veiculo", erro:""}); window.scrollTo(0,0); },
+      propostaAberta:!p, propostaEnviada:!!p,
+      propValorInput:s.propValor ? Number(s.propValor).toLocaleString("pt-BR") : "",
+      propDescricao:s.propDescricao,
+      setPropValor:e=>this.setState({propValor:Number(String(e.target.value).replace(/\D/g,""))||0, erro:""}),
+      setPropDescricao:e=>this.setState({propDescricao:e.target.value, erro:""}),
+      labelEnviarProposta:s.enviandoProposta ? "Enviando…" : "Enviar proposta",
+      enviarProposta:()=>this.enviarProposta(),
+      resumoProposta:p ? [{k:"Id da proposta",v:"#"+p.id},{k:"Status",v:this.rot(p.status)},
+        {k:"Valor",v:this.brl(p.valor)},{k:"Anúncio",v:String(p.anuncioId ?? c.id ?? "—")}] : [],
+
+      /* anunciar */
+      camposTexto, camposEnum,
+      kickerAnunciar:s.editandoId ? "Editar anúncio" : "Novo anúncio",
+      tituloAnunciar:s.editandoId ? "Atualizar o anúncio" : "Publicar um veículo",
+      fPrecoInput:f.preco ? Number(f.preco).toLocaleString("pt-BR") : "",
+      setFPreco:e=>this.setState({form:{...f, preco:Number(String(e.target.value).replace(/\D/g,""))||0}, erro:""}),
+      fDescricao:f.descricao,
+      setFDescricao:e=>this.setState({form:{...f, descricao:e.target.value}, erro:""}),
+      opcoesMao:[{v:true,label:"Sim"},{v:false,label:"Não"}].map(o=>({label:o.label,
+        cls:(!!f.segundaMao)===o.v?"tag tag-accent":"tag tag-outline",
+        onClick:()=>this.setState({form:{...f, segundaMao:o.v}})})),
+      labelSalvarAnuncio:s.salvandoAnuncio ? "Salvando…" : (s.editandoId ? "Salvar alterações" : "Publicar anúncio"),
+      salvarAnuncio:()=>this.salvarAnuncio(),
+      selecionarFotos:e=>{ const arquivos = Array.from(e.target.files||[]); this.setState({fotosSelecionadas:arquivos}); },
+      labelFotos:s.fotosSelecionadas && s.fotosSelecionadas.length>0
+        ? s.fotosSelecionadas.length+" foto(s) selecionada(s): "+s.fotosSelecionadas.map(f=>f.name).join(", ")
+        : "Nenhuma foto selecionada. Você pode publicar sem fotos e adicionar depois.",
+      anuncioSalvo:!!s.anuncioSalvo, mensagemSalvo:s.anuncioSalvo,
+
+      /* conta */
+      nomeUsuario:(s.usuario && s.usuario.nome) || "Minha conta",
+      detalheUsuario:s.usuario ? [s.usuario.email, s.usuario.telefone, s.usuario.id!=null?"id "+s.usuario.id:""].filter(Boolean).join(" · ") : "",
+      abas:["Meus dados","Meus anúncios","Propostas"].map(k=>({label:k, cls:s.aba===k?"tag tag-accent":"tag tag-outline",
+        onClick:()=>{ this.setState({aba:k, erro:""}); if(k==="Meus anúncios") this.carregarMeus(); if(k==="Propostas") this.carregarPropostas(); }})),
+      abaDados:s.aba==="Meus dados", abaAnuncios:s.aba==="Meus anúncios", abaPropostas:s.aba==="Propostas",
+      cNome:s.cNome, cEmail:s.cEmail, cTelefone:s.cTelefone,
+      setCNome:e=>this.setState({cNome:e.target.value, dadosSalvos:false}),
+      setCEmail:e=>this.setState({cEmail:e.target.value, dadosSalvos:false}),
+      setCTelefone:e=>this.setState({cTelefone:e.target.value, dadosSalvos:false}),
+      labelSalvarDados:s.salvandoDados ? "Salvando…" : "Salvar dados",
+      salvarDados:()=>this.salvarDados(), dadosSalvos:s.dadosSalvos,
+      senhaAtual:s.senhaAtual, novaSenha:s.novaSenha,
+      setSenhaAtual:e=>this.setState({senhaAtual:e.target.value, senhaTrocada:false}),
+      setNovaSenha:e=>this.setState({novaSenha:e.target.value, senhaTrocada:false}),
+      labelTrocarSenha:s.trocandoSenha ? "Trocando…" : "Trocar senha",
+      trocarSenha:()=>this.trocarSenha(), senhaTrocada:s.senhaTrocada,
+      meusAnuncios:s.meusAnuncios.map(a=>this.card(a)),
+      semMeusAnuncios:!s.carregando && s.meusAnuncios.length===0,
+      propostas, semPropostas:!s.carregando && propostas.length===0,
+
+      /* mensagens */
+      chatShellClasse:"chat-shell"+(s.chatConversaId?" mostrar-chat":""),
+      carregandoConversas:s.carregandoConversas,
+      chatConversas:chatConversasView, semConversas,
+      temConversaAberta:!!s.chatConversaId,
+      semConversaAberta:!s.chatConversaId,
+      chatSelecionada,
+      voltarLista:()=>this.voltarParaLista(),
+      carregandoChat:s.carregandoChat,
+      mensagensChat:mensagensChatView,
+      semMensagensChat:!!s.chatConversaId && !s.carregandoChat && mensagensChatView.length===0,
+      respostasRapidas,
+      novoTextoChat:s.novoTextoChat,
+      setNovoTextoChat:e=>this.setState({novoTextoChat:e.target.value}),
+      labelEnviarChat:s.enviandoChat ? "Enviando…" : "Enviar",
+      enviarMensagemChat:()=>this.enviarMensagemChat()
+    };
+  }
+
+  async buscarPorCodigo(){
+    const api = this.api(); const cod = String(this.state.buscaCodigo||"").trim();
+    if(!api || !cod) return;
+    this.setState({erro:""});
+    try {
+      const a = await api.anuncioPorCodigo(cod);
+      if(a) this.abrirCarro(a); else this.setState({erro:"Nenhum anúncio com o código "+cod+"."});
+    } catch(e){ this.falhar(e); }
+  }
+}
+
+</script>
+</body>
+</html>

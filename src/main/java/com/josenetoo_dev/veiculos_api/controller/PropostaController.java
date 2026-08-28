@@ -1,5 +1,6 @@
 package com.josenetoo_dev.veiculos_api.controller;
 
+import com.josenetoo_dev.veiculos_api.dto.proposta_dto.ContrapropostaRequest;
 import com.josenetoo_dev.veiculos_api.dto.proposta_dto.PropostaRequest;
 import com.josenetoo_dev.veiculos_api.dto.proposta_dto.PropostaResponse;
 import com.josenetoo_dev.veiculos_api.service.PropostaService;
@@ -25,14 +26,6 @@ public class PropostaController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(propostaService.mandarProposta(request));
-    }
-
-    @Operation
-    @GetMapping
-    public ResponseEntity<Page<PropostaResponse>> listarPropostas(
-            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
-        return ResponseEntity
-                .ok(propostaService.listarPropostas(pageable));
     }
 
     @Operation(summary = "Buscar proposta por id")
@@ -61,6 +54,23 @@ public class PropostaController {
     public ResponseEntity<PropostaResponse> negarProposta(@PathVariable Long id) {
         return ResponseEntity
                 .ok(propostaService.negarProposta(id));
+    }
+
+    @Operation(summary = "Fazer contraproposta")
+    @PutMapping("/{id}/contraproposta")
+    public ResponseEntity<PropostaResponse> fazerContraproposta(
+            @PathVariable Long id,
+            @Valid @RequestBody ContrapropostaRequest request) {
+        return ResponseEntity
+                .ok(propostaService.fazerContraproposta(id, request));
+    }
+
+    @Operation(summary = "Minhas propostas (como comprador ou anunciante)")
+    @GetMapping("/minhas")
+    public ResponseEntity<Page<PropostaResponse>> minhasPropostas(
+            @PageableDefault(size = 10) Pageable pageable) {
+        return ResponseEntity
+                .ok(propostaService.minhasPropostas(pageable));
     }
 
 }

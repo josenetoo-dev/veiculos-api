@@ -1,6 +1,6 @@
 package com.josenetoo_dev.veiculos_api.dto.proposta_dto;
 
-import com.josenetoo_dev.veiculos_api.enums.StatusProposta;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonIgnoreProperties("compradorId")
 public class PropostaRequest {
 
     @NotNull
@@ -24,9 +25,4 @@ public class PropostaRequest {
 
     @NotNull
     private Long anuncioId;
-
-    @NotNull
-    private Long compradorId;
-
-    private StatusProposta statusProposta;
 }

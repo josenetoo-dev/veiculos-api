@@ -1,0 +1,311 @@
+RELATORIO DE CORRECOES - veiculos-api + Site de venda de carros (Auto Minas)
+Gerado em: 2026-08-24
+Autor: Claude (Sonnet 5), a pedido do dono do projeto
+
+===============================================================================
+RESUMO
+===============================================================================
+
+Pedido original: revisar o projeto inteiro (backend Java/Spring + frontend
+estatico), corrigir todos os erros (com foco especial nos que quebram a
+ligacao front<->back), organizar os arquivos, adicionar um chat comprador-
+vendedor vinculado a proposta, e melhorar o sistema de propostas. Nada alem
+disso deveria ser adicionado.
+
+Duas auditorias completas rodaram primeiro (uma no backend, uma no frontend)
+para levantar todos os problemas antes de qualquer alteracao. A lista abaixo
+e o resultado: o que foi encontrado e o que foi corrigido.
+
+O backend compila limpo (mvn compile) e todo o fluxo critico foi testado de
+verdade, rodando o backend real contra o MySQL local e o frontend servido em
+localhost:5500 (nao foi possivel testar clicando no navegador porque a
+extensao Claude in Chrome nao estava conectada nesta sessao - os testes do
+backend foram feitos via chamadas HTTP diretas, e o frontend foi revisado
+linha a linha e checado por balanceamento de tags/chaves).
+
+===============================================================================
+PARTE 1 - BUGS CRITICOS DE SEGURANCA (BACKEND) - CORRIGIDOS
+===============================================================================
+
+O problema mais serio encontrado: quase todo endpoint de escrita autenticado
+nao conferia se quem fazia a chamada era o dono do recurso (falha classica
+de "Broken Object-Level Authorization" / IDOR). Testado na pratica com dois
+usuarios reais - antes da correcao, qualquer conta logada conseguia:
+
+1. Editar/apagar o anuncio de QUALQUER outro usuario
+   (AnuncioService.atualizarAnuncio / deletarAnuncio)
+2. Escolher de quem seria o anuncio ao criar um (o campo "usuarioId" vinha do
+   corpo da requisicao, nao do login) - havia ate um TODO no codigo
+   reconhecendo isso, nunca resolvido depois que o login foi implementado
+   (AnuncioService.criarAnuncio, AnuncioRequest.usuarioId)
+3. Editar os dados de QUALQUER outro usuario
+   (UsuarioService.atualizarUsuario)
+4. TROCAR A SENHA de qualquer outro usuario sem saber a senha atual
+   (UsuarioService.atualizarSenha - o pior dos achados)
+5. Apagar a conta de qualquer outro usuario
+   (UsuarioService.deletarUsuario)
+6. Subir ou apagar fotos de anuncios alheios
+   (AnuncioFotoController / AnuncioFotoService)
+7. Ao apagar uma foto, o backend nao conferia se a foto realmente pertencia
+   ao anuncio informado na URL
+
+Correcao aplicada em todos os itens acima: cada service passou a descobrir o
+usuario autenticado pelo token JWT (o mesmo padrao que o PropostaService ja
+usava corretamente) e bloquear com 403 quando quem chama nao e o dono do
+recurso. Testado com curl usando duas contas reais:
+  - comprador tentando editar anuncio do vendedor -> 403 (antes: 200)
+  - comprador tentando trocar a senha do vendedor -> 403 (antes: 200)
+  - vendedor tentando propor no proprio anuncio -> 403 (bloqueado, item novo)
+
+Outros dois achados de seguranca corrigidos:
+  - O upload de foto aceitava um campo "baseUrl" mandado pelo proprio
+    navegador e usava isso para montar a URL publica gravada no banco - um
+    cliente malicioso podia gravar links apontando para outro site. Agora a
+    URL publica vem de uma configuracao do servidor
+    (app.public-base-url no application.yaml).
+  - "PUT /v1/usuario/{id}/senha" trocava a senha so com a senha nova, sem
+    confirmar a senha atual. Agora exige a senha atual (com um DTO novo,
+    TrocarSenhaRequest) e responde 401 se ela nao bater.
+  - "jwt.secret" estava fixo em texto puro no application.yaml versionado.
+    Continua com o mesmo valor padrao (para nao quebrar o ambiente local),
+    mas agora pode ser sobrescrito por variavel de ambiente (JWT_SECRET) sem
+    mexer em codigo.
+
+Um endpoint duplicado foi removido: "POST /v1/usuario" fazia a mesma coisa
+que "POST /auth/register", so que exigindo estar logado para criar uma conta
+nova (contraditorio) - o frontend nunca usou essa rota. Em compensacao, foi
+adicionada uma rota que faltava e que o frontend precisava de verdade:
+"GET /v1/usuario/me", que devolve os dados de quem esta logado direto pelo
+token. Antes disso nao existia - o frontend tinha que varrer a listagem
+publica de usuarios (paginada, ate 20 paginas de 100) procurando o proprio
+e-mail so para descobrir o proprio id, e de quebra qualquer conta logada
+conseguia listar nome/e-mail/telefone de TODOS os usuarios do sistema por
+causa desse workaround. Isso foi eliminado dos dois lados.
+
+===============================================================================
+PARTE 2 - SISTEMA DE PROPOSTAS - MELHORADO
+===============================================================================
+
+Bug critico de conexao front<->back (o mais grave dos achados de contrato):
+o frontend NUNCA chamava o endpoint real "GET /v1/proposta/minhas" (que ja
+existia e funcionava certinho no backend). Em vez disso, guardava os ids das
+propostas no localStorage do navegador de quem CRIOU a proposta e buscava
+uma por uma. Resultado pratico: o VENDEDOR NUNCA VIA AS PROPOSTAS QUE
+RECEBIA na aba "Propostas" da conta dele, porque o id delas so ficava salvo
+no navegador do comprador. Esse era o bug mais grave de toda a integracao
+front-back. Corrigido: o front agora chama "GET /v1/proposta/minhas" de
+verdade; testado com curl - apos o comprador enviar a proposta, ela
+apareceu imediatamente na consulta do vendedor.
+
+Bug de logica na contraproposta (feature que ja existia pela metade):
+  - O comentario no proprio codigo (campo contrapropostaValor) dizia que a
+    contraproposta era "feita pelo proprietario", mas o codigo deixava tanto
+    o comprador quanto o dono contraproporem, enquanto aceitar/negar
+    continuava travado sempre no dono. Consequencia real: se o DONO fazia a
+    contraproposta, ninguem conseguia responder - o dono nao pode "aceitar a
+    propria oferta" e o comprador nao tinha permissao para decidir.
+  - Corrigido para o fluxo coerente: so o dono do anuncio pode contrapropor;
+    a partir dai, quem decide (aceitar/negar) passa a ser o COMPRADOR.
+    Testado com curl: dono contrapropoe -> dono tenta aceitar a propria
+    contraproposta -> 403 ("Somente o comprador pode realizar esta acao") ->
+    comprador aceita -> 200, vira ACEITA.
+  - Bug adicional: ao aceitar uma contraproposta, o valor/descricao FINAIS
+    continuavam sendo os da proposta ORIGINAL, nao os negociados na
+    contraproposta - ou seja, ficava salvo um valor errado como se fosse o
+    acordo final. Corrigido: aceitar uma contraproposta agora copia o valor e
+    a descricao negociados para a proposta. Testado: proposta original de
+    R$60.000, contraproposta de R$65.000, aceita pelo comprador -> valor
+    final salvo = R$65.000 (confirmado via API).
+  - Novas validacoes em "mandar proposta": o dono do anuncio nao pode propor
+    no proprio anuncio, e nao da mais para propor em anuncio que nao esteja
+    ATIVO (pausado/vendido). Ambas testadas.
+
+Bug de banco de dados descoberto durante o teste real (nao aparecia so lendo
+o codigo): a coluna "status" da tabela proposta era um ENUM nativo do MySQL,
+criado pelo Hibernate a partir dos valores do enum Java na PRIMEIRA vez que a
+tabela foi criada. Quando o valor CONTRAPROPOSTA foi adicionado ao enum Java
+(antes desta sessao), o "ddl-auto=update" do Hibernate NAO ampliou o ENUM do
+banco - toda tentativa de salvar uma proposta com status CONTRAPROPOSTA
+quebrava com "Data truncated for column 'status'". Ou seja, a funcionalidade
+de contraproposta estava 100% inutilizavel na pratica, mesmo com o codigo
+Java correto. Corrigido em duas frentes: a coluna foi alterada para VARCHAR
+no banco local (ALTER TABLE), e o mapeamento Java (Proposta.status e
+Anuncio.status, que tem o mesmo risco) passou a forcar
+"columnDefinition = VARCHAR(20)" explicitamente, para que isso nunca mais
+aconteca quando um valor novo for adicionado a um desses dois enums no
+futuro.
+
+Efeito colateral corrigido: como agora existe uma tabela "mensagem" (chat)
+ligada a proposta por chave estrangeira, apagar um anuncio precisou passar a
+apagar primeiro as mensagens das propostas dele, depois as propostas, depois
+o anuncio - testado apagando um anuncio de teste com proposta e mensagem
+vinculadas, sem erro de integridade referencial.
+
+===============================================================================
+PARTE 3 - CHAT COMPRADOR-VENDEDOR (FEATURE NOVA, PEDIDA)
+===============================================================================
+
+Implementado um chat de verdade (as duas pontas podem mandar mensagem, nao
+so o comprador) vinculado a cada proposta - depois que uma proposta existe,
+comprador e dono do anuncio podem conversar nela.
+
+Backend (tudo novo, seguindo os mesmos padroes ja usados no projeto - uma
+classe por camada, sem abstracao nova):
+  - Tabela nova "mensagem" (model Mensagem.java): id, conteudo, criado_em,
+    proposta_id, remetente_id.
+  - MensagemRepository, MensagemService (mesma logica de autorizacao ja
+    usada em PropostaService: so comprador ou dono do anuncio da proposta
+    podem ler/escrever), MensagemController.
+  - Rotas: POST e GET em "/v1/proposta/{propostaId}/mensagens".
+  - Testado com curl: comprador manda mensagem, vendedor responde, os dois
+    conseguem listar a conversa; um TERCEIRO usuario (sem relacao com
+    aquela proposta) tentando ler o chat -> 403.
+
+Frontend:
+  - api.js ganhou "mensagens(propostaId)" e "enviarMensagem(propostaId,
+    texto)".
+  - A aba "Propostas" da conta ganhou um botao "Conversar" em cada proposta,
+    que abre uma caixa de chat (mensagens indo para a direita quando sao
+    suas, para a esquerda quando sao da outra pessoa - mesmo estilo visual
+    do resto do site, sem CSS novo).
+  - Decisao de escopo: o chat foi colocado so na aba Propostas (onde a
+    pessoa volta para acompanhar a negociacao), nao duplicado tambem na tela
+    de "proposta enviada com sucesso" - para nao arriscar mais uma superficie
+    de bugs num motor de template artesanal sem poder testar no navegador
+    nesta sessao. Se quiser nos dois lugares, e uma mudanca pequena a partir
+    daqui.
+
+===============================================================================
+PARTE 4 - OUTROS BUGS DE CONEXAO FRONT<->BACK CORRIGIDOS
+===============================================================================
+
+- Duas chamadas (buscar fotos do anuncio e apagar foto) faziam fetch() cru
+  direto no HTML, driblando a "unica porta de dados" que o proprio arquivo
+  api.js diz ser (comentario no topo do arquivo). Isso duplicava a leitura
+  do token do localStorage e perdia o tratamento de sessao expirada que o
+  resto do site tem. Uma delas ainda tinha um bug silencioso: lia
+  "api.token()", um metodo que api.js nunca exportou - so nao quebrava por
+  coincidencia, porque caia num fallback que lia a mesma chave do
+  localStorage por fora. Movido para dentro de api.js
+  (fotosDoAnuncio/apagarFotoAnuncio), sem esse tipo de acoplamento fragil.
+- O enum de status de proposta no frontend nao tinha o valor CONTRAPROPOSTA
+  - se a tela chegasse a mostrar uma proposta nesse estado, apareceria o
+  valor cru em vez de um rotulo (agora tem: "Contraproposta").
+- O campo "usuarioId" que o front mandava ao criar/editar anuncio foi
+  removido (o backend agora usa o login para saber o dono - Parte 1); o
+  campo "baseUrl" que o front mandava no upload de foto tambem foi removido
+  (o backend monta a URL sozinho agora).
+- "PUT /v1/usuario/{id}" exigia reenviar a senha (em texto, so para o
+  backend recriptografar a mesma senha) so para editar nome/e-mail/telefone
+  - o proprio frontend tinha um aviso na tela sobre essa obrigacao esquisita.
+  Agora o backend nao pede mais senha nesse endpoint, e trocar senha virou
+  uma tela separada, com senha atual + senha nova (a senha atual e conferida
+  no backend antes de trocar).
+
+===============================================================================
+PARTE 5 - ORGANIZACAO
+===============================================================================
+
+- Removido de vez "CorsConfig.java": era um arquivo vazio (so a declaracao
+  da classe, sem conteudo) que ficou preso pela metade no git - estava
+  marcado como "novo" no index e como "apagado" na pasta de trabalho ao
+  mesmo tempo. Resquicio da migracao do CORS para dentro do
+  SecurityConfig.java, que ja e a fonte unica e correta de CORS hoje.
+- Removida a anotacao "@CrossOrigin(origins = "*")" de todos os controllers
+  (Auth, Usuario, Anuncio, AnuncioFoto, Proposta) - era redundante com a
+  configuracao de CORS ja correta em SecurityConfig (origens especificas +
+  credenciais), e ter os dois ao mesmo tempo e exatamente o tipo de coisa
+  que causa dor de CORS dificil de debugar.
+- Corrigido import duplicado em UploadConfig.java.
+- Limpos os comentarios do tipo "nao sei", "nao sei o que isso faz" em
+  JwtFilter.java, trocados por comentarios curtos e corretos so onde
+  realmente ajuda.
+- COMO-RODAR.md corrigido: o guia mandava criar um banco "veiculos" com
+  usuario/senha "veiculos", mas o application.yaml real usa "root" sem senha
+  no banco "projeto_veiculos" - quem seguisse o guia como estava escrito nao
+  conseguia conectar. Tambem removida a secao inteira que instruia criar uma
+  classe CorsConfig na mao (nao e mais necessario, ja vem pronto), e a lista
+  de "limites conhecidos" foi atualizada para refletir o que foi corrigido
+  aqui (rota de fotos, listagem de propostas, chat).
+- Arquivos do frontend que eram uma versao anterior e abandonada do site
+  (nao referenciados por lugar nenhum, mesmo horario de modificacao
+  "congelado" - sinal de que foram substituidos de uma vez pela versao
+  atual) foram movidos para "Site de venda de carros/_legado/", sem apagar
+  nada: "VZP Car.dc.html", "VZP Car v1 (antes da API).dc.html", "backend.js"
+  e "contrato-de-dados.md" (esse ultimo descrevia um backend que nunca
+  chegou a existir de verdade - tabelas de usuarios com login Google,
+  favoritos, unidades/lojas, simulador de financiamento - nada disso bate
+  com o backend real, que so tem 4 tabelas: usuario, anuncio, anuncio_foto,
+  proposta, e agora mensagem).
+- Os dois relatorios de auditoria gerados mais cedo nesta mesma sessao
+  (relatorio-projeto.txt, relatorio-api-frontend.txt) foram apagados e
+  substituidos por este arquivo, ja que descreviam o estado ANTES das
+  correcoes (um deles, inclusive, orientava explicitamente REMOVER a
+  funcionalidade de chat do front por nao existir no backend na epoca -
+  hoje existe).
+
+===============================================================================
+PARTE 6 - FICOU DE FORA DE PROPOSITO
+===============================================================================
+
+Por pedido explicito de nao adicionar nada alem do que foi pedido, os itens
+abaixo foram identificados mas NAO alterados:
+
+- "Anuncio.destaque" nunca fica true em lugar nenhum do sistema - a home
+  usa os anuncios mais recentes no lugar disso. Corrigir isso de verdade
+  exigiria inventar um papel de administrador, que nao existe hoje no
+  projeto - fora do escopo de "corrigir erros".
+- "PUT /v1/anuncio/{id}" sempre forca o status de volta para ATIVO - nao da
+  para marcar um anuncio como PAUSADO/VENDIDO pela API ainda. Mesma razao
+  acima: e uma limitacao ja existente, nao um bug introduzido, e mexer nisso
+  seria adicionar comportamento novo.
+- O enum TipoConta (COMPRADOR/VENDEDOR) existe mas nao e usado em lugar
+  nenhum do sistema - deixado como esta, ja que remover codigo morto que
+  nao causa nenhum problema nao foi pedido.
+- GET /v1/usuario e /v1/usuario/buscar continuam listando nome/e-mail/
+  telefone de qualquer usuario para qualquer autenticado. Isso foi
+  atenuado (o workaround que forcava o front a varrer essa lista sumiu -
+  Parte 1), mas a rota em si continua publica para quem esta logado, porque
+  restringi-la exigiria um conceito de permissao que o projeto nao tem.
+- O chat foi colocado so na aba Propostas (ver Parte 3) - nao duplicado na
+  tela de confirmacao da proposta.
+
+===============================================================================
+PARTE 7 - COMO TESTAR
+===============================================================================
+
+Backend rodando em http://localhost:8080 e frontend servido em
+http://localhost:5500 (python3 -m http.server) ficaram de pe ao final desta
+sessao para voce conferir na hora. Abra:
+
+  http://localhost:5500/Auto%20Minas.dc.html
+
+Se quiser rodar do zero depois, o guia atualizado esta em
+"Site de venda de carros/COMO-RODAR.md".
+
+Roteiro sugerido: criar duas contas (uma vendedor, uma compradora) -> a
+vendedora anuncia um carro -> a compradora manda uma proposta -> a vendedora
+ve a proposta em Minha conta > Propostas (antes disso nao funcionava) ->
+vendedora faz uma contraproposta -> compradora aceita -> confere que o valor
+final bate com o da contraproposta -> as duas conversam no chat da proposta.
+
+===============================================================================
+ARQUIVOS TOCADOS
+===============================================================================
+
+Backend (src/main/java/com/josenetoo_dev/veiculos_api/):
+  UsuarioService.java, UsuarioController.java, AnuncioService.java,
+  AnuncioController.java, AnuncioFotoController.java, AnuncioFotoService.java,
+  PropostaService.java, PropostaController.java, AuthController.java,
+  Proposta.java, Anuncio.java, PropostaRequest.java, AnuncioRequest.java,
+  UsuarioRequest.java (novo: TrocarSenhaRequest.java),
+  GlobalExceptionHandler.java (novo: AnuncioIndisponivelException.java),
+  SecurityConfig.java (so limpeza), JwtFilter.java, UploadConfig.java,
+  application.yaml, CorsConfig.java (removido),
+  pacote novo "mensagem": model/Mensagem.java, repository/MensagemRepository.java,
+  dto/mensagem_dto/{MensagemRequest,MensagemResponse}.java,
+  service/MensagemService.java, controller/MensagemController.java.
+
+Frontend ("Site de venda de carros/"):
+  api.js, Auto Minas.dc.html, COMO-RODAR.md,
+  _legado/ (novo, com os 4 arquivos movidos).

@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-cb851bc1-3316-4a40-a56f-c89f3486b206/styles.css">
+<script src="_ds/nocturne-cb851bc1-3316-4a40-a56f-c89f3486b206/_ds_bundle.js"></script>
+<script src="backend.js"></script>
+<style>
+:root{
+  --color-bg:#0c0c0d;
+  --color-surface:#17171a;
+  --color-text:#f1eee6;
+  --color-accent:#d4af37;
+  --color-accent-2:#e0c86a;
+  --color-divider:color-mix(in srgb, #f1eee6 14%, transparent);
+  --color-accent-100:#fbf6e6;--color-accent-200:#f5ead0;--color-accent-300:#ecd9a6;
+  --color-accent-400:#e3c765;--color-accent-500:#d4af37;--color-accent-600:#ab8c2b;
+  --color-accent-700:#806820;--color-accent-800:#564616;--color-accent-900:#2e2610;
+  --color-neutral-100:#f4f2ec;--color-neutral-200:#e5e2d9;--color-neutral-300:#cdc9be;
+  --color-neutral-400:#aaa69c;--color-neutral-500:#8a867d;--color-neutral-600:#6a675f;
+  --color-neutral-700:#4d4a44;--color-neutral-800:#33312d;--color-neutral-900:#1e1d1a;
+  --color-section:#231b0c;--color-section-glow:#3a2d12;--color-section-ghost:#5b4a1e;
+  --shadow-sm:0 0 0 1px #33312d;
+  --shadow-md:0 0 0 1px #4d4a44, 0 6px 18px rgba(0,0,0,0.6);
+  --shadow-lg:0 0 0 1px #8a867d, 0 16px 40px rgba(0,0,0,0.7);
+}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);}
+a{color:var(--color-accent);text-decoration:none}
+a:hover{color:var(--color-accent-400)}
+@keyframes vzpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes vzpKen{from{transform:scale(1.02) translate3d(0,0,0)}to{transform:scale(1.14) translate3d(-1.5%,-1%,0)}}
+@keyframes vzpPulse{0%{box-shadow:0 0 0 0 rgba(212,175,55,0.55)}70%{box-shadow:0 0 0 16px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
+@keyframes vzpRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes vzpSweep{from{transform:translateX(-100%)}to{transform:translateX(220%)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:var(--color-bg)">
+
+<header style="position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:color-mix(in srgb, #0c0c0d 90%, transparent);border-bottom:1px solid var(--color-divider)">
+  <div style="max-width:1240px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:nowrap">
+    <div onClick="{{ irHome }}" style="display:flex;align-items:baseline;gap:7px;cursor:pointer;margin-right:auto;flex:none">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:21px;letter-spacing:-0.02em">AUTO</span>
+      <span style="font-family:var(--font-heading);font-size:21px;letter-spacing:0.22em;color:var(--color-accent)">MINAS</span>
+    </div>
+    <nav style="display:flex;gap:2px;align-items:center;font-size:13px;letter-spacing:0.01em;flex:none">
+      <sc-for list="{{ menu }}" as="m" hint-placeholder-count="5">
+        <span onClick="{{ m.onClick }}" aria-current="{{ m.aria }}" style="{{ m.style }}" style-hover="color:var(--color-accent)">{{ m.label }}</span>
+      </sc-for>
+    </nav>
+    <sc-if value="{{ deslogado }}" hint-placeholder-val="{{ true }}">
+      <span onClick="{{ irLogin }}" style="cursor:pointer;font-size:13.5px;color:var(--color-neutral-300)" style-hover="color:var(--color-accent)">Entrar</span>
+    </sc-if>
+    <sc-if value="{{ logado }}" hint-placeholder-val="{{ false }}">
+      <span onClick="{{ irConta }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap;font-size:13.5px;color:var(--color-neutral-300)" style-hover="color:var(--color-accent)">
+        <span style="width:26px;height:26px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-size:11px;font-family:var(--font-heading)">{{ inicial }}</span>
+        {{ primeiroNome }}
+      </span>
+    </sc-if>
+    
+  </div>
+</header>
+
+<!-- ══ HOME ══ -->
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<main style="animation:vzpIn .35s ease both">
+  <section style="position:relative;min-height:660px;display:flex;align-items:center;overflow:hidden;background:#08080a">
+    <img src="img/camaro-ss.jpg" alt="Chevrolet Camaro SS no showroom da Auto Minas" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:vzpKen 22s ease-out both">
+    <div style="position:absolute;inset:0;background:linear-gradient(95deg, rgba(8,8,10,0.96) 0%, rgba(8,8,10,0.82) 38%, rgba(8,8,10,0.18) 78%), linear-gradient(0deg, rgba(8,8,10,0.92), transparent 46%)"></div>
+    <div style="position:relative;max-width:1240px;margin:0 auto;padding:96px 28px;width:100%">
+      <div style="display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:22px">
+        <span style="width:26px;height:1px;background:var(--color-accent);display:block"></span>Curitiba · desde 2009
+      </div>
+      <h1 style="font-size:62px;line-height:1.02;letter-spacing:-0.03em;margin:0 0 18px;max-width:14ch;text-wrap:balance">Seu carro está aqui, com estilo!</h1>
+      <p style="font-size:17px;line-height:1.6;color:var(--color-neutral-300);max-width:46ch;margin:0 0 28px">Seminovos, premium, blindados e motos com procedência checada, laudo cautelar e negociação direta com o vendedor pelo chat.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <span onClick="{{ irEstoque }}" class="btn btn-primary" style="padding:11px 20px;font-size:14.5px;cursor:pointer">Ver estoque completo</span>
+        <span onClick="{{ irAnunciar }}" class="btn btn-secondary" style="padding:11px 20px;font-size:14.5px;cursor:pointer;background:rgba(12,12,13,0.55)">Anunciar meu carro</span>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:76px 28px 8px;text-align:center">
+    <div style="font-size:11.5px;letter-spacing:0.2em;text-transform:uppercase;color:var(--color-neutral-400)">Simples assim</div>
+    <h2 style="font-size:38px;letter-spacing:-0.025em;margin:14px 0 34px">Como funciona a <span style="color:var(--color-accent)">Auto Minas</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;text-align:left">
+      <sc-for list="{{ comoFunciona }}" as="p" hint-placeholder-count="3">
+        <div style="position:relative;overflow:hidden;padding:26px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+          <span style="position:absolute;right:10px;top:-6px;font-family:var(--font-heading);font-size:96px;line-height:1;color:var(--color-accent);opacity:0.14">{{ p.n }}</span>
+          <div style="position:relative;width:40px;height:40px;border-radius:var(--radius-sm);background:linear-gradient(150deg,var(--color-accent-300),var(--color-accent-600));display:grid;place-items:center;margin-bottom:18px;color:#0c0c0d">
+            <span style="font-family:var(--font-heading);font-size:17px">{{ p.icone }}</span>
+          </div>
+          <h4 style="position:relative;font-size:19px;margin:0 0 8px">{{ p.t }}</h4>
+          <p style="position:relative;font-size:13.5px;line-height:1.6;color:var(--color-neutral-400);margin:0;max-width:34ch">{{ p.d }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:0 28px 56px">
+    <div style="padding:20px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:14px;align-items:end">
+      <div class="field"><label>Marca ou modelo</label><input class="input" placeholder="ex: Toyota Corolla" value="{{ busca }}" onChange="{{ setBusca }}"></div>
+      <div class="field"><label>Categoria</label>
+        <select class="input" value="{{ cat }}" onChange="{{ setCatSel }}">
+          <option>Todos</option><option>Seminovos</option><option>Premium</option><option>Blindados</option><option>Motos</option><option>Consignação</option>
+        </select>
+      </div>
+      <div class="field"><label>Até</label>
+        <select class="input" value="{{ precoMaxStr }}" onChange="{{ setPrecoSel }}">
+          <option value="60000">R$ 60 mil</option><option value="120000">R$ 120 mil</option><option value="200000">R$ 200 mil</option><option value="400000">R$ 400 mil</option><option value="1000000">sem limite</option>
+        </select>
+      </div>
+      <span onClick="{{ buscar }}" class="btn btn-primary" style="height:36px;padding:0 22px;cursor:pointer">Buscar</span>
+    </div>
+  </section>
+
+  <section style="background:linear-gradient(180deg, var(--color-section), var(--color-section-glow));padding:38px 28px">
+    <div style="max-width:1240px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:28px">
+      <div><div style="font-family:var(--font-heading);font-size:40px;letter-spacing:-0.03em">{{ totalEstoque }}</div><div style="font-size:12.5px;color:var(--color-accent-200);letter-spacing:0.04em">veículos em estoque</div></div>
+      <div><div style="font-family:var(--font-heading);font-size:40px;letter-spacing:-0.03em">17</div><div style="font-size:12.5px;color:var(--color-accent-200);letter-spacing:0.04em">anos de operação</div></div>
+      <div><div style="font-family:var(--font-heading);font-size:40px;letter-spacing:-0.03em">100%</div><div style="font-size:12.5px;color:var(--color-accent-200);letter-spacing:0.04em">com laudo cautelar</div></div>
+      <div><div style="font-family:var(--font-heading);font-size:40px;letter-spacing:-0.03em">24h</div><div style="font-size:12.5px;color:var(--color-accent-200);letter-spacing:0.04em">para aprovar crédito</div></div>
+    </div>
+  </section>
+
+  <section style="position:relative;height:620px;overflow:hidden;background:#08080a;margin-top:56px">
+    <sc-for list="{{ vitrine }}" as="v" hint-placeholder-count="1">
+      <div style="{{ v.camada }}">
+        <img src="{{ v.foto }}" alt="{{ v.nome }}" style="{{ v.img }}">
+      </div>
+    </sc-for>
+    <div style="position:absolute;inset:0;background:linear-gradient(100deg, rgba(8,8,10,0.94) 0%, rgba(8,8,10,0.72) 34%, rgba(8,8,10,0.05) 66%), linear-gradient(0deg, rgba(8,8,10,0.9), transparent 42%)"></div>
+
+    <div style="position:relative;height:100%;max-width:1240px;margin:0 auto;padding:52px 28px;display:flex;flex-direction:column;justify-content:center">
+      <div style="max-width:640px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <span style="width:34px;height:1px;background:var(--color-accent);display:block"></span>
+          <span style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--color-accent)">Coleção {{ vAtual.categoria }}</span>
+        </div>
+        <div key="{{ vAtual.chave }}" style="animation:vzpRise .6s cubic-bezier(.2,.7,.3,1) both">
+          <h2 style="font-size:60px;line-height:0.98;letter-spacing:-0.035em;margin:0 0 12px;max-width:13ch;text-wrap:balance">{{ vAtual.nome }}</h2>
+          <p style="font-size:16px;color:var(--color-neutral-300);margin:0 0 26px;max-width:44ch">{{ vAtual.versao }}</p>
+          <div style="display:flex;gap:34px;margin-bottom:30px;flex-wrap:wrap">
+            <sc-for list="{{ vAtual.numeros }}" as="n" hint-placeholder-count="3">
+              <div>
+                <div style="font-family:var(--font-heading);font-size:25px;letter-spacing:-0.02em;color:var(--color-accent)">{{ n.v }}</div>
+                <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-500);margin-top:3px">{{ n.k }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <span onClick="{{ vAtual.abrir }}" class="btn btn-primary" style="padding:12px 22px;cursor:pointer;white-space:nowrap">Ver este veículo</span>
+            <span style="font-size:12.5px;color:var(--color-neutral-500)">código {{ vAtual.codigo }} · {{ vAtual.unidade }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:absolute;right:28px;bottom:40px;display:flex;gap:10px;align-items:flex-end">
+        <sc-for list="{{ vitrine }}" as="v" hint-placeholder-count="4">
+          <div onClick="{{ v.selecionar }}" style="{{ v.thumb }}">
+            <img src="{{ v.foto }}" alt="{{ v.nome }}" style="width:100%;height:100%;object-fit:cover">
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="position:absolute;left:28px;right:28px;bottom:22px;height:2px;background:rgba(241,238,230,0.1);overflow:hidden">
+        <div key="{{ vAtual.chave }}" style="height:100%;width:34%;background:linear-gradient(to right,transparent,var(--color-accent),transparent);animation:vzpSweep 6s linear infinite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:56px 28px 0">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px">
+      <h2 style="font-size:30px;letter-spacing:-0.02em;margin:0">Selecionados da semana</h2>
+      <span onClick="{{ irEstoque }}" style="cursor:pointer;font-size:13.5px;color:var(--color-accent)">ver todos os {{ totalEstoque }} →</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(292px,1fr));gap:20px">
+      <sc-for list="{{ destaques }}" as="c" hint-placeholder-count="3">
+        <div onClick="{{ c.abrir }}" style="cursor:pointer;border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);box-shadow:var(--shadow-sm)" style-hover="box-shadow:var(--shadow-md)">
+          <div style="position:relative;aspect-ratio:4/3;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;overflow:hidden">
+            <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+            <sc-if value="{{ c.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto do veículo</span></sc-if>
+            <span class="tag tag-accent" style="position:absolute;top:12px;left:12px">{{ c.categoria }}</span>
+          </div>
+          <div style="padding:16px 16px 18px;display:flex;flex-direction:column;gap:10px">
+            <div>
+              <div style="font-family:var(--font-heading);font-size:17px;line-height:1.25">{{ c.nome }}</div>
+              <div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:3px">{{ c.versao }}</div>
+            </div>
+            <div style="display:flex;gap:14px;font-size:12px;color:var(--color-neutral-400)"><span>{{ c.ano }}</span><span>{{ c.kmFmt }}</span><span>{{ c.cambio }}</span></div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;padding-top:6px;border-top:1px solid var(--color-divider)">
+              <div><div style="font-family:var(--font-heading);font-size:21px;letter-spacing:-0.02em">{{ c.precoFmt }}</div><div style="font-size:11.5px;color:var(--color-neutral-500)">{{ c.parcelaFmt }}</div></div>
+              <span style="font-size:12.5px;color:var(--color-accent)">detalhes →</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:56px 28px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+      <div style="padding:24px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+        <div style="width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--color-accent);display:grid;place-items:center;color:var(--color-accent);margin-bottom:14px;font-size:15px">01</div>
+        <h4 style="margin:0 0 6px">Laudo cautelar em todos</h4>
+        <p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Chassi, motor, histórico de sinistro e leilão auditados antes de entrar no pátio.</p>
+      </div>
+      <div style="padding:24px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+        <div style="width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--color-accent);display:grid;place-items:center;color:var(--color-accent);margin-bottom:14px;font-size:15px">02</div>
+        <h4 style="margin:0 0 6px">Crédito com 7 bancos</h4>
+        <p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Simule a parcela no site e receba a melhor taxa aprovada em até 24 horas.</p>
+      </div>
+      <div style="padding:24px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+        <div style="width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--color-accent);display:grid;place-items:center;color:var(--color-accent);margin-bottom:14px;font-size:15px">03</div>
+        <h4 style="margin:0 0 6px">Troca com troco</h4>
+        <p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Avaliamos seu usado na hora e pagamos a diferença em conta no mesmo dia.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:0 28px 76px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md)">
+      <div style="padding:44px 40px;background:var(--color-surface)">
+        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:14px">Vender ou consignar</div>
+        <h3 style="font-size:29px;letter-spacing:-0.02em;margin:0 0 12px">Compramos seu carro em 40 minutos</h3>
+        <p style="font-size:14.5px;color:var(--color-neutral-400);max-width:40ch;margin:0 0 22px">Avaliação presencial gratuita nas duas unidades. Se preferir, deixamos em consignação e você define o preço mínimo.</p>
+        <span onClick="{{ irAnunciar }}" class="btn btn-primary" style="padding:11px 20px;cursor:pointer">Anunciar meu carro</span>
+      </div>
+      <div style="min-height:280px;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center">
+        <img src="img/stilo-prata.jpg" alt="Veículo avaliado na loja" style="width:100%;height:100%;object-fit:cover;opacity:0.92">
+      </div>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<!-- ══ ESTOQUE ══ -->
+<sc-if value="{{ isEstoque }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1240px;margin:0 auto;padding:34px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+    <h2 style="margin:0;font-size:30px;letter-spacing:-0.02em">Estoque</h2>
+    <span style="font-size:13px;color:var(--color-neutral-500)">{{ totalFmt }}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:246px 1fr;gap:28px;margin-top:24px;align-items:start">
+    <aside style="position:sticky;top:88px;display:flex;flex-direction:column;gap:22px;padding:20px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+      <div class="field"><label>Buscar</label><input class="input" placeholder="marca, modelo" value="{{ busca }}" onChange="{{ setBusca }}"></div>
+      <div>
+        <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:9px">Categoria</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ categorias }}" as="k" hint-placeholder-count="6">
+            <span onClick="{{ k.onClick }}" class="{{ k.cls }}" style="cursor:pointer">{{ k.label }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:9px">Preço até <span style="color:var(--color-accent)">{{ precoMaxFmt }}</span></div>
+        <input type="range" min="40000" max="1000000" step="10000" value="{{ precoMax }}" onChange="{{ setPreco }}" style="width:100%;accent-color:var(--color-accent)">
+      </div>
+      <div>
+        <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:9px">Câmbio</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ cambios }}" as="k" hint-placeholder-count="3">
+            <label class="radio"><input type="radio" checked="{{ k.on }}" onChange="{{ k.onClick }}"><span class="dot"></span>{{ k.label }}</label>
+          </sc-for>
+        </div>
+      </div>
+      <span onClick="{{ limpar }}" class="btn btn-ghost" style="align-self:flex-start;cursor:pointer;font-size:13px">Limpar filtros</span>
+    </aside>
+
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;margin-right:auto">
+          <span style="font-size:11.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500)">Card</span>
+          <div class="seg">
+            <sc-for list="{{ variantes }}" as="v" hint-placeholder-count="3">
+              <label class="seg-opt"><input type="radio" checked="{{ v.on }}" onChange="{{ v.onClick }}">{{ v.label }}</label>
+            </sc-for>
+          </div>
+        </div>
+        <select class="input" value="{{ sort }}" onChange="{{ setSort }}" style="width:auto">
+          <option>Relevância</option><option>Menor preço</option><option>Maior preço</option><option>Menor km</option>
+        </select>
+      </div>
+
+      <sc-if value="{{ isVarA }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(276px,1fr));gap:18px">
+        <sc-for list="{{ cars }}" as="c" hint-placeholder-count="6">
+          <div onClick="{{ c.abrir }}" style="cursor:pointer;border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);box-shadow:var(--shadow-sm)" style-hover="box-shadow:var(--shadow-md)">
+            <div style="position:relative;aspect-ratio:4/3;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;overflow:hidden">
+              <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+              <sc-if value="{{ c.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto do veículo</span></sc-if>
+              <span class="tag tag-accent" style="position:absolute;top:12px;left:12px">{{ c.categoria }}</span>
+            </div>
+            <div style="padding:15px 16px 17px;display:flex;flex-direction:column;gap:9px">
+              <div><div style="font-family:var(--font-heading);font-size:16.5px;line-height:1.25">{{ c.nome }}</div><div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:3px">{{ c.versao }}</div></div>
+              <div style="display:flex;gap:13px;font-size:12px;color:var(--color-neutral-400)"><span>{{ c.ano }}</span><span>{{ c.kmFmt }}</span><span>{{ c.cambio }}</span></div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;padding-top:6px;border-top:1px solid var(--color-divider)">
+                <div><div style="font-family:var(--font-heading);font-size:20px;letter-spacing:-0.02em">{{ c.precoFmt }}</div><div style="font-size:11.5px;color:var(--color-neutral-500)">{{ c.parcelaFmt }}</div></div>
+                <span style="font-size:12.5px;color:var(--color-accent)">detalhes →</span>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isVarB }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ cars }}" as="c" hint-placeholder-count="5">
+          <div onClick="{{ c.abrir }}" style="cursor:pointer;display:grid;grid-template-columns:196px 1fr auto;gap:20px;align-items:center;padding:12px;border-radius:var(--radius-md);box-shadow:var(--shadow-sm);background:var(--color-surface)" style-hover="box-shadow:var(--shadow-md)">
+            <div style="position:relative;aspect-ratio:16/10;border-radius:var(--radius-sm);overflow:hidden;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center">
+              <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+              <sc-if value="{{ c.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto</span></sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:center;gap:9px"><span style="font-family:var(--font-heading);font-size:17px">{{ c.nome }}</span><span class="tag tag-outline">{{ c.categoria }}</span></div>
+              <div style="font-size:12.5px;color:var(--color-neutral-500)">{{ c.versao }}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span class="tag tag-neutral">{{ c.ano }}</span><span class="tag tag-neutral">{{ c.kmFmt }}</span><span class="tag tag-neutral">{{ c.cambio }}</span><span class="tag tag-neutral">{{ c.combustivel }}</span>
+              </div>
+            </div>
+            <div style="text-align:right;padding-right:8px;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+              <div style="font-family:var(--font-heading);font-size:24px;letter-spacing:-0.02em">{{ c.precoFmt }}</div>
+              <div style="font-size:11.5px;color:var(--color-neutral-500)">{{ c.parcelaFmt }}</div>
+              <span class="btn btn-primary" style="margin-top:6px;font-size:12.5px;padding:6px 14px">Ver ficha</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isVarC }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+        <sc-for list="{{ cars }}" as="c" hint-placeholder-count="6">
+          <div onClick="{{ c.abrir }}" style="cursor:pointer;position:relative;aspect-ratio:3/4;border-radius:var(--radius-lg);overflow:hidden;background:linear-gradient(150deg,var(--color-neutral-900),#121211);box-shadow:var(--shadow-sm)" style-hover="box-shadow:var(--shadow-lg)">
+            <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></sc-if>
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg, transparent 30%, rgba(8,8,8,0.55) 62%, rgba(8,8,8,0.95))"></div>
+            <span class="tag tag-accent" style="position:absolute;top:14px;left:14px">{{ c.categoria }}</span>
+            <div style="position:absolute;top:14px;right:14px;font-family:var(--font-heading);font-size:13px;padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--color-accent);color:var(--color-accent);background:rgba(12,12,13,0.65)">{{ c.ano }}</div>
+            <div style="position:absolute;left:0;right:0;bottom:0;padding:20px;display:flex;flex-direction:column;gap:10px">
+              <div style="font-family:var(--font-heading);font-size:20px;line-height:1.15">{{ c.nome }}</div>
+              <div style="font-size:12.5px;color:var(--color-neutral-300)">{{ c.versao }} · {{ c.kmFmt }}</div>
+              <div style="height:1px;background:linear-gradient(to right,var(--color-accent),transparent)"></div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between">
+                <div><div style="font-family:var(--font-heading);font-size:23px;letter-spacing:-0.02em">{{ c.precoFmt }}</div><div style="font-size:11.5px;color:var(--color-neutral-400)">{{ c.parcelaFmt }}</div></div>
+                <span style="font-size:12.5px;color:var(--color-accent)">ficha →</span>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ vazio }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:56px 24px;text-align:center;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+          <div style="font-family:var(--font-heading);font-size:18px;margin-bottom:6px">Nenhum veículo com esses filtros</div>
+          <p style="font-size:13.5px;color:var(--color-neutral-500);margin:0 0 16px">Amplie a faixa de preço ou fale com um consultor — recebemos carros novos toda semana.</p>
+          <span onClick="{{ limpar }}" class="btn btn-secondary" style="cursor:pointer">Limpar filtros</span>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ VEÍCULO ══ -->
+<sc-if value="{{ isVeiculo }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1240px;margin:0 auto;padding:26px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:18px"><span onClick="{{ irEstoque }}" style="cursor:pointer;color:var(--color-accent)">Estoque</span> / {{ carro.nome }}</div>
+  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:start">
+    <div>
+      <div style="position:relative;aspect-ratio:16/10;border-radius:var(--radius-lg);overflow:hidden;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;box-shadow:var(--shadow-sm)">
+        <sc-if value="{{ carro.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ carro.foto }}" alt="{{ carro.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+        <sc-if value="{{ carro.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto principal do veículo</span></sc-if>
+
+        <sc-if value="{{ raioXon }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 50%, rgba(8,8,10,0.15), rgba(8,8,10,0.62))"></div>
+          <sc-for list="{{ pontos }}" as="p" hint-placeholder-count="4">
+            <div onClick="{{ p.onClick }}" style="{{ p.marcador }}">
+              <span style="{{ p.nucleo }}">{{ p.n }}</span>
+            </div>
+          </sc-for>
+          <div key="{{ pontoAtivo.n }}" style="position:absolute;left:20px;right:20px;bottom:20px;padding:16px 18px;border-radius:var(--radius-md);background:rgba(12,12,13,0.92);border:1px solid var(--color-accent-700);backdrop-filter:blur(10px);animation:vzpRise .35s ease both">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+              <span class="tag tag-accent">{{ pontoAtivo.estado }}</span>
+              <span style="font-family:var(--font-heading);font-size:15.5px">{{ pontoAtivo.titulo }}</span>
+            </div>
+            <div style="font-size:13px;color:var(--color-neutral-300);line-height:1.55">{{ pontoAtivo.texto }}</div>
+          </div>
+        </sc-if>
+
+        <span onClick="{{ toggleRaioX }}" style="{{ botaoRaioX }}">{{ labelRaioX }}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
+        <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);background:var(--color-neutral-900);display:grid;place-items:center;font-size:10px;color:var(--color-neutral-600);letter-spacing:0.08em">FRENTE</div>
+        <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);background:var(--color-neutral-900);display:grid;place-items:center;font-size:10px;color:var(--color-neutral-600);letter-spacing:0.08em">INTERIOR</div>
+        <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);background:var(--color-neutral-900);display:grid;place-items:center;font-size:10px;color:var(--color-neutral-600);letter-spacing:0.08em">PAINEL</div>
+        <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);background:var(--color-neutral-900);display:grid;place-items:center;font-size:10px;color:var(--color-neutral-600);letter-spacing:0.08em">TRASEIRA</div>
+      </div>
+
+      <div style="height:1px;margin:34px 0 26px;background:linear-gradient(to right,transparent,var(--color-accent-700) 22%,var(--color-accent-700) 78%,transparent)"></div>
+      <h3 style="font-size:20px;margin:0 0 14px">Ficha técnica</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <sc-for list="{{ specs }}" as="s" hint-placeholder-count="6">
+          <div style="padding:13px 15px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+            <div style="font-size:10.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--color-neutral-500)">{{ s.k }}</div>
+            <div style="font-size:15px;margin-top:5px">{{ s.v }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="height:1px;margin:30px 0 26px;background:linear-gradient(to right,transparent,var(--color-divider) 22%,var(--color-divider) 78%,transparent)"></div>
+      <h3 style="font-size:20px;margin:0 0 12px">Descrição</h3>
+      <p style="font-size:14.5px;line-height:1.7;color:var(--color-neutral-300);max-width:66ch;margin:0;text-wrap:pretty">{{ carro.descricao }}</p>
+
+      <h3 style="font-size:20px;margin:34px 0 14px">Opcionais</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 26px">
+        <sc-for list="{{ opcionais }}" as="o" hint-placeholder-count="10">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 2px;border-bottom:1px solid var(--color-divider)">
+            <span style="font-size:14px;color:var(--color-neutral-200)">{{ o.label }}</span>
+            <span style="{{ o.estilo }}">{{ o.valor }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <aside style="position:sticky;top:88px;display:flex;flex-direction:column;gap:16px">
+      <div style="padding:22px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md)">
+        <span class="tag tag-accent" style="margin-bottom:12px">{{ carro.categoria }}</span>
+        <h1 style="font-size:27px;letter-spacing:-0.02em;margin:12px 0 4px">{{ carro.nome }}</h1>
+        <div style="font-size:13.5px;color:var(--color-neutral-400);margin-bottom:16px">{{ carro.versao }}</div>
+        <div style="font-family:var(--font-heading);font-size:34px;letter-spacing:-0.03em">{{ carro.precoFmt }}</div>
+        <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:18px">{{ carro.parcelaFmt }} · entrada de {{ carro.entradaFmt }}</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <span onClick="{{ comprarAgora }}" class="btn btn-primary btn-block" style="padding:11px;cursor:pointer">Comprar online</span>
+          <span onClick="{{ abrirChatCarro }}" class="btn btn-secondary btn-block" style="padding:11px;cursor:pointer">Falar com o vendedor</span>
+          <span onClick="{{ abrirChatCarro }}" class="btn btn-ghost btn-block" style="padding:9px;cursor:pointer;font-size:13px">Agendar test-drive</span>
+        </div>
+      </div>
+
+      <div onClick="{{ irAnunciante }}" style="cursor:pointer;padding:20px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:14px" style-hover="box-shadow:var(--shadow-md)">
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Anunciante</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:46px;height:46px;flex:none;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:17px">{{ anunciante.inicial }}</span>
+          <div style="min-width:0">
+            <div style="font-family:var(--font-heading);font-size:16px">{{ anunciante.nome }}</div>
+            <div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:2px">{{ anunciante.tipo }} · {{ anunciante.cidade }}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <sc-for list="{{ anunciante.numeros }}" as="n" hint-placeholder-count="3">
+            <div style="padding:9px 10px;border-radius:var(--radius-sm);background:var(--color-neutral-900)">
+              <div style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent)">{{ n.v }}</div>
+              <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);margin-top:3px">{{ n.k }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <span style="font-size:12.5px;color:var(--color-accent)">Ver perfil do anunciante →</span>
+      </div>
+      <div style="padding:18px 20px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Garantias Auto Minas</div>
+        <div style="font-size:13px;color:var(--color-neutral-300);line-height:1.6">Laudo cautelar aprovado · 3 meses de garantia de motor e câmbio · transferência inclusa · aceita troca</div>
+        <div style="height:1px;background:linear-gradient(to right,var(--color-divider),transparent)"></div>
+        <div style="font-size:12.5px;color:var(--color-neutral-500)">Estoque na unidade {{ carro.unidade }} · código {{ carro.codigo }}</div>
+      </div>
+    </aside>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ PERFIL DO ANUNCIANTE ══ -->
+<sc-if value="{{ isAnunciante }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1080px;margin:0 auto;padding:34px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:20px"><span onClick="{{ irEstoque }}" style="cursor:pointer;color:var(--color-accent)">Estoque</span> / Perfil do anunciante</div>
+
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;align-items:start">
+    <div>
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:24px">
+        <span style="width:76px;height:76px;flex:none;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:27px">{{ anunciante.inicial }}</span>
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <h2 style="font-size:29px;letter-spacing:-0.02em;margin:0">{{ anunciante.nome }}</h2>
+            <span class="tag tag-accent">{{ anunciante.selo }}</span>
+          </div>
+          <div style="font-size:13.5px;color:var(--color-neutral-500);margin-top:6px">{{ anunciante.tipo }} · {{ anunciante.cidade }} · no site desde {{ anunciante.desde }}</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px">
+        <sc-for list="{{ anunciante.painel }}" as="n" hint-placeholder-count="4">
+          <div style="padding:14px 15px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+            <div style="font-family:var(--font-heading);font-size:21px;letter-spacing:-0.02em;color:var(--color-accent)">{{ n.v }}</div>
+            <div style="font-size:10.5px;letter-spacing:0.09em;text-transform:uppercase;color:var(--color-neutral-500);margin-top:5px">{{ n.k }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <h3 style="font-size:19px;margin:0 0 10px">Sobre o anunciante</h3>
+      <p style="font-size:14.5px;line-height:1.7;color:var(--color-neutral-300);max-width:64ch;margin:0 0 30px;text-wrap:pretty">{{ anunciante.bio }}</p>
+
+      <h3 style="font-size:19px;margin:0 0 14px">Outros anúncios deste vendedor</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px">
+        <sc-for list="{{ anunciante.outros }}" as="c" hint-placeholder-count="3">
+          <div onClick="{{ c.abrir }}" style="cursor:pointer;border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);box-shadow:var(--shadow-sm)" style-hover="box-shadow:var(--shadow-md)">
+            <div style="aspect-ratio:4/3;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;overflow:hidden">
+              <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+              <sc-if value="{{ c.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto do veículo</span></sc-if>
+            </div>
+            <div style="padding:14px;display:flex;flex-direction:column;gap:6px">
+              <div style="font-family:var(--font-heading);font-size:15px">{{ c.nome }}</div>
+              <div style="font-size:12px;color:var(--color-neutral-500)">{{ c.ano }} · {{ c.kmFmt }}</div>
+              <div style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent)">{{ c.precoFmt }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <aside style="position:sticky;top:88px;display:flex;flex-direction:column;gap:14px;padding:22px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md)">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Contato</div>
+      <div style="font-size:13px;color:var(--color-neutral-300);line-height:1.6">{{ anunciante.atendimento }}</div>
+      <span onClick="{{ abrirChatCarro }}" class="btn btn-primary btn-block" style="padding:11px;cursor:pointer">Enviar mensagem</span>
+      <div style="height:1px;background:var(--color-divider)"></div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <sc-for list="{{ anunciante.verificacoes }}" as="v" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:16px 1fr;gap:9px;align-items:start">
+            <span style="color:var(--color-accent);font-size:12px;line-height:1.5">✓</span>
+            <span style="font-size:12.5px;color:var(--color-neutral-400);line-height:1.5">{{ v }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ SOBRE ══ -->
+<sc-if value="{{ isSobre }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1100px;margin:0 auto;padding:44px 28px 76px;animation:vzpIn .3s ease both">
+  <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0 0 12px;max-width:22ch">Uma revenda que trabalha de portas abertas</h2>
+  <p style="font-size:16px;line-height:1.65;color:var(--color-neutral-300);max-width:62ch;margin:0 0 34px">A Auto Minas nasceu em 2009 num galpão de 300 m² na Cidade Industrial. Hoje são duas unidades em Curitiba, 148 veículos em pátio e uma regra que não muda: nada entra no estoque sem laudo cautelar aprovado e histórico completo na tela do cliente.</p>
+  <div style="aspect-ratio:21/8;border-radius:var(--radius-lg);overflow:hidden;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;box-shadow:var(--shadow-sm);margin-bottom:34px">
+    <span style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600)">foto do showroom — 1600×600</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px">
+    <div><h4 style="margin:0 0 6px">Procedência primeiro</h4><p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Recusamos cerca de 4 em 10 carros avaliados. O que fica no pátio é o que colocaríamos na garagem de casa.</p></div>
+    <div><h4 style="margin:0 0 6px">Preço na vitrine</h4><p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Todo veículo com valor publicado no site. Nada de "consulte-nos" para descobrir o preço depois de ir até a loja.</p></div>
+    <div><h4 style="margin:0 0 6px">Pós-venda de verdade</h4><p style="font-size:13.5px;color:var(--color-neutral-400);margin:0">Oficina parceira própria, revisão de entrega e três meses de garantia de motor e câmbio em todos.</p></div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ CONTATO ══ -->
+<sc-if value="{{ isContato }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1100px;margin:0 auto;padding:44px 28px 76px;animation:vzpIn .3s ease both">
+  <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0 0 26px">Unidades e contato</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:34px">
+    <sc-for list="{{ unidades }}" as="u" hint-placeholder-count="2">
+      <div style="border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);box-shadow:var(--shadow-sm)">
+        <div style="aspect-ratio:16/7;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">mapa — {{ u.nome }}</div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:var(--font-heading);font-size:18px">{{ u.nome }}</div>
+          <div style="font-size:13.5px;color:var(--color-neutral-400)">{{ u.endereco }}</div>
+          <div style="font-size:13.5px;color:var(--color-neutral-400)">{{ u.horario }}</div>
+          <div style="display:flex;gap:9px;margin-top:8px"><a href="#" class="btn btn-primary" style="font-size:13px">WhatsApp {{ u.fone }}</a><a href="#" class="btn btn-secondary" style="font-size:13px">Rota</a></div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:26px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+    <div class="field"><label>Nome</label><input class="input" placeholder="Seu nome"></div>
+    <div class="field"><label>WhatsApp</label><input class="input" placeholder="(41) 90000-0000"></div>
+    <div class="field" style="grid-column:1/-1"><label>Como podemos ajudar?</label><textarea class="input" placeholder="Tenho interesse no Corolla XEi 2021..."></textarea></div>
+    <a href="#" class="btn btn-primary" style="grid-column:1/-1;padding:11px">Enviar mensagem</a>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ LOGIN ══ -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1020px;margin:0 auto;padding:52px 28px 84px;animation:vzpIn .3s ease both;display:grid;grid-template-columns:1fr 400px;gap:44px;align-items:start">
+
+  <div style="padding-top:6px">
+    <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:14px">Conta Auto Minas</div>
+    <h2 style="font-size:31px;letter-spacing:-0.02em;margin:0 0 12px;max-width:24ch">Uma conta para negociar, acompanhar e vender</h2>
+    <p style="font-size:14.5px;line-height:1.65;color:var(--color-neutral-400);max-width:44ch;margin:0 0 30px">É a mesma conta para comprar, conversar com o vendedor e anunciar o seu carro. Sem custo e sem documento.</p>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{ beneficios }}" as="b" hint-placeholder-count="3">
+        <div style="display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:start">
+          <span style="width:26px;height:26px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent-700);color:var(--color-accent);display:grid;place-items:center;font-size:11px">✓</span>
+          <div>
+            <div style="font-family:var(--font-heading);font-size:15px">{{ b.t }}</div>
+            <div style="font-size:13px;line-height:1.55;color:var(--color-neutral-500);margin-top:3px;max-width:38ch">{{ b.d }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding:28px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md)">
+    <div style="display:flex;gap:6px;padding:4px;border-radius:var(--radius-sm);background:var(--color-neutral-900);margin-bottom:22px">
+      <sc-for list="{{ modos }}" as="m" hint-placeholder-count="2">
+        <span onClick="{{ m.onClick }}" class="{{ m.cls }}" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px 0;font-size:13px;border-radius:var(--radius-sm)" style-hover="color:var(--color-accent)">{{ m.label }}</span>
+      </sc-for>
+    </div>
+
+    <h1 style="font-size:21px;letter-spacing:-0.01em;margin:0 0 6px">{{ authTitulo }}</h1>
+    <p style="font-size:13px;color:var(--color-neutral-500);margin:0 0 20px;line-height:1.55">{{ authSub }}</p>
+
+    <span onClick="{{ entrarGoogle }}" class="btn btn-secondary btn-block" style="padding:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-size:14px">
+      <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent)">G</span>Continuar com Google
+    </span>
+
+    <div style="display:flex;align-items:center;gap:12px;margin:20px 0">
+      <span style="flex:1;height:1px;background:var(--color-divider)"></span>
+      <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">ou com e-mail</span>
+      <span style="flex:1;height:1px;background:var(--color-divider)"></span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">E-mail</span>
+        <input type="email" value="{{ email }}" onChange="{{ setEmail }}" placeholder="voce@email.com" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;box-sizing:border-box">
+      </label>
+
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <span style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500)">Senha</span>
+          <span onClick="{{ toggleSenha }}" style="cursor:pointer;font-size:11.5px;color:var(--color-accent)">{{ labelSenha }}</span>
+        </span>
+        <input type="{{ tipoSenha }}" value="{{ senha }}" onChange="{{ setSenha }}" placeholder="mínimo de 8 caracteres" style="width:100%;padding:11px 13px;font-size:14px;color:var(--color-text);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);border-radius:var(--radius-sm);outline:none;box-sizing:border-box">
+      </label>
+
+      <sc-if value="{{ erroLogin }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:10px 12px;border-radius:var(--radius-sm);background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-size:12.5px;color:var(--color-accent-100)">{{ mensagem }}</div>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span onClick="{{ toggleLembrar }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:var(--color-neutral-400)">
+          <span style="{{ estiloLembrar }}">✓</span>Lembrar de mim
+        </span>
+        <span style="font-size:12.5px;color:var(--color-accent);cursor:pointer">Esqueci a senha</span>
+      </div>
+
+      <span onClick="{{ entrar }}" class="btn btn-primary btn-block" style="padding:12px;cursor:pointer;font-size:14.5px">{{ authBotao }}</span>
+      <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600);text-align:center">Ao continuar você aceita os termos de uso e a política de privacidade da Auto Minas.</div>
+    </div>
+  </div>
+
+</main>
+</sc-if>
+
+<!-- ══ CONTA (pós-login) ══ -->
+<sc-if value="{{ isConta }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1180px;margin:0 auto;padding:40px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:28px">
+    <div>
+      <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px">Área do cliente</div>
+      <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0">Olá, {{ primeiroNome }}</h2>
+      <div style="font-size:13.5px;color:var(--color-neutral-500);margin-top:5px">{{ emailConta }}</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <span onClick="{{ irCompras }}" class="btn btn-secondary" style="cursor:pointer;font-size:13px;white-space:nowrap">Minhas compras</span>
+      <span onClick="{{ irConfig }}" class="btn btn-secondary" style="cursor:pointer;font-size:13px;white-space:nowrap">Configurações</span>
+      <span onClick="{{ sair }}" class="btn btn-ghost" style="cursor:pointer;font-size:13px;white-space:nowrap">Sair</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px;margin-bottom:34px">
+    <div style="padding:30px;border-radius:var(--radius-lg);background:linear-gradient(150deg,var(--color-section),var(--color-section-glow));box-shadow:var(--shadow-md)">
+      <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent-200);margin-bottom:12px">Anuncie você mesmo</div>
+      <h3 style="font-size:26px;letter-spacing:-0.02em;margin:0 0 10px;max-width:20ch">Venda seu próprio carro no site da Auto Minas</h3>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-accent-200);max-width:42ch;margin:0 0 20px">Publique o anúncio na sua conta, defina o preço e fale direto com os interessados pelo chat. A loja revisa e aprova em até 24 horas.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span onClick="{{ irAnunciar }}" class="btn btn-primary" style="padding:11px 20px;cursor:pointer;border-color:var(--color-accent-200);color:var(--color-accent-100)">Anunciar meu carro</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-rows:1fr 1fr;gap:20px">
+      <div onClick="{{ irChat }}" style="cursor:pointer;padding:22px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:center;gap:6px" style-hover="box-shadow:var(--shadow-md)">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-family:var(--font-heading);font-size:17px">Mensagens</span><span class="tag tag-accent">{{ naoLidas }}</span></div>
+        <div style="font-size:13px;color:var(--color-neutral-500)">Conversas com vendedores e interessados nos seus anúncios.</div>
+      </div>
+      <div onClick="{{ irEstoque }}" style="cursor:pointer;padding:22px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:center;gap:6px" style-hover="box-shadow:var(--shadow-md)">
+        <div style="font-family:var(--font-heading);font-size:17px">Favoritos e alertas</div>
+        <div style="font-size:13px;color:var(--color-neutral-500)">Nenhum veículo salvo ainda — comece pelo estoque.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:20px;letter-spacing:-0.02em;margin:0 0 14px">Meus anúncios</h3>
+  <sc-if value="{{ semAnuncios }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:44px 24px;text-align:center;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+      <div style="font-family:var(--font-heading);font-size:17px;margin-bottom:6px">Você ainda não tem anúncios</div>
+      <p style="font-size:13.5px;color:var(--color-neutral-500);margin:0 0 16px">Publique o primeiro em três minutos — dados do veículo, fotos e preço.</p>
+      <span onClick="{{ irAnunciar }}" class="btn btn-primary" style="cursor:pointer">Criar anúncio</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ temAnuncios }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <sc-for list="{{ anuncios }}" as="a" hint-placeholder-count="1">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:20px;align-items:center;padding:18px 20px;border-radius:var(--radius-md);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-family:var(--font-heading);font-size:17px">{{ a.nome }}</span><span class="tag tag-outline">{{ a.status }}</span></div>
+            <div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:4px">{{ a.detalhe }}</div>
+          </div>
+          <div style="text-align:right"><div style="font-family:var(--font-heading);font-size:20px">{{ a.precoFmt }}</div><div style="font-size:11.5px;color:var(--color-neutral-500)">{{ a.visitas }} visitas</div></div>
+          <span onClick="{{ irChat }}" class="btn btn-secondary" style="cursor:pointer;font-size:13px">Ver conversas</span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</main>
+</sc-if>
+
+<!-- ══ ANUNCIAR MEU CARRO ══ -->
+<sc-if value="{{ isAnunciar }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1000px;margin:0 auto;padding:40px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:16px"><span onClick="{{ irConta }}" style="cursor:pointer;color:var(--color-accent)">Minha conta</span> / Novo anúncio</div>
+  <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0 0 8px">Anunciar meu carro</h2>
+  <p style="font-size:14.5px;color:var(--color-neutral-400);max-width:56ch;margin:0 0 28px">O anúncio fica no seu nome, com o chat aberto direto com os interessados. A Auto Minas revisa os dados e a documentação antes de publicar.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+    <div style="padding:26px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:20px">
+      <div>
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:12px">Veículo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="field"><label>Marca</label><input class="input" placeholder="Toyota" value="{{ anMarca }}" onChange="{{ setAnMarca }}"></div>
+          <div class="field"><label>Modelo e versão</label><input class="input" placeholder="Corolla XEi 2.0" value="{{ anModelo }}" onChange="{{ setAnModelo }}"></div>
+          <div class="field"><label>Ano/modelo</label><input class="input" placeholder="2021"></div>
+          <div class="field"><label>Km rodados</label><input class="input" placeholder="48.000"></div>
+          <div class="field"><label>Câmbio</label><select class="input"><option>Automático</option><option>Manual</option><option>Automatizado</option></select></div>
+          <div class="field"><label>Combustível</label><select class="input"><option>Flex</option><option>Gasolina</option><option>Diesel</option><option>Híbrido</option><option>Elétrico</option></select></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:12px">Fotos</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);border:1px dashed var(--color-neutral-700);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-500);cursor:pointer" style-hover="border-color:var(--color-accent)">+ capa</div>
+          <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);border:1px dashed var(--color-neutral-800);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-600);cursor:pointer" style-hover="border-color:var(--color-accent)">+ foto</div>
+          <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);border:1px dashed var(--color-neutral-800);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-600);cursor:pointer" style-hover="border-color:var(--color-accent)">+ foto</div>
+          <div style="aspect-ratio:4/3;border-radius:var(--radius-sm);border:1px dashed var(--color-neutral-800);display:grid;place-items:center;font-size:11px;color:var(--color-neutral-600);cursor:pointer" style-hover="border-color:var(--color-accent)">+ foto</div>
+        </div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:8px">Mínimo 4 fotos. Luz do dia, carro limpo e sem filtro.</div>
+      </div>
+
+      <div>
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:12px">Preço e modalidade</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px"><span style="color:var(--color-neutral-400)">Preço pedido</span><span style="font-family:var(--font-heading);color:var(--color-accent)">{{ anPrecoFmt }}</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius-sm);background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)">
+          <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-500)">R$</span>
+          <input type="text" inputmode="numeric" value="{{ anPrecoInput }}" onChange="{{ setAnPreco }}" placeholder="120.000" style="flex:1;min-width:0;padding:0;font-family:var(--font-heading);font-size:19px;letter-spacing:-0.02em;color:var(--color-text);background:transparent;border:none;outline:none">
+        </div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:7px">Digite o valor que você quer pedir. Dá para mudar depois de publicar.</div>
+        <div class="seg" style="width:100%;margin-top:16px">
+          <sc-for list="{{ modalidades }}" as="m" hint-placeholder-count="3">
+            <label class="seg-opt" style="flex:1;justify-content:center"><input type="radio" name="modalidade" checked="{{ m.on }}" onChange="{{ m.onClick }}">{{ m.label }}</label>
+          </sc-for>
+        </div>
+        <div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:10px">{{ modalidadeNota }}</div>
+      </div>
+
+      <div class="field"><label>Descrição</label><textarea class="input" placeholder="Único dono, revisões na concessionária, pneus novos..."></textarea></div>
+      <span onClick="{{ publicar }}" class="btn btn-primary btn-block" style="padding:11px;cursor:pointer">Publicar anúncio</span>
+      <sc-if value="{{ anunciado }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:12.5px;color:var(--color-accent-200);background:var(--color-accent-900);padding:10px 12px;border-radius:var(--radius-sm)">Anúncio enviado para revisão — aparece em "Meus anúncios".</div>
+      </sc-if>
+    </div>
+
+    <aside style="position:sticky;top:88px;padding:22px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">Prévia do anúncio</div>
+      <div style="border-radius:var(--radius-md);overflow:hidden;background:var(--color-surface);box-shadow:var(--shadow-sm)">
+        <div style="aspect-ratio:4/3;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto de capa</div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-family:var(--font-heading);font-size:16px">{{ anTitulo }}</div>
+          <div style="font-family:var(--font-heading);font-size:19px;color:var(--color-accent)">{{ anPrecoFmt }}</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:var(--color-neutral-500);line-height:1.6">Anúncios de particulares levam o selo "Consignação" quando revisados pela loja.</div>
+    </aside>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ CHAT ══ -->
+<sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1180px;margin:0 auto;padding:34px 28px 60px;animation:vzpIn .3s ease both">
+  <h2 style="font-size:26px;letter-spacing:-0.02em;margin:0 0 20px">Mensagens</h2>
+  <div style="display:grid;grid-template-columns:290px 1fr;gap:18px;height:600px">
+    <aside style="border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);overflow:auto">
+      <sc-for list="{{ conversas }}" as="c" hint-placeholder-count="3">
+        <div onClick="{{ c.onClick }}" style="{{ c.style }}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:32px;height:32px;border-radius:50%;background:var(--color-neutral-900);border:1px solid var(--color-neutral-700);display:grid;place-items:center;font-size:11px;font-family:var(--font-heading);color:var(--color-accent)">{{ c.inicial }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                <span style="font-family:var(--font-heading);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.nome }}</span>
+                <span style="font-size:11px;color:var(--color-neutral-600)">{{ c.hora }}</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--color-accent)">{{ c.papel }}</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.previa }}</div>
+          <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:5px">{{ c.assunto }}</div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <section style="display:flex;flex-direction:column;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);overflow:hidden">
+      <header style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--color-divider)">
+        <span style="width:36px;height:36px;border-radius:50%;background:var(--color-accent-900);border:1px solid var(--color-accent);display:grid;place-items:center;font-size:12px;font-family:var(--font-heading);color:var(--color-accent)">{{ ativo.inicial }}</span>
+        <div style="flex:1">
+          <div style="font-family:var(--font-heading);font-size:16px">{{ ativo.nome }}</div>
+          <div style="font-size:12px;color:var(--color-neutral-500)">{{ ativo.papel }} · {{ ativo.status }}</div>
+        </div>
+        <span onClick="{{ verVeiculo }}" class="btn btn-ghost" style="cursor:pointer;font-size:12.5px">Ver veículo</span>
+      </header>
+
+      <div style="padding:12px 20px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:12px;background:var(--color-neutral-900)">
+        <div style="width:52px;height:38px;border-radius:var(--radius-sm);background:linear-gradient(150deg,var(--color-neutral-800),#121211);display:grid;place-items:center;font-size:9px;color:var(--color-neutral-600)">foto</div>
+        <div style="flex:1"><div style="font-size:13.5px;font-family:var(--font-heading)">{{ ativo.assunto }}</div><div style="font-size:12px;color:var(--color-neutral-500)">{{ ativo.precoAssunto }}</div></div>
+      </div>
+
+      <div style="flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ mensagens }}" as="m" hint-placeholder-count="5">
+          <div style="{{ m.wrap }}">
+            <div style="{{ m.bolha }}">{{ m.texto }}</div>
+            <div style="font-size:10.5px;color:var(--color-neutral-600);padding:0 4px">{{ m.hora }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ digitando }}" hint-placeholder-val="{{ false }}">
+          <div style="align-self:flex-start;font-size:12px;color:var(--color-neutral-500);padding:8px 14px;border-radius:var(--radius-md);background:var(--color-neutral-900)">{{ ativo.nome }} está digitando…</div>
+        </sc-if>
+      </div>
+
+      <div style="padding:14px 20px;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ rapidas }}" as="r" hint-placeholder-count="3">
+            <span onClick="{{ r.onClick }}" class="tag tag-outline" style="cursor:pointer;font-size:12px" style-hover="border-color:var(--color-accent);color:var(--color-accent)">{{ r.label }}</span>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:10px">
+          <input class="input" placeholder="Escreva sua mensagem" value="{{ rascunho }}" onChange="{{ setRascunho }}" onKeyDown="{{ teclaEnviar }}" style="flex:1">
+          <span onClick="{{ enviar }}" class="btn btn-primary" style="cursor:pointer;padding:0 20px;display:grid;place-items:center">Enviar</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ CONFIGURAÇÕES ══ -->
+<sc-if value="{{ isConfig }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:900px;margin:0 auto;padding:40px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:16px"><span onClick="{{ irConta }}" style="cursor:pointer;color:var(--color-accent)">Minha conta</span> / Configurações</div>
+  <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0 0 30px">Configurações</h2>
+
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="padding:24px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);margin-bottom:16px">Dados pessoais</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="field"><label>Nome completo</label><input class="input" value="{{ cfgNome }}" onChange="{{ setCfgNome }}"></div>
+        <div class="field"><label>E-mail</label><input class="input" value="{{ cfgEmail }}" onChange="{{ setCfgEmail }}"></div>
+        <div class="field"><label>WhatsApp</label><input class="input" placeholder="(41) 90000-0000" value="{{ cfgFone }}" onChange="{{ setCfgFone }}"></div>
+        <div class="field"><label>Cidade</label><input class="input" placeholder="Curitiba/PR" value="{{ cfgCidade }}" onChange="{{ setCfgCidade }}"></div>
+      </div>
+    </div>
+
+    <div style="padding:24px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);margin-bottom:6px">Notificações</div>
+      <div style="display:flex;flex-direction:column">
+        <sc-for list="{{ notificacoes }}" as="n" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+            <div><div style="font-size:14.5px;font-family:var(--font-heading)">{{ n.titulo }}</div><div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:2px">{{ n.desc }}</div></div>
+            <span onClick="{{ n.onClick }}" role="switch" aria-checked="{{ n.aria }}" style="{{ n.trilho }}"><span style="{{ n.bolinha }}"></span></span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding:24px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);margin-bottom:16px">Preferência de busca</div>
+      <div style="font-size:13px;color:var(--color-neutral-400);margin-bottom:12px">Usamos isso para o alerta de estoque e para ordenar o que você vê primeiro.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+        <sc-for list="{{ prefCats }}" as="p" hint-placeholder-count="5">
+          <span onClick="{{ p.onClick }}" class="{{ p.cls }}" style="cursor:pointer">{{ p.label }}</span>
+        </sc-for>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px"><span style="color:var(--color-neutral-400)">Teto de preço</span><span style="font-family:var(--font-heading);color:var(--color-accent)">{{ cfgTetoFmt }}</span></div>
+      <input type="range" min="30000" max="900000" step="10000" value="{{ cfgTeto }}" onChange="{{ setCfgTeto }}" style="width:100%;accent-color:var(--color-accent)">
+    </div>
+
+    <div style="padding:24px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);margin-bottom:16px">Acesso</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:1px solid var(--color-divider)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.8-.4-4.1H24v7.5h12c-.2 2-1.5 5-4.4 7l6.8 5.3c4-3.7 6.7-9.2 6.7-15.7z"></path><path fill="#34A853" d="M24 46c5.9 0 10.8-1.9 14.4-5.3l-6.8-5.3c-1.9 1.3-4.4 2.2-7.6 2.2-5.8 0-10.8-3.8-12.5-9.1l-7.1 5.5C8 41.2 15.4 46 24 46z"></path><path fill="#FBBC05" d="M11.5 28.5c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 10l7.1-5.5z"></path><path fill="#EA4335" d="M24 10.3c4.1 0 6.9 1.8 8.5 3.3l6-5.9C34.8 4.3 29.9 2 24 2 15.4 2 8 6.8 4.4 14l7.1 5.5c1.7-5.3 6.7-9.2 12.5-9.2z"></path></svg>
+          <div><div style="font-size:14px">Conta Google conectada</div><div style="font-size:12.5px;color:var(--color-neutral-500)">{{ cfgEmail }}</div></div>
+        </div>
+        <span class="tag tag-accent">Ativa</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:16px">
+        <div><div style="font-size:14px">Senha</div><div style="font-size:12.5px;color:var(--color-neutral-500)">Alterada há 3 meses</div></div>
+        <span class="btn btn-ghost" style="cursor:pointer;font-size:13px;white-space:nowrap">Alterar senha</span>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span onClick="{{ salvarConfig }}" class="btn btn-primary" style="padding:11px 22px;cursor:pointer">Salvar alterações</span>
+      <sc-if value="{{ configSalva }}" hint-placeholder-val="{{ false }}">
+        <span style="font-size:13px;color:var(--color-accent)">Preferências salvas.</span>
+      </sc-if>
+      <span style="margin-left:auto;font-size:13px;color:var(--color-neutral-600);cursor:pointer" style-hover="color:var(--color-accent-300)">Excluir minha conta</span>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ══ COMPRA ══ -->
+<sc-if value="{{ isCompra }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:1080px;margin:0 auto;padding:40px 28px 76px;animation:vzpIn .3s ease both">
+  <sc-if value="{{ compraAberta }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <h2 style="font-size:30px;letter-spacing:-0.02em;margin:0 0 24px">Finalizar compra</h2>
+    <div style="display:flex;gap:0;margin-bottom:28px;align-items:center">
+      <sc-for list="{{ etapas }}" as="e" hint-placeholder-count="3">
+        <div style="{{ e.wrap }}">
+          <span style="{{ e.bolha }}">{{ e.n }}</span>
+          <span style="{{ e.rotulo }}">{{ e.label }}</span>
+          <span style="{{ e.linha }}"></span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 330px;gap:24px;align-items:start">
+      <div style="padding:26px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:20px">
+        <sc-if value="{{ etapa1 }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <h3 style="font-size:19px;margin:0">Como você quer pagar</h3>
+            <sc-for list="{{ formasPgto }}" as="p" hint-placeholder-count="3">
+              <div onClick="{{ p.onClick }}" style="{{ p.card }}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                  <div><div style="font-family:var(--font-heading);font-size:15.5px">{{ p.titulo }}</div><div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:3px">{{ p.desc }}</div></div>
+                  <div style="text-align:right;white-space:nowrap"><div style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent)">{{ p.valor }}</div><div style="font-size:11.5px;color:var(--color-neutral-500)">{{ p.nota }}</div></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ etapa2 }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <h3 style="font-size:19px;margin:0">Entrega do veículo</h3>
+            <div class="seg" style="width:100%">
+              <sc-for list="{{ entregas }}" as="e" hint-placeholder-count="2">
+                <label class="seg-opt" style="flex:1;justify-content:center"><input type="radio" name="entrega" checked="{{ e.on }}" onChange="{{ e.onClick }}">{{ e.label }}</label>
+              </sc-for>
+            </div>
+            <div style="font-size:13px;color:var(--color-neutral-400);line-height:1.6">{{ entregaNota }}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div class="field"><label>CPF</label><input class="input" placeholder="000.000.000-00"></div>
+              <div class="field"><label>Data de nascimento</label><input class="input" placeholder="01/01/1990"></div>
+              <div class="field" style="grid-column:1/-1"><label>Endereço completo</label><input class="input" placeholder="Rua, número, bairro, cidade"></div>
+              <div class="field"><label>CEP</label><input class="input" placeholder="80000-000"></div>
+              <div class="field"><label>Melhor data para retirada</label><input class="input" placeholder="Sábado, 15/08"></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ etapa3 }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <h3 style="font-size:19px;margin:0">Revisar e confirmar</h3>
+            <table class="table"><tbody>
+              <sc-for list="{{ revisao }}" as="r" hint-placeholder-count="5">
+                <tr><td style="color:var(--color-neutral-500);width:42%">{{ r.k }}</td><td>{{ r.v }}</td></tr>
+              </sc-for>
+            </tbody></table>
+            <label class="radio" style="cursor:pointer"><input type="checkbox" checked="{{ aceite }}" onChange="{{ toggleAceite }}"><span class="dot"></span>Li e aceito as condições de venda e a política de troca de 7 dias.</label>
+            <sc-if value="{{ erroCompra }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12.5px;color:var(--color-accent-200);background:var(--color-accent-900);padding:10px 12px;border-radius:var(--radius-sm)">Marque o aceite das condições para concluir.</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;gap:10px;padding-top:6px">
+          <sc-if value="{{ podeVoltar }}" hint-placeholder-val="{{ false }}">
+            <span onClick="{{ voltarEtapa }}" class="btn btn-ghost" style="cursor:pointer;white-space:nowrap">Voltar</span>
+          </sc-if>
+          <span onClick="{{ avancarEtapa }}" class="btn btn-primary" style="margin-left:auto;padding:11px 24px;cursor:pointer;white-space:nowrap">{{ labelAvancar }}</span>
+        </div>
+      </div>
+
+      <aside style="position:sticky;top:88px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-md);overflow:hidden">
+        <div style="aspect-ratio:16/10;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center;overflow:hidden">
+          <sc-if value="{{ carro.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ carro.foto }}" alt="{{ carro.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+          <sc-if value="{{ carro.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">foto do veículo</span></sc-if>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+          <div><div style="font-family:var(--font-heading);font-size:17px">{{ carro.nome }}</div><div style="font-size:12.5px;color:var(--color-neutral-500);margin-top:3px">{{ carro.versao }}</div></div>
+          <div style="height:1px;background:var(--color-divider)"></div>
+          <sc-for list="{{ resumo }}" as="r" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--color-neutral-500)">{{ r.k }}</span><span>{{ r.v }}</span></div>
+          </sc-for>
+          <div style="height:1px;background:var(--color-divider)"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;color:var(--color-neutral-400)">Total</span><span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-0.02em;color:var(--color-accent)">{{ totalCompraFmt }}</span></div>
+          <div style="font-size:11.5px;color:var(--color-neutral-600);line-height:1.55">Reserva de R$ 2.000 no cartão, abatida do valor final. Devolvida integralmente se a compra não se concretizar.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ compraFeita }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:620px;margin:40px auto;text-align:center;padding:44px 34px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-lg);animation:vzpRise .5s ease both">
+      <div style="width:56px;height:56px;margin:0 auto 20px;border-radius:50%;border:1px solid var(--color-accent);background:var(--color-accent-900);display:grid;place-items:center;color:var(--color-accent);font-size:22px">✓</div>
+      <h2 style="font-size:28px;letter-spacing:-0.02em;margin:0 0 10px">Compra confirmada</h2>
+      <p style="font-size:14.5px;color:var(--color-neutral-400);line-height:1.6;margin:0 0 22px">Pedido <strong style="color:var(--color-accent)">{{ pedidoCod }}</strong> — o consultor Diego entra em contato em até 2 horas úteis para a vistoria e a assinatura. O veículo já saiu do site.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <span onClick="{{ irCompras }}" class="btn btn-primary" style="cursor:pointer;white-space:nowrap">Ver minhas compras</span>
+        <span onClick="{{ irChat }}" class="btn btn-secondary" style="cursor:pointer;white-space:nowrap">Falar com o consultor</span>
+      </div>
+    </div>
+  </sc-if>
+</main>
+</sc-if>
+
+<!-- ══ MINHAS COMPRAS ══ -->
+<sc-if value="{{ isCompras }}" hint-placeholder-val="{{ false }}">
+<main style="max-width:960px;margin:0 auto;padding:40px 28px 76px;animation:vzpIn .3s ease both">
+  <div style="font-size:12.5px;color:var(--color-neutral-500);margin-bottom:16px"><span onClick="{{ irConta }}" style="cursor:pointer;color:var(--color-accent)">Minha conta</span> / Minhas compras</div>
+  <h2 style="font-size:32px;letter-spacing:-0.02em;margin:0 0 26px">Minhas compras</h2>
+  <sc-if value="{{ semCompras }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:48px 24px;text-align:center;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+      <div style="font-family:var(--font-heading);font-size:17px;margin-bottom:6px">Nenhuma compra por aqui ainda</div>
+      <p style="font-size:13.5px;color:var(--color-neutral-500);margin:0 0 16px">Quando você fechar um veículo pelo site, o pedido e o acompanhamento aparecem nesta página.</p>
+      <span onClick="{{ irEstoque }}" class="btn btn-primary" style="cursor:pointer">Ver estoque</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ temCompras }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{ compras }}" as="c" hint-placeholder-count="1">
+        <div style="border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm);overflow:hidden">
+          <div style="display:grid;grid-template-columns:190px 1fr auto;gap:20px;align-items:center;padding:16px">
+            <div style="aspect-ratio:16/10;border-radius:var(--radius-sm);overflow:hidden;background:linear-gradient(150deg,var(--color-neutral-900),#121211);display:grid;place-items:center">
+              <sc-if value="{{ c.temFoto }}" hint-placeholder-val="{{ true }}"><img src="{{ c.foto }}" alt="{{ c.nome }}" style="width:100%;height:100%;object-fit:cover"></sc-if>
+              <sc-if value="{{ c.semFoto }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;color:var(--color-neutral-600)">foto</span></sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="font-family:var(--font-heading);font-size:17px">{{ c.nome }}</div>
+              <div style="font-size:12.5px;color:var(--color-neutral-500)">Pedido {{ c.cod }} · {{ c.pagamento }} · {{ c.entrega }}</div>
+              <div style="font-size:12.5px;color:var(--color-neutral-500)">{{ c.data }}</div>
+            </div>
+            <div style="text-align:right;padding-right:8px"><div style="font-family:var(--font-heading);font-size:21px;color:var(--color-accent)">{{ c.totalFmt }}</div></div>
+          </div>
+          <div style="display:flex;gap:0;padding:0 16px 18px">
+            <sc-for list="{{ c.trilha }}" as="t" hint-placeholder-count="4">
+              <div style="{{ t.wrap }}">
+                <span style="{{ t.ponto }}"></span>
+                <span style="{{ t.label }}">{{ t.nome }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</main>
+</sc-if>
+
+<footer style="border-top:1px solid var(--color-divider);margin-top:20px">
+  <div style="max-width:1240px;margin:0 auto;padding:34px 28px;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:26px">
+    <div>
+      <div style="display:flex;align-items:baseline;gap:7px;margin-bottom:10px"><span style="font-family:var(--font-heading);font-weight:600;font-size:18px">AUTO</span><span style="font-family:var(--font-heading);font-size:18px;letter-spacing:0.22em;color:var(--color-accent)">MINAS</span></div>
+      <div style="font-size:12.5px;color:var(--color-neutral-500);max-width:34ch;line-height:1.6">Seminovos, premium, blindados, motos e consignação em Curitiba. CNPJ 00.000.000/0001-00.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:3px">Comprar</div>
+      <span onClick="{{ irEstoque }}" style="cursor:pointer;color:var(--color-neutral-400)">Estoque</span>
+      <span onClick="{{ irFinanciamento }}" style="cursor:pointer;color:var(--color-neutral-400)">Financiamento</span>
+      <span onClick="{{ irEstoque }}" style="cursor:pointer;color:var(--color-neutral-400)">Blindados</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:3px">Vender</div>
+      <span onClick="{{ irAnunciar }}" style="cursor:pointer;color:var(--color-neutral-400)">Anunciar meu carro</span>
+      <span onClick="{{ irAnunciar }}" style="cursor:pointer;color:var(--color-neutral-400)">Consignação</span>
+      <span onClick="{{ irChat }}" style="cursor:pointer;color:var(--color-neutral-400)">Mensagens</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:3px">Loja</div>
+      <span onClick="{{ irSobre }}" style="cursor:pointer;color:var(--color-neutral-400)">Sobre a Auto Minas</span>
+      <span onClick="{{ irContato }}" style="cursor:pointer;color:var(--color-neutral-400)">Unidades</span>
+      <span onClick="{{ irContato }}" style="cursor:pointer;color:var(--color-neutral-400)">Contato</span>
+    </div>
+  </div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;mostrarParcela&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Comercial&quot;},&quot;taxaJuros&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:1.12,&quot;min&quot;:0.5,&quot;max&quot;:4,&quot;step&quot;:0.01,&quot;unit&quot;:&quot;% a.m.&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Comercial&quot;}}">
+/* Nenhum dado mora aqui. Tudo vem de backend.js (window.AutoMinasAPI). */
+const NADA = {id:0,nome:"",versao:"",ano:new Date().getFullYear(),km:0,preco:0,cat:"",cambio:"",comb:"",
+  foto:null,unidade:"",cod:"",descricao:"",opcionais:[],cor:"",placa:"",laudo:"",doc:"",garantia:"",anuncianteId:null,destaque:false};
+
+class Component extends DCLogic {
+  state = {db:(typeof window!=="undefined" && window.AUTO_MINAS_DB) || null,
+    authModo:"Entrar", email:"", senha:"", verSenha:false, lembrar:true, mensagem:"",
+    logado:false, nome:"", anuncios:[], anMarca:"", anModelo:"", anPreco:120000, modalidade:"Anúncio próprio", anunciado:false,
+    conversaId:1, rascunho:"", digitando:false, extras:{},
+    vitrineIdx:0, raioX:false, pontoId:1,
+    cfgNome:"", cfgEmail:"", cfgFone:"", cfgCidade:"Curitiba/PR", cfgTeto:200000, cfgCats:["Seminovos"],
+    notifs:{}, configSalva:false,
+    etapa:1, pagamento:"financiado", entrega:"retirar", aceite:false, erroCompra:false, compras:[], pedidoCod:"",
+    rotaPretendida:"", route:"home", busca:"", cat:"Todos", precoMax:1000000, cambio:"Todos", sort:"Relevância", variant:"a", carroId:0, valor:0, entrada:0, prazo:48};
+
+  componentDidMount(){
+    const api = typeof window!=="undefined" ? window.AutoMinasAPI : null;
+    if(api) api.carregar().then(db=>this.setState({db})).catch(()=>{});
+    this._vt = setInterval(()=>{
+      if(this.state.route==="home") this.setState(st=>({vitrineIdx:st.vitrineIdx+1}));
+    }, 6000);
+  }
+  componentWillUnmount(){ clearInterval(this._vt); }
+
+  db(){ return this.state.db; }
+  cfg(){ const d=this.db(); return (d && d.config_financiamento) || {taxa_mensal:1.79, entrada_minima_pct:20, desconto_avista_pct:4, prazos_disponiveis:[24,36,48,60]}; }
+
+  /* traduz o registro do back-end para o vocabulário da tela */
+  normalizar(v){
+    const d=this.db();
+    const un=(d.unidades.find(u=>u.id===v.unidade_id)||{});
+    const capa=(v.fotos||[]).slice().sort((a,b)=>a.ordem-b.ordem)[0];
+    return {id:v.id, cod:v.codigo, nome:v.nome, versao:v.versao, ano:v.ano_modelo, km:v.km, preco:v.preco,
+      cat:v.categoria, cambio:v.cambio, comb:v.combustivel, foto:(capa&&capa.url)||null,
+      unidade:un.curto||un.nome||"", descricao:v.descricao||"", opcionais:v.opcionais||[],
+      cor:v.cor||"—", placa:v.final_placa||"—", laudo:v.laudo_cautelar||"—", doc:v.documentacao||"—",
+      garantia:v.garantia||"—", anuncianteId:v.anunciante_id, destaque:!!v.destaque};
+  }
+  veiculos(){ const d=this.db(); if(!d) return []; return d.veiculos.filter(v=>v.status==="disponivel").map(v=>this.normalizar(v)); }
+
+  brl(n){ return "R$ " + Math.round(n||0).toLocaleString("pt-BR"); }
+  taxa(){ return this.props.taxaJuros ?? this.cfg().taxa_mensal; }
+  pmt(p,n){ const i=this.taxa()/100; return p<=0?0:(p*i)/(1-Math.pow(1+i,-n)); }
+
+  anunciante(id){
+    const d=this.db();
+    const a = d && d.anunciantes.find(x=>x.id===id);
+    return a || {nome:"", papel:"", inicial:"", tipo:"", avaliacao:null, anuncios_ativos:null, desde:null, resposta_media:""};
+  }
+
+  fmt(c){
+    const ent = this.cfg().entrada_minima_pct/100;
+    const parcela = this.pmt(c.preco*(1-ent), 48);
+    const a = this.anunciante(c.anuncianteId);
+    return {...c, categoria:c.cat, kmFmt:c.km.toLocaleString("pt-BR")+" km", combustivel:c.comb,
+      vendedor:a.nome, vendedorPapel:a.papel, vendedorInicial:a.inicial,
+      precoFmt:this.brl(c.preco), parcelaFmt:(this.props.mostrarParcela ?? true) ? "48x de "+this.brl(parcela) : "entrada + saldo a combinar",
+      entradaFmt:this.brl(c.preco*ent), codigo:c.cod, temFoto:!!c.foto, semFoto:!c.foto,
+      abrir:()=>{ this.setState({route:"veiculo",carroId:c.id, valor:c.preco, entrada:Math.round(c.preco*ent)}); window.scrollTo(0,0); }};
+  }
+
+  PRIVADAS = ["anunciar","conta","compra","compras","config","chat"];
+  go(r){ return ()=>{
+    const destino = (!this.state.logado && this.PRIVADAS.indexOf(r)>=0) ? "login" : r;
+    this.setState({route:destino, rotaPretendida:destino==="login"?r:""}); window.scrollTo(0,0);
+  }; }
+  agora(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+
+  autenticar(nome, email){
+    this.setState(st=>({logado:true, nome, email, cfgNome:nome, cfgEmail:email, mensagem:"",
+      route:st.rotaPretendida || "conta", rotaPretendida:""}));
+    window.scrollTo(0,0);
+  }
+
+  responder(id){
+    const d=this.db();
+    const banco = (d && d.respostas_automaticas) || [];
+    if(!banco.length) return;
+    const txt = banco[Math.floor(Math.random()*banco.length)];
+    this.setState({digitando:true});
+    setTimeout(()=>{
+      this.setState(st=>{
+        const ex = {...st.extras};
+        ex[id] = [...(ex[id]||[]), {de:"vendedor", texto:txt, hora:this.agora()}];
+        return {extras:ex, digitando:false};
+      });
+    }, 1400);
+  }
+
+  enviarMsg(texto){
+    const t = (texto||"").trim();
+    if(!t) return;
+    const id = this.state.conversaId;
+    this.setState(st=>{
+      const ex = {...st.extras};
+      ex[id] = [...(ex[id]||[]), {de:"comprador", texto:t, hora:this.agora()}];
+      return {extras:ex, rascunho:""};
+    });
+    this.responder(id);
+  }
+
+  renderVals(){
+    const s = this.state;
+    const d = this.db();
+    const cfg = this.cfg();
+    const entPct = cfg.entrada_minima_pct/100;
+    const CARS = this.veiculos();
+    const q = s.busca.trim().toLowerCase();
+
+    let list = CARS.filter(c =>
+      (s.cat==="Todos" || c.cat===s.cat) &&
+      c.preco <= (s.precoMax >= 1000000 ? Infinity : s.precoMax) &&
+      (s.cambio==="Todos" || c.cambio===s.cambio) &&
+      (!q || (c.nome+" "+c.versao).toLowerCase().includes(q)));
+    if (s.sort==="Menor preço") list = [...list].sort((a,b)=>a.preco-b.preco);
+    if (s.sort==="Maior preço") list = [...list].sort((a,b)=>b.preco-a.preco);
+    if (s.sort==="Menor km") list = [...list].sort((a,b)=>a.km-b.km);
+
+    const carroRaw = CARS.find(c=>c.id===s.carroId) || CARS[0] || NADA;
+    const carro = this.fmt(carroRaw);
+    const anun = this.anunciante(carroRaw.anuncianteId);
+    const nota = anun.avaliacao!=null ? anun.avaliacao.toFixed(1).replace(".",",") : "—";
+    const outrosDoAnunciante = CARS.filter(c=>c.anuncianteId===carroRaw.anuncianteId && c.id!==carroRaw.id).slice(0,4).map(c=>this.fmt(c));
+    const anunciante = {nome:anun.nome, papel:anun.papel, inicial:anun.inicial,
+      tipo:anun.tipo==="loja"?"Vendedor da loja":anun.tipo?"Vendedor particular":"",
+      selo:anun.tipo==="loja"?"Loja verificada":"Particular verificado",
+      cidade:anun.cidade||"", desde:anun.desde?String(anun.desde):"—",
+      anuncios:anun.anuncios_ativos!=null?anun.anuncios_ativos+" anúncios ativos":"",
+      avaliacao:nota!=="—"?nota+" de 5":"", resposta:anun.resposta_media||"",
+      bio:anun.bio||"", atendimento:anun.atendimento||"", verificacoes:anun.verificacoes||[],
+      numeros:[{k:"anúncios",v:String(anun.anuncios_ativos??"—")},{k:"nota",v:nota},{k:"desde",v:anun.desde?String(anun.desde):"—"}],
+      painel:[{k:"anúncios ativos",v:String(anun.anuncios_ativos??"—")},{k:"nota dos clientes",v:nota},
+        {k:"no site desde",v:anun.desde?String(anun.desde):"—"},{k:"tempo de resposta",v:(anun.resposta_media||"").replace("responde em ","")||"—"}],
+      outros:outrosDoAnunciante};
+
+    const vitrineCars = CARS.filter(c=>c.destaque && c.foto).slice(0,4);
+    const vIdx = vitrineCars.length ? s.vitrineIdx % vitrineCars.length : 0;
+    const vitrine = vitrineCars.map((c,i)=>{
+      const on = i===vIdx;
+      return {foto:c.foto, nome:c.nome,
+        camada:"position:absolute;inset:0;transition:opacity 1s ease;opacity:"+(on?1:0),
+        img:"width:100%;height:100%;object-fit:cover;animation:vzpKen 14s ease-out both;"+(on?"":"animation-play-state:paused"),
+        thumb:"width:74px;height:52px;border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;transition:all .3s ease;"+
+          (on ? "outline:1px solid var(--color-accent);outline-offset:2px;opacity:1;transform:translateY(-4px)" : "opacity:0.42;outline:1px solid transparent"),
+        selecionar:()=>this.setState({vitrineIdx:i})};
+    });
+    const vc = vitrineCars[vIdx] || NADA;
+    const vAtual = {chave:"v"+vc.id, nome:vc.nome, versao:vc.versao, categoria:vc.cat, codigo:vc.cod, unidade:vc.unidade,
+      numeros:vc.id?[{k:"preço",v:this.brl(vc.preco)},{k:"ano",v:String(vc.ano)},{k:"rodados",v:vc.km.toLocaleString("pt-BR")+" km"}]:[],
+      abrir:()=>{ if(!vc.id) return; this.setState({route:"veiculo",carroId:vc.id,valor:vc.preco,entrada:Math.round(vc.preco*entPct)}); window.scrollTo(0,0); }};
+
+    const PONTOS = (d && d.raio_x_pontos) || [];
+    const pAtivo = PONTOS.find(p=>p.n===s.pontoId) || PONTOS[0] || {n:0,titulo:"",texto:"",estado:""};
+    const pontos = PONTOS.map(p=>{
+      const on = p.n===pAtivo.n;
+      return {n:p.n, onClick:()=>this.setState({pontoId:p.n}),
+        marcador:"position:absolute;left:"+p.x+"%;top:"+p.y+"%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:rgba(12,12,13,0.75);border:1px solid var(--color-accent);animation:vzpPulse 2.4s ease-out infinite;animation-delay:"+(p.n*0.4)+"s",
+        nucleo:"font-family:var(--font-heading);font-size:12px;transition:all .2s ease;"+(on?"color:var(--color-accent-100)":"color:var(--color-accent)")};
+    });
+
+    const notificacoes = ((d && d.preferencias_notificacao) || []).map(n=>{
+      const on = s.notifs[n.k] ?? n.padrao;
+      return {titulo:n.titulo, desc:n.desc, aria:on?"true":"false",
+        onClick:()=>this.setState({notifs:{...s.notifs,[n.k]:!on}, configSalva:false}),
+        trilho:"width:44px;height:24px;flex:none;border-radius:999px;cursor:pointer;padding:2px;display:flex;transition:all .2s ease;"+
+          (on ? "background:var(--color-accent-800);border:1px solid var(--color-accent);justify-content:flex-end"
+              : "background:var(--color-neutral-900);border:1px solid var(--color-neutral-700);justify-content:flex-start"),
+        bolinha:"width:18px;height:18px;border-radius:50%;transition:all .2s ease;background:"+(on?"var(--color-accent)":"var(--color-neutral-600)")};
+    });
+
+    const cats = [];
+    CARS.forEach(c=>{ if(c.cat && cats.indexOf(c.cat)<0) cats.push(c.cat); });
+    const prefCats = cats.map(k=>{
+      const on = s.cfgCats.includes(k);
+      return {label:k, cls: on ? "tag tag-accent" : "tag tag-outline",
+        onClick:()=>this.setState({cfgCats: on ? s.cfgCats.filter(x=>x!==k) : [...s.cfgCats,k], configSalva:false})};
+    });
+
+    const cCompra = carroRaw;
+    const entradaCompra = Math.round(cCompra.preco*entPct);
+    const parcelaCompra = this.pmt(cCompra.preco-entradaCompra, 48);
+    const aVista = Math.round(cCompra.preco*(1-cfg.desconto_avista_pct/100));
+    const totalCompra = s.pagamento==="avista" ? aVista : cCompra.preco;
+    const valorPgto = {avista:this.brl(aVista), financiado:this.brl(parcelaCompra)+"/mês", troca:"a definir"};
+    const notaPgto = {avista:cfg.desconto_avista_pct+"% de desconto", financiado:"entrada "+this.brl(entradaCompra), troca:"após vistoria"};
+    const formasPgto = ((d && d.formas_pagamento) || []).map(p=>({...p,
+      valor:valorPgto[p.k]||"", nota:notaPgto[p.k]||"",
+      onClick:()=>this.setState({pagamento:p.k}),
+      card:"padding:16px 18px;border-radius:var(--radius-md);cursor:pointer;transition:all .2s ease;"+
+        (s.pagamento===p.k ? "background:var(--color-accent-900);border:1px solid var(--color-accent)"
+                           : "background:var(--color-neutral-900);border:1px solid var(--color-neutral-800)")}));
+    const entregas = [{k:"retirar",label:"Retirar na loja"},{k:"entrega",label:"Entrega em casa"}]
+      .map(e=>({label:e.label,on:s.entrega===e.k,onClick:()=>this.setState({entrega:e.k})}));
+    const etapas = [{n:1,label:"Pagamento"},{n:2,label:"Dados e entrega"},{n:3,label:"Confirmação"}].map((e,i,arr)=>{
+      const feita = s.etapa>e.n, atual = s.etapa===e.n;
+      return {n:e.n, label:e.label,
+        wrap:"display:flex;align-items:center;gap:10px;"+(i<arr.length-1?"flex:1":""),
+        bolha:"width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-family:var(--font-heading);font-size:12.5px;transition:all .25s ease;"+
+          (atual ? "background:var(--color-accent);color:#0c0c0d;border:1px solid var(--color-accent)"
+                 : feita ? "background:var(--color-accent-900);color:var(--color-accent);border:1px solid var(--color-accent)"
+                         : "background:transparent;color:var(--color-neutral-600);border:1px solid var(--color-neutral-700)"),
+        rotulo:"font-size:13px;white-space:nowrap;color:"+(atual||feita?"var(--color-text)":"var(--color-neutral-600)"),
+        linha:(i<arr.length-1?"flex:1;height:1px;margin:0 12px;background:"+(feita?"var(--color-accent)":"var(--color-divider)"):"display:none")};
+    });
+    const nomePgto = {avista:"À vista com "+cfg.desconto_avista_pct+"% de desconto", financiado:"Financiado em 48x de "+this.brl(parcelaCompra), troca:"Com troca no negócio"}[s.pagamento];
+    const nomeEntrega = s.entrega==="retirar" ? "Retirada na unidade "+cCompra.unidade : "Entrega em domicílio (Curitiba e região)";
+    const trilhaDefs = (d && d.etapas_pedido) || [];
+    const compras = s.compras.map(c=>({...c,
+      trilha:trilhaDefs.map((nome,i)=>({
+        nome, wrap:"flex:1;display:flex;flex-direction:column;gap:7px;align-items:flex-start",
+        ponto:"width:100%;height:3px;border-radius:2px;background:"+(i===0?"var(--color-accent)":"var(--color-neutral-800)"),
+        label:"font-size:11.5px;color:"+(i===0?"var(--color-accent)":"var(--color-neutral-600)")}))}));
+
+    const menuDefs = [
+      {r:"estoque", label:"Estoque", extra:["veiculo"]},
+      {r:"financiamento", label:"Financiamento"},
+      {r:"anunciar", label:"Anunciar meu carro"},
+      {r:"sobre", label:"A loja"},
+      {r:"contato", label:"Unidades"}
+    ];
+    const menu = menuDefs.map(m=>{
+      const on = s.route===m.r || (m.extra||[]).includes(s.route);
+      return {label:m.label, aria: on ? "page" : "false",
+        onClick:this.go(m.r),
+        style:"cursor:pointer;white-space:nowrap;padding:7px 9px;border-radius:var(--radius-sm);transition:color .15s,background .15s;"+
+          (on ? "color:var(--color-accent);background:var(--color-accent-900);box-shadow:inset 0 -2px 0 var(--color-accent)"
+              : "color:var(--color-neutral-300);background:transparent")};
+    });
+
+    const CONVERSAS = ((d && d.conversas) || []).map(c=>{
+      const a = this.anunciante(c.anunciante_id);
+      const alvo = CARS.find(x=>x.id===c.veiculo_id) || NADA;
+      return {id:c.id, nome:c.nome || a.nome, papel:c.papel || a.papel, inicial:c.inicial, hora:c.hora, status:c.status,
+        carroId:c.veiculo_id, assunto:(alvo.nome+" "+alvo.versao).trim(),
+        precoAssunto:alvo.id ? this.brl(alvo.preco)+" · "+alvo.km.toLocaleString("pt-BR")+" km" : "",
+        base:c.mensagens};
+    });
+    const ativoRaw = CONVERSAS.find(c=>c.id===s.conversaId) || CONVERSAS[0] || {id:0,nome:"",papel:"",inicial:"",hora:"",status:"",carroId:0,assunto:"",precoAssunto:"",base:[]};
+    const msgs = [...ativoRaw.base, ...((s.extras[ativoRaw.id])||[])];
+    const ultima = msgs[msgs.length-1] || {texto:""};
+
+    const conversas = CONVERSAS.map(c=>{
+      const on = c.id===s.conversaId;
+      const todas = [...c.base, ...((s.extras[c.id])||[])];
+      return {...c, previa:(todas[todas.length-1]||{texto:""}).texto,
+        onClick:()=>this.setState({conversaId:c.id, rascunho:""}),
+        style:"cursor:pointer;padding:14px 16px;border-bottom:1px solid var(--color-divider);"+
+          (on ? "background:var(--color-accent-900);box-shadow:inset 2px 0 0 var(--color-accent)" : "background:transparent")};
+    });
+    const ativo = {...ativoRaw, previa:ultima.texto};
+    const mensagens = msgs.map(m=>{
+      const meu = m.de==="comprador";
+      return {texto:m.texto, hora:m.hora,
+        wrap:"display:flex;flex-direction:column;gap:4px;max-width:74%;"+(meu?"align-self:flex-end;align-items:flex-end":"align-self:flex-start;align-items:flex-start"),
+        bolha:"padding:11px 15px;font-size:13.5px;line-height:1.55;border-radius:var(--radius-md);"+
+          (meu ? "background:var(--color-accent-900);border:1px solid var(--color-accent-700);color:var(--color-accent-100);border-bottom-right-radius:3px"
+               : "background:var(--color-neutral-900);border:1px solid var(--color-neutral-800);color:var(--color-neutral-200);border-bottom-left-radius:3px")};
+    });
+    const rapidas = ((d && d.respostas_rapidas) || []).map(t=>({label:t, onClick:()=>this.enviarMsg(t)}));
+
+    const vMax = Math.max(900000, Math.ceil(Math.max(s.valor,1)/500000)*500000);
+    const financiado = Math.max(0, s.valor - s.entrada);
+    const parcela = this.pmt(financiado, s.prazo);
+    const totalPago = parcela*s.prazo + s.entrada;
+
+    return {
+      vitrine, vAtual, pontos, pontoAtivo:pAtivo, raioXon:s.raioX,
+      toggleRaioX:()=>this.setState({raioX:!s.raioX}),
+      labelRaioX:s.raioX?"Fechar raio-X":"Raio-X do veículo",
+      botaoRaioX:"position:absolute;top:16px;right:16px;cursor:pointer;font-size:12.5px;padding:8px 14px;border-radius:var(--radius-sm);white-space:nowrap;backdrop-filter:blur(8px);transition:all .2s ease;"+
+        (s.raioX ? "background:var(--color-accent);color:#0c0c0d;border:1px solid var(--color-accent)"
+                 : "background:rgba(12,12,13,0.72);color:var(--color-accent);border:1px solid var(--color-accent-700)"),
+
+      isConfig:s.route==="config", irConfig:this.go("config"),
+      cfgNome:s.cfgNome, cfgEmail:s.cfgEmail, cfgFone:s.cfgFone, cfgCidade:s.cfgCidade,
+      cfgTeto:s.cfgTeto, cfgTetoFmt:this.brl(s.cfgTeto), configSalva:s.configSalva,
+      setCfgNome:e=>this.setState({cfgNome:e.target.value,configSalva:false}),
+      setCfgEmail:e=>this.setState({cfgEmail:e.target.value,configSalva:false}),
+      setCfgFone:e=>this.setState({cfgFone:e.target.value,configSalva:false}),
+      setCfgCidade:e=>this.setState({cfgCidade:e.target.value,configSalva:false}),
+      setCfgTeto:e=>this.setState({cfgTeto:Number(e.target.value),configSalva:false}),
+      notificacoes, prefCats,
+      salvarConfig:()=>this.setState({configSalva:true, nome:s.cfgNome||s.nome}),
+
+      isCompra:s.route==="compra", isCompras:s.route==="compras", irCompras:this.go("compras"),
+      compraAberta:!s.pedidoCod, compraFeita:!!s.pedidoCod, pedidoCod:s.pedidoCod,
+      comprarAgora:()=>{ this.setState({route:s.logado?"compra":"login", etapa:1, aceite:false, erroCompra:false, pedidoCod:""}); window.scrollTo(0,0); },
+      etapas, etapa1:s.etapa===1, etapa2:s.etapa===2, etapa3:s.etapa===3,
+      formasPgto, entregas, entregaNota: s.entrega==="retirar"
+        ? "Retirada na unidade "+cCompra.unidade+", com vistoria acompanhada e assinatura no local. Traga CNH e comprovante de residência."
+        : "Levamos o veículo até você em Curitiba e região metropolitana, sem custo adicional. Assinatura digital com validade jurídica.",
+      podeVoltar:s.etapa>1, voltarEtapa:()=>this.setState({etapa:s.etapa-1, erroCompra:false}),
+      labelAvancar:s.etapa===3?"Confirmar compra":"Continuar",
+      aceite:s.aceite, erroCompra:s.erroCompra,
+      toggleAceite:()=>this.setState({aceite:!s.aceite, erroCompra:false}),
+      avancarEtapa:()=>{
+        if(s.etapa<3) return this.setState({etapa:s.etapa+1});
+        if(!s.aceite) return this.setState({erroCompra:true});
+        const cod = "AM-"+String(Math.floor(1000+Math.random()*9000));
+        this.setState({pedidoCod:cod, compras:[{
+          nome:cCompra.nome, foto:cCompra.foto, temFoto:!!cCompra.foto, semFoto:!cCompra.foto,
+          cod, pagamento:nomePgto, entrega:nomeEntrega,
+          data:new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}),
+          totalFmt:this.brl(totalCompra)}, ...s.compras]});
+        window.scrollTo(0,0);
+      },
+      revisao:[
+        {k:"Veículo",v:cCompra.nome+" · "+cCompra.cod},
+        {k:"Pagamento",v:nomePgto},
+        {k:"Entrega",v:nomeEntrega},
+        {k:"Titular",v:s.cfgNome||s.nome},
+        {k:"Contato",v:(s.cfgFone||"WhatsApp a confirmar")+" · "+(s.cfgEmail||s.email)},
+        {k:"Total",v:this.brl(totalCompra)}],
+      resumo:[
+        {k:"Preço anunciado",v:this.brl(cCompra.preco)},
+        {k:"Forma de pagamento",v:s.pagamento==="avista"?"À vista":s.pagamento==="financiado"?"Financiado":"Com troca"},
+        {k:"Transferência",v:"Inclusa"}],
+      totalCompraFmt:this.brl(totalCompra),
+      compras, semCompras:s.compras.length===0, temCompras:s.compras.length>0,
+
+      menu, logado:s.logado, deslogado:!s.logado,
+      primeiroNome:(s.nome||"Minha conta").split(" ")[0], inicial:(s.nome||"A").charAt(0).toUpperCase(),
+      emailConta:s.email, irConta:this.go("conta"), irAnunciar:this.go("anunciar"), irChat:this.go("chat"),
+      isConta:s.route==="conta", isAnunciar:s.route==="anunciar", isChat:s.route==="chat",
+      sair:()=>{ this.setState({logado:false,nome:"",senha:"",email:"",route:"home"}); window.scrollTo(0,0); },
+      anuncios:s.anuncios, semAnuncios:s.anuncios.length===0, temAnuncios:s.anuncios.length>0,
+      naoLidas:CONVERSAS.length?CONVERSAS.length+" conversas":"",
+
+      anMarca:s.anMarca, anModelo:s.anModelo, anPreco:s.anPreco, anPrecoFmt:this.brl(s.anPreco), anPrecoInput:s.anPreco?s.anPreco.toLocaleString("pt-BR"):"",
+      anTitulo:((s.anMarca+" "+s.anModelo).trim()) || "Seu veículo",
+      anunciado:s.anunciado,
+      setAnMarca:e=>this.setState({anMarca:e.target.value}),
+      setAnModelo:e=>this.setState({anModelo:e.target.value}),
+      setAnPreco:e=>this.setState({anPreco:Number(String(e.target.value).replace(/\D/g,""))||0}),
+      modalidades:((d && d.modalidades_anuncio)||[]).map(m=>({
+        label:m.k,on:s.modalidade===m.k,onClick:()=>this.setState({modalidade:m.k})})),
+      modalidadeNota:(((d && d.modalidades_anuncio)||[]).find(m=>m.k===s.modalidade)||{}).nota||"",
+      publicar:()=>{
+        const titulo = ((s.anMarca+" "+s.anModelo).trim()) || "Meu veículo";
+        this.setState({anunciado:true, anuncios:[{
+          nome:titulo, status:"Em revisão", detalhe:s.modalidade+" · publicado hoje",
+          precoFmt:this.brl(s.anPreco), visitas:0}]});
+      },
+
+      conversas, ativo, mensagens, digitando:s.digitando, rapidas, rascunho:s.rascunho,
+      setRascunho:e=>this.setState({rascunho:e.target.value}),
+      teclaEnviar:e=>{ if(e.key==="Enter") this.enviarMsg(e.target.value); },
+      enviar:()=>this.enviarMsg(s.rascunho),
+      verVeiculo:()=>{ this.setState({route:"veiculo", carroId:ativo.carroId}); window.scrollTo(0,0); },
+      abrirChatCarro:()=>{ this.setState({route:"chat"}); window.scrollTo(0,0); },
+
+      isHome:s.route==="home", isEstoque:s.route==="estoque", isVeiculo:s.route==="veiculo",
+      isLogin:s.route==="login", irLogin:this.go("login"),
+      isCadastro:s.authModo==="Criar conta",
+      modos:["Entrar","Criar conta"].map(k=>({label:k,on:s.authModo===k,
+        cls:s.authModo===k?"tag tag-accent":"tag tag-outline",
+        onClick:()=>this.setState({authModo:k,mensagem:""})})),
+      authTitulo:s.authModo==="Entrar"?"Entrar na conta Auto Minas":"Criar sua conta Auto Minas",
+      authSub:s.authModo==="Entrar"?"Use o Google ou seu e-mail cadastrado.":"Leva menos de um minuto e não precisa de documento.",
+      authBotao:s.authModo==="Entrar"?"Entrar":"Criar conta",
+      email:s.email, senha:s.senha, lembrar:s.lembrar, mensagem:s.mensagem, erroLogin:!!s.mensagem,
+      tipoSenha:s.verSenha?"text":"password", labelSenha:s.verSenha?"Ocultar":"Mostrar",
+      setEmail:e=>this.setState({email:e.target.value}),
+      setSenha:e=>this.setState({senha:e.target.value}),
+      toggleSenha:()=>this.setState({verSenha:!s.verSenha}),
+      toggleLembrar:()=>this.setState({lembrar:!s.lembrar}),
+      estiloLembrar:"width:17px;height:17px;flex:none;border-radius:4px;display:grid;place-items:center;font-size:10px;transition:all .15s ease;"+
+        (s.lembrar ? "background:var(--color-accent);border:1px solid var(--color-accent);color:#0c0c0d"
+                   : "background:transparent;border:1px solid var(--color-neutral-700);color:transparent"),
+      entrarGoogle:()=>{
+        const api = typeof window!=="undefined" ? window.AutoMinasAPI : null;
+        if(!api) return this.setState({mensagem:"Serviço de login indisponível."});
+        api.autenticarGoogle().then(u=>{ this.setState({cfgFone:u.telefone||"", cfgCidade:u.cidade||s.cfgCidade}); this.autenticar(u.nome, u.email); });
+      },
+      entrar:()=>{
+        if(!s.email.includes("@")) return this.setState({mensagem:"Informe um e-mail válido."});
+        if(s.senha.length<8) return this.setState({mensagem:"A senha precisa de pelo menos 8 caracteres."});
+        const nome = s.email.split("@")[0].split(/[._-]/).map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(" ");
+        this.autenticar(nome || "Cliente Auto Minas", s.email);
+      },
+      beneficios:(d && d.beneficios_conta) || [],
+
+      isFin:s.route==="financiamento", isSobre:s.route==="sobre", isContato:s.route==="contato",
+      irHome:this.go("home"), irEstoque:this.go("estoque"), irFinanciamento:this.go("financiamento"),
+      irSobre:this.go("sobre"), irContato:this.go("contato"),
+
+      busca:s.busca, cat:s.cat, sort:s.sort, precoMax:s.precoMax, precoMaxStr:String(s.precoMax),
+      precoMaxFmt:s.precoMax>=1000000?"sem limite":this.brl(s.precoMax), totalFmt:list.length+" veículos disponíveis",
+      setBusca:e=>this.setState({busca:e.target.value}),
+      setCatSel:e=>this.setState({cat:e.target.value}),
+      setPrecoSel:e=>this.setState({precoMax:Number(e.target.value)}),
+      setPreco:e=>this.setState({precoMax:Number(e.target.value)}),
+      setSort:e=>this.setState({sort:e.target.value}),
+      buscar:this.go("estoque"),
+      limpar:()=>this.setState({busca:"",cat:"Todos",precoMax:1000000,cambio:"Todos"}),
+
+      categorias:["Todos"].concat(cats).map(k=>({
+        label:k, cls: s.cat===k ? "tag tag-accent" : "tag tag-outline",
+        onClick:()=>this.setState({cat:k})})),
+      cambios:["Todos","Automático","Manual"].map(k=>({label:k,on:s.cambio===k,onClick:()=>this.setState({cambio:k})})),
+      variantes:[{k:"a",label:"Grade"},{k:"b",label:"Lista"},{k:"c",label:"Editorial"}].map(v=>({
+        label:v.label,on:s.variant===v.k,onClick:()=>this.setState({variant:v.k})})),
+      isVarA:s.variant==="a"&&list.length>0, isVarB:s.variant==="b"&&list.length>0, isVarC:s.variant==="c"&&list.length>0,
+      vazio:list.length===0,
+
+      cars:list.map(c=>this.fmt(c)), destaques:CARS.filter(c=>c.destaque).slice(0,3).map(c=>this.fmt(c)),
+
+      carro, anunciante, totalEstoque:CARS.length,
+      isAnunciante:s.route==="anunciante", irAnunciante:this.go("anunciante"),
+      specs:[
+        {k:"Ano/modelo",v:carroRaw.ano?(carroRaw.ano-1)+"/"+carroRaw.ano:"—"},{k:"Quilometragem",v:carro.kmFmt},
+        {k:"Câmbio",v:carroRaw.cambio},{k:"Combustível",v:carroRaw.comb},{k:"Categoria",v:carroRaw.cat},
+        {k:"Cor",v:carroRaw.cor},{k:"Final da placa",v:carroRaw.placa},{k:"Laudo cautelar",v:carroRaw.laudo},
+        {k:"Documentação",v:carroRaw.doc},{k:"Garantia",v:carroRaw.garantia}],
+      opcionais:((d && d.opcionais_catalogo)||[]).map(nome=>{
+        const tem = carroRaw.opcionais.indexOf(nome)>=0;
+        return {label:nome, valor:tem?"Sim":"Não",
+          estilo:"font-family:var(--font-heading);font-size:13px;letter-spacing:0.04em;color:"+(tem?"var(--color-accent)":"var(--color-neutral-600)")};
+      }),
+
+      taxaFmt:this.taxa().toFixed(2).replace(".",",")+"%",
+      valor:s.valor, entrada:s.entrada, valorFmt:this.brl(s.valor), entradaFmt:this.brl(s.entrada),
+      entradaPct:Math.round((s.entrada/Math.max(s.valor,1))*100)+"%",
+      valorMax:vMax, valorStep:vMax>2000000?100000:5000,
+      entradaMax:s.valor, entradaStep:vMax>2000000?50000:1000,
+      setValor:e=>{const v=Number(e.target.value);this.setState({valor:v,entrada:Math.min(s.entrada,v)});},
+      setEntrada:e=>this.setState({entrada:Math.min(Number(e.target.value),s.valor)}),
+      prazos:(cfg.prazos_disponiveis||[]).map(p=>({label:p+"x",on:s.prazo===p,onClick:()=>this.setState({prazo:p})})),
+      prazoFmt:s.prazo+" parcelas", parcelaFmt:this.brl(parcela), financiadoFmt:this.brl(financiado),
+      totalPagoFmt:this.brl(totalPago), jurosFmt:this.brl(Math.max(0,totalPago - s.valor)),
+
+      passos:(d && d.passos_venda) || [],
+      unidades:((d && d.unidades)||[]).filter(u=>u.ativa).map(u=>({
+        nome:u.nome, endereco:u.endereco, horario:u.horario, fone:u.telefone_whatsapp}))
+    };
+  }
+}
+</script>
+</body>
+</html>

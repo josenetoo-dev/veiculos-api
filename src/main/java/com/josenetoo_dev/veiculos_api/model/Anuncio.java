@@ -71,7 +71,11 @@ public class Anuncio {
     @Column(nullable = false)
     private boolean segundaMao;
 
-    @Column(nullable = false)
+    // VARCHAR explícito: sem isso, o Hibernate cria um ENUM nativo no MySQL a partir
+    // dos valores atuais — se um valor novo for adicionado ao enum Java depois, o
+    // ddl-auto=update não amplia o ENUM do banco e toda escrita com o valor novo falha
+    // com "Data truncated for column" (foi exatamente o que quebrou a contraproposta).
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     @Enumerated(EnumType.STRING)
     private StatusAnuncio status;
 

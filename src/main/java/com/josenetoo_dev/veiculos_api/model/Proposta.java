@@ -26,12 +26,24 @@ public class Proposta {
     @Column(nullable = false)
     private String descricao;
 
-    @Column(nullable = false)
+    // VARCHAR explícito — ver o comentário equivalente em Anuncio.status.
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     @Enumerated(EnumType.STRING)
     private StatusProposta status;
 
     @Column(nullable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
+
+    // Campos preenchidos quando o proprietário faz uma contraproposta
+    @Column
+    private BigDecimal contrapropostaValor;
+
+    @Column
+    private String contrapropostaDescricao;
+
+    // Controla se já existe contraproposta — só é permitida uma por proposta
+    @Column(nullable = false)
+    private Boolean contrapropostaFeita = false;
 
     @ManyToOne
     @JoinColumn(name = "anunciante_id")

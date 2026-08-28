@@ -1,12 +1,32 @@
 spring:
   application:
     name: veiculos-api
+
   datasource:
     url: jdbc:mysql://localhost:3306/projeto_veiculos
     username: root
     password:
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
     open-in-view: false
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+jwt:
+  secret: ${JWT_SECRET:AutoMinasSecretKeyMuitoLongaParaFuncionar2026Jose}
+
+upload:
+  dir: uploads/fotos
+
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+
+logging:
+  level:
+    org.springframework.security: DEBUG

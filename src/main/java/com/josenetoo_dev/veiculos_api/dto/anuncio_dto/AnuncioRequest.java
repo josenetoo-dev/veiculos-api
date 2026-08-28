@@ -20,10 +20,6 @@ public class AnuncioRequest {
     @NotBlank
     private String versao;
 
-    // TODO: Esse função deve ser trocada após a ingrassão da autenticação
-    @NotNull
-    private Long usuarioId;
-
     private String laudoCautelar;
 
     @NotBlank

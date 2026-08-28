@@ -4,5 +4,6 @@ public enum StatusProposta {
     PENDENTE,
     CANCELADA,
     ACEITA,
-    NEGADA
+    NEGADA,
+    CONTRAPROPOSTA
 }

@@ -27,6 +27,12 @@ public class PropostaResponse {
 
     private Long comprador;
 
+    private BigDecimal contrapropostaValor;
+
+    private String contrapropostaDescricao;
+
+    private Boolean contrapropostaFeita;
+
     public PropostaResponse(Proposta proposta) {
         this.id = proposta.getId();
         this.valor = proposta.getValor();
@@ -35,5 +41,8 @@ public class PropostaResponse {
         this.criadoEm = proposta.getCriadoEm();
         this.anuncio = proposta.getAnuncio().getId();
         this.comprador = proposta.getComprador().getId();
+        this.contrapropostaValor = proposta.getContrapropostaValor();
+        this.contrapropostaDescricao = proposta.getContrapropostaDescricao();
+        this.contrapropostaFeita = proposta.getContrapropostaFeita();
     }
 }

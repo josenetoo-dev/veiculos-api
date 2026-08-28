@@ -21,12 +21,8 @@ public class UsuarioRequest {
     @NotBlank
     private String email;
 
-    @NotBlank
-    private String senha;
-
     @Pattern(regexp = "\\d{10,11}" , message = "Telefone invalido")
     @NotBlank
     private String telefone;
-
 
 }
