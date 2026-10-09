@@ -1,9 +1,9 @@
-name: Security phase 1 tests
+name: Auto Minas backend checks
 on:
   push:
-    branches: [security/fase-1, feature/fase-2-moderacao]
+    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos]
   pull_request:
-    branches: [main, security/fase-1]
+    branches: [main, security/fase-1, feature/fase-2-moderacao]
 permissions:
   contents: read
 jobs:
