@@ -118,7 +118,8 @@ public class AnuncioService {
         anuncio.setCor(request.getCor());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
-        anuncio.setStatus(StatusAnuncio.ATIVO);
+        // Nenhum anúncio novo é publicado automaticamente.
+        anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
 
@@ -138,8 +139,13 @@ public class AnuncioService {
 
     @Transactional
     public AnuncioResponse atualizarAnuncio(AnuncioRequest request, Long id) {
-        Anuncio anuncio = verificarId(id);
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
+        if (anuncio.getStatus() == StatusAnuncio.VENDIDO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio vendido não pode ser editado");
+        }
 
         anuncio.setVersao(request.getVersao());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
@@ -155,7 +161,11 @@ public class AnuncioService {
         anuncio.setCor(request.getCor());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
-        anuncio.setStatus(StatusAnuncio.ATIVO);
+        // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
+        anuncio.setStatus(StatusAnuncio.PENDENTE);
+        anuncio.setRevisadoEm(null);
+        anuncio.setRevisadoPorId(null);
+        anuncio.setMotivoRejeicao(null);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
 
