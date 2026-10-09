@@ -443,4 +443,16 @@ class SecurityRegressionTest {
   assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
  }
 
+
+ @Test void unverifiedReviewerCannotReadQueueOrApprove() throws Exception {
+  a.setRole(Role.REVIEWER); usuarios.saveAndFlush(a); // PENDING_CONTACT_VERIFICATION
+  b.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(b);
+  anuncio.setStatus(StatusAnuncio.PENDENTE); anuncios.saveAndFlush(anuncio);
+  mvc.perform(get("/v1/moderacao/anuncios").header("Authorization",bearer(tokenA)))
+       .andExpect(status().isForbidden());
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
+  assertEquals(0,eventos.count());
+ }
+
 }
