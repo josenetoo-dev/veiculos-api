@@ -37,6 +37,13 @@ public class AnuncioController {
                 .ok(anuncioService.listarAnuncios(pageable));
     }
 
+    @Operation(summary = "Anúncios do usuário autenticado, inclusive pausados e vendidos")
+    @GetMapping("/meus")
+    public ResponseEntity<Page<AnuncioResponse>> meusAnuncios(
+            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+        return ResponseEntity.ok(anuncioService.meusAnuncios(pageable));
+    }
+
     @Operation(summary = "Buscar anuncio por id")
     @GetMapping("/{id}")
     public ResponseEntity<AnuncioResponse> buscarPorId(@PathVariable Long id) {
