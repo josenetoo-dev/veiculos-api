@@ -18,7 +18,10 @@ public interface AnuncioRepository extends JpaRepository<Anuncio, Long> {
 
     Optional<Anuncio> findByCodigo(String codigo);
 
-    Page<Anuncio> findByDestaqueTrue(Pageable pageable);
+    Page<Anuncio> findByUsuarioId(Long usuarioId, Pageable pageable);
+    Page<Anuncio> findByDestaqueTrueAndStatus(StatusAnuncio status, Pageable pageable);
+    Page<Anuncio> findByCategoriaAndStatus(Categoria categoria, StatusAnuncio status, Pageable pageable);
+    Page<Anuncio> findByStatusAndUsuarioId(StatusAnuncio status, Long usuarioId, Pageable pageable);
 
     Page<Anuncio> findByStatus(StatusAnuncio status, Pageable pageable);
 
