@@ -203,6 +203,7 @@ class SecurityRegressionTest {
  // Fase 1.1 — visibilidade do marketplace.
  @Test void nonActiveListingsAreHiddenFromPublicSearchAndDetails() throws Exception {
   anuncio.setStatus(StatusAnuncio.PAUSADO);
+  anuncio.setCodigo("AM-" + anuncio.getId());
   anuncio.setDestaque(true);
   anuncios.saveAndFlush(anuncio);
   long id = anuncio.getId();
