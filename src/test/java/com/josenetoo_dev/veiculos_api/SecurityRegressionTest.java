@@ -344,6 +344,7 @@ class SecurityRegressionTest {
  }
  private void makeReviewerActiveSellerAndPendingListing() {
   a.setRole(Role.REVIEWER);
+  a.setStatus(StatusUsuario.ACTIVE);
   usuarios.saveAndFlush(a);
   b.setStatus(StatusUsuario.ACTIVE);
   usuarios.saveAndFlush(b);
@@ -386,7 +387,7 @@ class SecurityRegressionTest {
   assertEquals(1,eventos.count());
  }
  @Test void pendingSellerCannotReceivePublicationApproval() throws Exception {
-  a.setRole(Role.REVIEWER); usuarios.saveAndFlush(a);
+  a.setRole(Role.REVIEWER); a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
   anuncio.setStatus(StatusAnuncio.PENDENTE); anuncios.saveAndFlush(anuncio);
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
