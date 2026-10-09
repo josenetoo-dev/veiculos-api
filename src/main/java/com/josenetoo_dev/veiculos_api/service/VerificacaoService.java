@@ -64,7 +64,7 @@ public class VerificacaoService {
 
     private Verificacao ownedCaseLocked(Long id, Usuario actor) {
         Verificacao v = verificacoes.findByIdForUpdate(id)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Verificação não encontrada"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         if (!v.getSolicitante().getId().equals(actor.getId())) {
             throw new AcessoNegadoException("Verificação de outro usuário");
         }
@@ -101,7 +101,7 @@ public class VerificacaoService {
     public VerificacaoResponse iniciarVeiculo(Long veiculoId) {
         Usuario user = actor();
         Veiculo vehicle = veiculos.findById(veiculoId)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Veículo não encontrado"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         if (vehicle.getCadastradoPor() == null
                 || !vehicle.getCadastradoPor().getId().equals(user.getId())) {
             throw new AcessoNegadoException("Somente o responsável pelo cadastro pode solicitar a análise");
@@ -119,7 +119,7 @@ public class VerificacaoService {
     public VerificacaoResponse consultar(Long id) {
         Usuario user = actor();
         Verificacao v = verificacoes.findById(id)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Verificação não encontrada"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         requireVisible(v, user);
         return VerificacaoResponse.from(v);
     }
@@ -128,7 +128,7 @@ public class VerificacaoService {
     public List<EvidenciaResponse> listarEvidencias(Long id) {
         Usuario user = actor();
         Verificacao v = verificacoes.findById(id)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Verificação não encontrada"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         requireVisible(v, user);
         return evidencias.findByVerificacaoId(id).stream().map(EvidenciaResponse::from).toList();
     }
@@ -162,9 +162,9 @@ public class VerificacaoService {
         Verificacao v = ownedCaseLocked(id, user);
         editable(v);
         EvidenciaVerificacao evidence = evidencias.findById(evidenceId)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Documento não encontrado"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         if (!evidence.getVerificacao().getId().equals(id)) {
-            throw new VerificacaoIndisponivelException("Documento não encontrado");
+            throw new VerificacaoNaoEncontradaException();
         }
         evidencias.delete(evidence);
         storage.removeAfterCommit(evidence.getArquivoChave());
@@ -176,12 +176,12 @@ public class VerificacaoService {
     public DocumentData baixarEvidencia(Long id, Long evidenceId) {
         Usuario user = actor();
         Verificacao v = verificacoes.findById(id)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Verificação não encontrada"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         requireVisible(v, user);
         EvidenciaVerificacao evidence = evidencias.findById(evidenceId)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Documento não encontrado"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         if (!evidence.getVerificacao().getId().equals(id)) {
-            throw new VerificacaoIndisponivelException("Documento não encontrado");
+            throw new VerificacaoNaoEncontradaException();
         }
         return new DocumentData(storage.read(evidence.getArquivoChave()), evidence.getTipoMidia());
     }
@@ -216,7 +216,7 @@ public class VerificacaoService {
     public VerificacaoResponse decidir(Long id, boolean aprovado, String motivo) {
         Usuario staff = reviewer();
         Verificacao v = verificacoes.findByIdForUpdate(id)
-                .orElseThrow(() -> new VerificacaoIndisponivelException("Verificação não encontrada"));
+                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
         if (v.getStatus() != StatusVerificacao.EM_ANALISE) {
             throw new VerificacaoIndisponivelException("Verificação não está aguardando análise");
         }
