@@ -79,7 +79,7 @@ public class DenunciaService {
     public DenunciaResponse consultar(Long id) {
         Usuario user = current();
         Denuncia item = denuncias.findById(id)
-                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
+                .orElseThrow(() -> new DenunciaNaoEncontradaException());
         if (!item.getDenunciante().getId().equals(user.getId())
                 && user.getRole() != Role.ADMIN && user.getRole() != Role.REVIEWER) {
             throw new AcessoNegadoException("Denúncia de outro usuário");
@@ -100,7 +100,7 @@ public class DenunciaService {
             throw new IllegalArgumentException("Justificativa obrigatória");
         }
         Denuncia report = denuncias.findByIdForUpdate(id)
-                .orElseThrow(() -> new VerificacaoNaoEncontradaException());
+                .orElseThrow(() -> new DenunciaNaoEncontradaException());
         if (report.getStatus() != StatusDenuncia.ABERTA) {
             throw new VerificacaoIndisponivelException("Denúncia já concluída");
         }
