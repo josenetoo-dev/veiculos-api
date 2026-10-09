@@ -139,6 +139,10 @@ public class AnuncioService {
      */
     @Transactional
     public void reabrirRevisaoDeFotos(Anuncio anuncio) {
+        if (anuncio.getStatus() == StatusAnuncio.SUSPENSO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio suspenso ou arquivado não pode ser reaberto pelo titular");
+        }
         if (anuncio.getStatus() != StatusAnuncio.PENDENTE) {
             anuncio.setStatus(StatusAnuncio.PENDENTE);
             anuncio.setRevisadoEm(null);
@@ -159,7 +163,8 @@ public class AnuncioService {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-        if (anuncio.getStatus() == StatusAnuncio.VENDIDO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO) {
+        if (anuncio.getStatus() == StatusAnuncio.VENDIDO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == StatusAnuncio.SUSPENSO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio vendido não pode ser editado");
         }

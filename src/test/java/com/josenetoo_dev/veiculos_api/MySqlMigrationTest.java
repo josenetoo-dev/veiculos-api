@@ -208,4 +208,30 @@ class MySqlMigrationTest {
         assertEquals(0,m.migrate().migrationsExecuted);
     }
 
+
+    @Test void listingReportsMigrationPreservesLegacyAdsAndEnforcesUniqueness() throws Exception {
+        String url=testUrl("reports");
+        assertEquals(8,flyway(url,"8").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (901,'Seller','seller@example.com','old-hash','38999999999','USER','ACTIVE',0)");
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (902,'Buyer','buyer@example.com','old-hash','38999999998','USER','ACTIVE',0)");
+            st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (903,901,'Chevrolet','Onix','LT',2022,100,'Branco','FLEX','MANUAL',true)");
+            st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (904,'AM-904','LT',false,'Regular','Nenhuma','Carro','Descricao',59000,'Chevrolet','Onix',2022,100,'Branco','FLEX',true,'ATIVO','MANUAL','SEMINOVOS',NOW(),901,903)");
+        }
+        var m=flyway(url,"9");
+        assertEquals(1,m.migrate().migrationsExecuted);
+        assertTrue(m.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+            st.execute("INSERT INTO denuncia(anuncio_id,denunciante_id,categoria,relato,status,criado_em) VALUES (904,902,'POSSIVEL_FRAUDE','Relato de fraude','ABERTA',NOW())");
+            assertThrows(SQLException.class,()->st.execute("INSERT INTO denuncia(anuncio_id,denunciante_id,categoria,relato,status,criado_em) VALUES (904,902,'OUTRO','Duplicada','ABERTA',NOW())"));
+            try(var rs=st.executeQuery("SELECT status FROM anuncio WHERE id=904")) {
+                assertTrue(rs.next());assertEquals("ATIVO",rs.getString(1));
+            }
+            try(var rs=st.executeQuery("SELECT COUNT(*) FROM denuncia")) {
+                assertTrue(rs.next());assertEquals(1,rs.getLong(1));
+            }
+        }
+        assertEquals(0,m.migrate().migrationsExecuted);
+    }
+
 }
