@@ -113,6 +113,10 @@ public class EmailChangeService {
         user.setPendingEmailTokenHash(null);
         user.setPendingEmailExpiresAt(null);
         user.setPendingEmailRequestedAt(null);
+        // Um desafio emitido para o e-mail anterior não valida o endereço novo.
+        user.setContactEmailTokenHash(null);
+        user.setContactEmailExpiresAt(null);
+        user.setContactEmailRequestedAt(null);
         user.setTokenVersion(user.getTokenVersion() + 1); // Revoga todos os tokens anteriores.
         usuarios.saveAndFlush(user);
     }
