@@ -32,6 +32,10 @@ spring:
 jwt:
   secret: ${JWT_SECRET:}
   expiration-ms: 1800000
+verification:
+  storage:
+    dir: ${VERIFICATION_STORAGE_DIR:private-verification-documents}
+    key: ${VERIFICATION_STORAGE_KEY:}
 upload:
   dir: uploads/fotos
 app:
