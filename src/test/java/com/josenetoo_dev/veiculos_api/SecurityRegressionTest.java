@@ -96,11 +96,11 @@ class SecurityRegressionTest {
  @Test void strangerCannotSendChatMessage() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenC)).contentType("application/json").content("{\"conteudo\":\"Intruso\"}")).andExpect(status().isForbidden());assertEquals(0,mensagens.count());}
  @Test void longChatMessageIsRejected() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"conteudo\":\""+"x".repeat(2001)+"\"}")).andExpect(status().isBadRequest());assertEquals(0,mensagens.count());}
 
- @Test void storageAndRowsAreCleanedOnTransactionRollback() throws Exception {
+ @Test void storageAndRowsAreCleanedWhenFailureFollowsUpload() throws Exception {
   var auth=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(b.getId().toString(),null,java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")));
   org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
   var file=image("photo.png","image/png");
-  try {new org.springframework.transaction.support.TransactionTemplate(txManager).execute(status->{fotoService.uploadFotos(anuncio.getId(),java.util.List.of(file));status.setRollbackOnly();return null;});}
+  try {assertThrows(IllegalStateException.class,()->new org.springframework.transaction.support.TransactionTemplate(txManager).execute(status->{fotoService.uploadFotos(anuncio.getId(),java.util.List.of(file));throw new IllegalStateException("Forced failure after upload");}));}
   finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
   assertEquals(0,fileCount());assertEquals(0,fotos.count());
  }
@@ -144,7 +144,7 @@ class SecurityRegressionTest {
     usuarios.findById(a.getId()).orElseThrow();ready.countDown();
     try{if(!resume.await(10,java.util.concurrent.TimeUnit.SECONDS))throw new IllegalStateException("Race timeout");}catch(InterruptedException e){throw new RuntimeException(e);}
     var request=new com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioRequest();request.setNome("Updated");request.setEmail(a.getEmail());request.setTelefone(a.getTelefone());
-    if(mustReject)assertThrows(com.josenetoo_dev.veiculos_api.exception.ex.CredenciaisInvalidasException.class,()->usuarioService.atualizarUsuario(request,a.getId()));
+    if(mustReject){assertThrows(com.josenetoo_dev.veiculos_api.exception.ex.CredenciaisInvalidasException.class,()->usuarioService.atualizarUsuario(request,a.getId()));status.setRollbackOnly();}
     else usuarioService.atualizarUsuario(request,a.getId());return null;
    });} finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
   });
@@ -152,4 +152,23 @@ class SecurityRegressionTest {
   finally{resume.countDown();executor.shutdownNow();org.springframework.security.core.context.SecurityContextHolder.clearContext();}
  }
  void authenticate(Long id){org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(id.toString(),null,java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))));}
+
+ @Test void aggregatePixelLimitIsEnforced() throws Exception {
+  var bytes=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(4500,4500,BufferedImage.TYPE_INT_RGB),"png",bytes);
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(new MockMultipartFile("fotos","large.png","image/png",bytes.toByteArray())).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());
+ }
+ @Test void simultaneousUploadsCannotExceedPhotoLimit() throws Exception {
+  for(int i=0;i<19;i++){var f=new AnuncioFoto();f.setAnuncio(anuncio);f.setOrdem(i);f.setUrl("https://example.com/"+i+".png");f.setTipoFoto(TipoFoto.OUTRO);fotos.saveAndFlush(f);}
+  var firstWritten=new java.util.concurrent.CountDownLatch(1);var release=new java.util.concurrent.CountDownLatch(1);var secondStarted=new java.util.concurrent.CountDownLatch(1);
+  var executor=java.util.concurrent.Executors.newFixedThreadPool(2);var file=image("photo.png","image/png");
+  var first=executor.submit(()->{authenticate(b.getId());try{new org.springframework.transaction.support.TransactionTemplate(txManager).execute(status->{fotoService.uploadFotos(anuncio.getId(),java.util.List.of(file));firstWritten.countDown();try{if(!release.await(10,java.util.concurrent.TimeUnit.SECONDS))throw new IllegalStateException("Timeout");}catch(InterruptedException e){throw new RuntimeException(e);}return null;});}finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}});
+  try {
+   assertTrue(firstWritten.await(10,java.util.concurrent.TimeUnit.SECONDS));
+   var second=executor.submit(()->{authenticate(b.getId());secondStarted.countDown();try{assertThrows(IllegalArgumentException.class,()->fotoService.uploadFotos(anuncio.getId(),java.util.List.of(file)));}finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}});
+   assertTrue(secondStarted.await(10,java.util.concurrent.TimeUnit.SECONDS));
+   assertThrows(java.util.concurrent.TimeoutException.class,()->second.get(500,java.util.concurrent.TimeUnit.MILLISECONDS));
+   release.countDown();first.get(10,java.util.concurrent.TimeUnit.SECONDS);second.get(10,java.util.concurrent.TimeUnit.SECONDS);
+  } finally{release.countDown();executor.shutdownNow();}
+  assertEquals(20,fotos.count());assertEquals(1,fileCount());
+ }
 }
