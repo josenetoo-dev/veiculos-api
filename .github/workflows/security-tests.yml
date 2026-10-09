@@ -1,9 +1,9 @@
 name: Security phase 1 tests
 on:
   push:
-    branches: [security/fase-1]
+    branches: [security/fase-1, feature/fase-2-moderacao]
   pull_request:
-    branches: [main]
+    branches: [main, security/fase-1]
 permissions:
   contents: read
 jobs:
