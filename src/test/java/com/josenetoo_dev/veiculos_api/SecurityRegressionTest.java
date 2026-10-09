@@ -528,4 +528,154 @@ class SecurityRegressionTest {
        .andExpect(status().isOk()).andExpect(jsonPath("$.veiculoId").isNumber());
  }
 
+
+ // Fase 3 — verificações documentais humanas sem consultas governamentais.
+ long idFromJson(org.springframework.test.web.servlet.MvcResult result) throws Exception {
+  var match=java.util.regex.Pattern.compile("\\\"id\\\"\\s*:\\s*(\\d+)")
+       .matcher(result.getResponse().getContentAsString());
+  assertTrue(match.find()); return Long.parseLong(match.group(1));
+ }
+ MockMultipartFile privatePhoto() throws Exception {
+  var bytes=image("photo.png","image/png").getBytes();
+  return new MockMultipartFile("arquivo","documento.png","image/png",bytes);
+ }
+ long beginIdentity(String jwt) throws Exception {
+  return idFromJson(mvc.perform(post("/v1/verificacoes/identidade")
+      .header("Authorization",bearer(jwt))).andExpect(status().isCreated()).andReturn());
+ }
+ long uploadDoc(String jwt,long verificationId,TipoEvidencia kind) throws Exception {
+  return idFromJson(mvc.perform(multipart("/v1/verificacoes/"+verificationId+"/evidencias")
+      .file(privatePhoto()).param("tipo",kind.name()).header("Authorization",bearer(jwt)))
+      .andExpect(status().isCreated()).andReturn());
+ }
+ void approveIdentityViaApi() throws Exception {
+  a.setRole(Role.REVIEWER);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  b.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(b);
+  long id=beginIdentity(tokenB);
+  uploadDoc(tokenB,id,TipoEvidencia.IDENTIDADE_FRENTE);
+  uploadDoc(tokenB,id,TipoEvidencia.IDENTIDADE_VERSO);
+  mvc.perform(post("/v1/verificacoes/"+id+"/enviar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EM_ANALISE"));
+  mvc.perform(post("/v1/verificacoes/revisao/"+id+"/aprovar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("APROVADA"));
+ }
+ @Test void identityDocsAreEncryptedPrivateAndOwnerScoped() throws Exception {
+  long verificationId=beginIdentity(tokenB);
+  mvc.perform(post("/v1/verificacoes/identidade").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(verificationId));
+  mvc.perform(get("/v1/verificacoes/"+verificationId)
+       .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
+  long evidenceId=uploadDoc(tokenB,verificationId,TipoEvidencia.IDENTIDADE_FRENTE);
+  mvc.perform(get("/v1/verificacoes/"+verificationId+"/evidencias")
+       .header("Authorization",bearer(tokenB))).andExpect(status().isOk())
+       .andExpect(jsonPath("$[0].id").value(evidenceId))
+       .andExpect(jsonPath("$[0].arquivoChave").doesNotExist())
+       .andExpect(jsonPath("$[0].tipo").value("IDENTIDADE_FRENTE"));
+  var out=mvc.perform(get("/v1/verificacoes/"+verificationId+"/evidencias/"+evidenceId+"/arquivo")
+       .header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk())
+       .andExpect(header().string("Cache-Control","no-store, private"))
+       .andExpect(header().string("X-Content-Type-Options","nosniff")).andReturn();
+  assertTrue(out.getResponse().getContentAsByteArray().length>30);
+  mvc.perform(get("/v1/verificacoes/"+verificationId+"/evidencias/"+evidenceId+"/arquivo")
+       .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
+  mvc.perform(get("/v1/verificacoes/"+verificationId+"/evidencias/"+evidenceId+"/arquivo"))
+       .andExpect(status().isUnauthorized());
+  mvc.perform(get("/uploads/fotos/"+evidenceId+".enc")).andExpect(status().isNotFound());
+  try(var files=Files.list(PRIVATE)) {
+   var paths=files.toList();assertEquals(1,paths.size());
+   assertFalse(java.util.Arrays.equals(out.getResponse().getContentAsByteArray(), Files.readAllBytes(paths.get(0))));
+   assertEquals(".enc",paths.get(0).getFileName().toString().substring(paths.get(0).getFileName().toString().length()-4));
+  }
+ }
+ @Test void missingEvidenceBlocksSubmissionAndNonOwnerCannotUploadOrDelete() throws Exception {
+  long id=beginIdentity(tokenB);
+  mvc.perform(post("/v1/verificacoes/"+id+"/enviar").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isBadRequest());
+  mvc.perform(multipart("/v1/verificacoes/"+id+"/evidencias").file(privatePhoto())
+      .param("tipo","IDENTIDADE_FRENTE").header("Authorization",bearer(tokenC)))
+      .andExpect(status().isForbidden());
+  long evidence=uploadDoc(tokenB,id,TipoEvidencia.IDENTIDADE_FRENTE);
+  mvc.perform(post("/v1/verificacoes/"+id+"/enviar").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isBadRequest());
+  mvc.perform(delete("/v1/verificacoes/"+id+"/evidencias/"+evidence)
+       .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
+  mvc.perform(delete("/v1/verificacoes/"+id+"/evidencias/"+evidence)
+       .header("Authorization",bearer(tokenB))).andExpect(status().isNoContent());
+  assertEquals(0,evidencias.count());
+  try(var files=Files.list(PRIVATE)){assertEquals(0,files.count());}
+ }
+ @Test void reviewerCannotApproveOwnIdentityOrUnsubmittedCase() throws Exception {
+  a.setRole(Role.REVIEWER);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  long ownerId=beginIdentity(tokenA);
+  mvc.perform(post("/v1/verificacoes/revisao/"+ownerId+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+  uploadDoc(tokenA,ownerId,TipoEvidencia.IDENTIDADE_FRENTE);
+  uploadDoc(tokenA,ownerId,TipoEvidencia.IDENTIDADE_VERSO);
+  mvc.perform(post("/v1/verificacoes/"+ownerId+"/enviar").header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk());
+  mvc.perform(post("/v1/verificacoes/revisao/"+ownerId+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
+  mvc.perform(get("/v1/verificacoes/revisao/pendentes")
+       .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
+  assertEquals(0,eventosVerificacao.count());
+ }
+ @Test void sellerCannotPublishWithoutIdentityAndVehicleApproval() throws Exception {
+  a.setRole(Role.REVIEWER);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  b.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(b);
+  anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+ }
+ @Test void fullManualReviewWorkflowUnlocksAdApproval() throws Exception {
+  approveIdentityViaApi();
+  long vehicleId=anuncio.getVeiculo().getId();
+  long id=idFromJson(mvc.perform(post("/v1/verificacoes/veiculos/"+vehicleId)
+        .header("Authorization",bearer(tokenB))).andExpect(status().isCreated()).andReturn());
+  mvc.perform(multipart("/v1/verificacoes/"+id+"/evidencias").file(privatePhoto())
+      .param("tipo","IDENTIDADE_FRENTE").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isBadRequest());
+  uploadDoc(tokenB,id,TipoEvidencia.DOCUMENTO_VEICULO);
+  mvc.perform(post("/v1/verificacoes/"+id+"/enviar").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EM_ANALISE"));
+  mvc.perform(post("/v1/verificacoes/revisao/"+id+"/aprovar")
+       .header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APROVADA"));
+  anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
+  assertEquals(2,eventosVerificacao.count());
+ }
+ @Test void editingVehicleInvalidatesPriorApprovalAndDocuments() throws Exception {
+  approveIdentityViaApi();
+  long verificationId=idFromJson(mvc.perform(post("/v1/verificacoes/veiculos/"+anuncio.getVeiculo().getId())
+       .header("Authorization",bearer(tokenB))).andExpect(status().isCreated()).andReturn());
+  uploadDoc(tokenB,verificationId,TipoEvidencia.DOCUMENTO_VEICULO);
+  mvc.perform(post("/v1/verificacoes/"+verificationId+"/enviar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk());
+  mvc.perform(post("/v1/verificacoes/revisao/"+verificationId+"/aprovar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isOk());
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+      .contentType("application/json")
+      .content(listingJson("Editado").replace("\"marca\":\"Chevrolet\"",
+                        "\"marca\":\"Fiat\"")))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+  assertEquals(StatusVerificacao.RASCUNHO, verificacoes.findById(verificationId).orElseThrow().getStatus());
+  assertEquals(2,evidencias.count());
+  // Permanecem as duas evidências da identidade, mas a evidência antiga do veículo foi apagada.
+  try(var files=Files.list(PRIVATE)){assertEquals(2,files.count());}
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+ }
+ @Test void privateStorageFailsClosedWithoutKey() throws Exception {
+  var disabled=new com.josenetoo_dev.veiculos_api.service.PrivateEvidenceStorage(
+       PRIVATE.resolve("disabled").toString(),"",UPLOAD.toString());
+  assertFalse(disabled.available());
+  assertThrows(com.josenetoo_dev.veiculos_api.exception.ex.ArmazenamentoPrivadoIndisponivelException.class,
+       ()->disabled.read(java.util.UUID.randomUUID().toString()));
+ }
+
 }
