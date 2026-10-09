@@ -129,4 +129,37 @@ public class DenunciaService {
         report.setMotivoDecisao(reason);
         return DenunciaResponse.from(denuncias.save(report));
     }
+
+    /** Apenas ADMIN pode reverter suspensão. O anúncio volta a PENDENTE, nunca diretamente a ATIVO. */
+    @Transactional
+    public DenunciaResponse reverter(Long id, String motivo) {
+        Usuario staff = reviewer();
+        if (staff.getRole() != Role.ADMIN) throw new AcessoNegadoException("Somente ADMIN pode reverter");
+        if (motivo == null || motivo.isBlank() || motivo.strip().length() > 500) {
+            throw new IllegalArgumentException("Justificativa obrigatória");
+        }
+        Denuncia item = denuncias.findByIdForUpdate(id)
+                .orElseThrow(() -> new DenunciaNaoEncontradaException());
+        if (item.getStatus() != StatusDenuncia.CONFIRMADA) {
+            throw new VerificacaoIndisponivelException("Denúncia não pode ser revertida");
+        }
+        Anuncio ad = anuncios.findByIdForUpdate(item.getAnuncio().getId())
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anúncio não encontrado"));
+        if (ad.getStatus() != StatusAnuncio.SUSPENSO) {
+            throw new VerificacaoIndisponivelException("Somente suspensão vigente pode ser revertida");
+        }
+        ad.setStatus(StatusAnuncio.PENDENTE);
+        ad.setRevisadoEm(null);
+        ad.setRevisadoPorId(null);
+        ad.setMotivoRejeicao(null);
+        anuncios.save(ad);
+        item.setStatus(StatusDenuncia.REVERTIDA);
+        item.setRevertidoPorId(staff.getId());
+        item.setRevertidoEm(LocalDateTime.now(ZoneOffset.UTC));
+        item.setMotivoReversao(motivo.strip());
+        eventos.save(new ModeracaoEvento(ad.getId(), staff.getId(),
+            StatusAnuncio.SUSPENSO, StatusAnuncio.PENDENTE, motivo.strip()));
+        return DenunciaResponse.from(denuncias.save(item));
+    }
+
 }
