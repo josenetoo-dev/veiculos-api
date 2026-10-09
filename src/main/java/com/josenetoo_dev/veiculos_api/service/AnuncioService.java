@@ -159,7 +159,7 @@ public class AnuncioService {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-        if (anuncio.getStatus() == StatusAnuncio.VENDIDO) {
+        if (anuncio.getStatus() == StatusAnuncio.VENDIDO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio vendido não pode ser editado");
         }
@@ -203,20 +203,45 @@ public class AnuncioService {
         return toResponse(anuncioRepository.save(anuncio));
     }
 
-    @Transactional
-    public void deletarAnuncio(Long id) {
-        Anuncio anuncio = verificarId(id);
-        exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-        // Remove mensagens e propostas vinculadas (chave estrangeira), nessa ordem
-        mensagemRepository.deleteByPropostaAnuncioId(id);
-        propostaRepository.deleteByAnuncioId(id);
-        anuncioFotoRepository.findByAnuncioId(id,
-                        org.springframework.data.domain.Pageable.unpaged())
+    /**
+     * Arquivamento em vez de DELETE real: propostas, mensagens e auditoria
+     * permanecem disponíveis para fins de disputa e histórico.
+     */
+    private void arquivar(Anuncio anuncio, Long actorId) {
+        if (anuncio.getStatus() == StatusAnuncio.ARQUIVADO) return;
+        anuncio.setStatus(StatusAnuncio.ARQUIVADO);
+        anuncio.setDestaque(false);
+        anuncio.setArquivadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        anuncio.setArquivadoPorId(actorId);
+        // Fotos deixam de ser servidas por URLs locais após a transação confirmar.
+        // Registros externos legados requerem saneamento separado.
+        anuncioFotoRepository.findByAnuncioId(anuncio.getId(), Pageable.unpaged())
                 .forEach(f -> {
                     anuncioFotoRepository.delete(f);
                     imageStorage.deleteAfterCommit(f.getUrl());
                 });
-        anuncioRepository.delete(anuncio);
+        anuncioRepository.save(anuncio);
+    }
+
+    @Transactional
+    public void deletarAnuncio(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario owner = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, owner);
+        arquivar(anuncio, owner.getId());
+    }
+
+    /**
+     * Chamado quando o usuário encerra a conta. Nunca exclui propostas nem chats.
+     */
+    @Transactional
+    public void arquivarAnunciosDeUsuario(Long usuarioId) {
+        for (Anuncio anuncio : anuncioRepository.findByUsuarioId(usuarioId, Pageable.unpaged())) {
+            Anuncio locked = anuncioRepository.findByIdForUpdate(anuncio.getId())
+                    .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+            arquivar(locked, usuarioId);
+        }
     }
 
     @Transactional(readOnly = true)
