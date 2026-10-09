@@ -8,9 +8,11 @@ Permitir que usuários com contato confirmado sinalizem anúncios publicados com
 - Um usuário só registra uma denúncia por anúncio; não pode denunciar anúncio próprio, anúncios não publicados ou cadastrar denúncia sem conta ACTIVE.
 - `GET /v1/denuncias/minhas` e `GET /v1/denuncias/{id}`: apenas o denunciante ou operador ADMIN/REVIEWER ACTIVE.
 - `GET /v1/denuncias/revisao/pendentes`: fila staff.
-- `POST /v1/denuncias/revisao/{id}/confirmar` com justificativa: registra decisão e muda anúncio ATIVO para PAUSADO, sem excluir ofertas/histórico.
+- `POST /v1/denuncias/revisao/{id}/confirmar` com justificativa: registra decisão e muda anúncio para SUSPENSO, impedindo reabertura pelo vendedor, sem excluir ofertas/histórico.
 - `POST /v1/denuncias/revisao/{id}/descartar` com justificativa: registra decisão sem ocultar anúncio.
 - Um operador não pode decidir denúncia do próprio anúncio nem a que ele mesmo registrou.
+- `POST /v1/denuncias/revisao/{id}/reverter`: somente ADMIN pode reverter denúncia CONFIRMADA, registrando motivo e devolvendo anúncio SUSPENSO a PENDENTE; **nunca republica diretamente**.
+- Anúncios SUSPENSO não podem ser editados, ter fotos modificadas ou ser reaprovados pelo próprio titular.
 - Decisões são de uso único; repetição gera 409. A suspensão por denúncia é registrada também como `ModeracaoEvento`.
 
 ## Persistência
@@ -24,6 +26,6 @@ Permitir que usuários com contato confirmado sinalizem anúncios publicados com
 - URLs legadas de fotos ainda podem estar acessíveis a quem as recebeu antes da suspensão; storage com controle de acesso é evolução necessária.
 
 ## Testes
-- Isolamento de denúncias, auto-denúncia, duplicidade, conta não verificada, perfil revisor, decisão única, suspensão administrativa e preservação de propostas.
+- Isolamento de denúncias, auto-denúncia, duplicidade, conta não verificada, perfil revisor, decisão única, suspensão administrativa resistente a bypass, recurso ADMIN e preservação de propostas.
 - MySQL V9 valida chaves, unicidade e não alteração de anúncios existentes.
 - `./mvnw -B clean verify` na CI.
