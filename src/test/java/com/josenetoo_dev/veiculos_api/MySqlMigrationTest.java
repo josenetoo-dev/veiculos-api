@@ -131,4 +131,33 @@ class MySqlMigrationTest {
         assertEquals(0,migrated.migrate().migrationsExecuted);
     }
 
+    @Test void verificationTablesAreAddedWithoutTouchingLegacyRecords() throws Exception {
+        String url=testUrl("verification");
+        assertEquals(5,flyway(url,"5").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (401,'Legacy','verification@example.com','old-hash','38999999999')");
+            st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (501,401,'Chevrolet','Onix','LT',2022,60000,'Branco','FLEX','MANUAL',true)");
+        }
+        var migrated=flyway(url,"6");
+        assertEquals(1,migrated.migrate().migrationsExecuted);
+        assertTrue(migrated.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement()) {
+            stmt.execute("INSERT INTO verificacao (id,solicitante_id,usuario_identidade_id,tipo,status,criado_em) VALUES (601,401,401,'IDENTIDADE','EM_ANALISE',NOW())");
+            stmt.execute("INSERT INTO evidencia_verificacao (id,verificacao_id,tipo,arquivo_chave,tipo_midia,tamanho,criado_em) VALUES (701,601,'IDENTIDADE_FRENTE','00000000-0000-4000-8000-000000000001','image/png',100,NOW())");
+            stmt.execute("INSERT INTO evento_verificacao (id,verificacao_id,revisor_id,resultado,criado_em) VALUES (801,601,401,'APROVADA',NOW())");
+            try(var r=stmt.executeQuery("SELECT email FROM usuario WHERE id=401")) {
+                assertTrue(r.next());assertEquals("verification@example.com",r.getString(1));
+            }
+            try(var r=stmt.executeQuery("SELECT COUNT(*) FROM veiculo WHERE id=501")) {
+                assertTrue(r.next());assertEquals(1,r.getLong(1));
+            }
+            try(var r=stmt.executeQuery("SELECT COUNT(*) FROM evidencia_verificacao WHERE verificacao_id=601")) {
+                assertTrue(r.next());assertEquals(1,r.getLong(1));
+            }
+            assertThrows(SQLException.class,()->stmt.execute(
+                "INSERT INTO verificacao (solicitante_id,usuario_identidade_id,veiculo_id,tipo,status,criado_em) VALUES (401,401,501,'IDENTIDADE','RASCUNHO',NOW())"));
+        }
+        assertEquals(0,migrated.migrate().migrationsExecuted);
+    }
+
 }
