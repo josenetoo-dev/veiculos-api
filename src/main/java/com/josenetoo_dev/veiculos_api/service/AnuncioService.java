@@ -27,6 +27,7 @@ public class AnuncioService {
     private final AnuncioRepository     anuncioRepository;
     private final UsuarioRepository usuarioRepository;
     private final AnuncioFotoRepository anuncioFotoRepository;
+    private final ImageStorage imageStorage;
     private final com.josenetoo_dev.veiculos_api.repository.PropostaRepository propostaRepository;
     private final com.josenetoo_dev.veiculos_api.repository.MensagemRepository mensagemRepository;
 
@@ -69,6 +70,32 @@ public class AnuncioService {
         }
     }
 
+    /** Dados não publicados só podem ser consultados pelo vendedor ou administração. */
+    private void exigirVisibilidade(Anuncio anuncio) {
+        if (anuncio.getStatus() == StatusAnuncio.ATIVO) return;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new AnuncioNaoEncontradoException("Anuncio não encontrado");
+        }
+        boolean staff = authentication.getAuthorities().stream().anyMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority()) || "ROLE_REVIEWER".equals(authority.getAuthority()));
+        if (!staff && !anuncio.getUsuario().getId().toString().equals(authentication.getName())) {
+            throw new AnuncioNaoEncontradoException("Anuncio não encontrado");
+        }
+    }
+
+    /** Também utilizado pelo endpoint público de fotos para impedir enumeração de anúncios pausados. */
+    @Transactional(readOnly = true)
+    public void exigirVisibilidadePorId(Long anuncioId) {
+        exigirVisibilidade(verificarId(anuncioId));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AnuncioResponse> meusAnuncios(Pageable pageable) {
+        return anuncioRepository.findByUsuarioId(obterUsuarioAutenticado().getId(), pageable).map(this::toResponse);
+    }
+
     @Transactional
     public AnuncioResponse criarAnuncio(AnuncioRequest request) {
         Anuncio anuncio = new Anuncio();
@@ -105,7 +132,7 @@ public class AnuncioService {
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarAnuncios(Pageable pageable) {
-        return anuncioRepository.findAll(pageable)
+        return anuncioRepository.findByStatus(StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 
@@ -144,37 +171,57 @@ public class AnuncioService {
         propostaRepository.deleteByAnuncioId(id);
         anuncioFotoRepository.findByAnuncioId(id,
                         org.springframework.data.domain.Pageable.unpaged())
-                .forEach(f -> anuncioFotoRepository.delete(f));
+                .forEach(f -> {
+                    anuncioFotoRepository.delete(f);
+                    imageStorage.deleteAfterCommit(f.getUrl());
+                });
         anuncioRepository.delete(anuncio);
     }
 
     @Transactional(readOnly = true)
     public AnuncioResponse buscarPorId(Long id) {
-        return toResponse(verificarId(id));
+        Anuncio anuncio = verificarId(id);
+        exigirVisibilidade(anuncio);
+        return toResponse(anuncio);
     }
 
     @Transactional(readOnly = true)
     public AnuncioResponse buscarPorCodigo(String codigo) {
-        return anuncioRepository.findByCodigo(codigo)
-                .map(this::toResponse)
+        Anuncio anuncio = anuncioRepository.findByCodigo(codigo)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        exigirVisibilidade(anuncio);
+        return toResponse(anuncio);
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarDestaques(Pageable pageable) {
-        return anuncioRepository.findByDestaqueTrue(pageable)
+        return anuncioRepository.findByDestaqueTrueAndStatus(StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarPorStatus(StatusAnuncio status, Pageable pageable) {
-        return anuncioRepository.findByStatus(status, pageable)
-                .map(this::toResponse);
+        if (status == StatusAnuncio.ATIVO) {
+            return anuncioRepository.findByStatus(status, pageable).map(this::toResponse);
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return Page.empty(pageable);
+        }
+        boolean staff = auth.getAuthorities().stream().anyMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority()) || "ROLE_REVIEWER".equals(authority.getAuthority()));
+        if (staff) return anuncioRepository.findByStatus(status, pageable).map(this::toResponse);
+        try {
+            Long userId = Long.valueOf(auth.getName());
+            return anuncioRepository.findByStatusAndUsuarioId(status, userId, pageable).map(this::toResponse);
+        } catch (NumberFormatException e) {
+            return Page.empty(pageable);
+        }
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarPorCategoria(Categoria categoria, Pageable pageable) {
-        return anuncioRepository.findByCategoria(categoria, pageable)
+        return anuncioRepository.findByCategoriaAndStatus(categoria, StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 
