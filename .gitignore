@@ -46,3 +46,7 @@ application-*.yaml
 .DS_Store
 Thumbs.db
 *.log
+
+# Private verification evidence (AES-GCM encrypted, never commit)
+private-verification-documents/
+**/private-verification-documents/

@@ -21,10 +21,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler({EmailJaCadastradoException.class, PropostaJaCanceladaException.class,
             PropostaJaAceitaException.class, PropostaJaNegadaException.class,
             NaoPodeCancelarAndNegarPropostaException.class, ContrapropostaJaRealizadaException.class,
-            AnuncioIndisponivelException.class, DataIntegrityViolationException.class})
+            AnuncioIndisponivelException.class, VerificacaoIndisponivelException.class, DataIntegrityViolationException.class})
     public ProblemDetail conflict(Exception ex) { return problem(409, "Operação em conflito com o estado atual", "CONFLICT"); }
     @ExceptionHandler({UsuarioNaoEncontradoException.class, AnuncioNaoEncontradoException.class,
-            PropostaNaoEncontradaException.class, FotoNaoEncontradaException.class})
+            PropostaNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class})
     public ProblemDetail notFound(Exception ex) { return problem(404, "Recurso não encontrado", "NOT_FOUND"); }
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail unauthorized(Exception ex) { return problem(401, "Credenciais inválidas", "AUTHENTICATION_REQUIRED"); }
@@ -37,6 +37,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeThrottledException.class)
     public ProblemDetail mailThrottled(Exception ex) {
         return problem(429, "Aguarde antes de pedir outro código", "EMAIL_CHANGE_RATE_LIMIT");
+    }
+    @ExceptionHandler(ArmazenamentoPrivadoIndisponivelException.class)
+    public ProblemDetail privateEvidenceStorageUnavailable(Exception ex) {
+        return problem(503, "Recebimento de documentos temporariamente indisponível", "PRIVATE_STORAGE_UNAVAILABLE");
     }
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail invalid(Exception ex) { return problem(400, "Requisição inválida", "INVALID_REQUEST"); }

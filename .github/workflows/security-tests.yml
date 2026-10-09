@@ -1,9 +1,9 @@
 name: Auto Minas backend checks
 on:
   push:
-    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos]
+    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes]
   pull_request:
-    branches: [main, security/fase-1, feature/fase-2-moderacao]
+    branches: [main, security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos]
 permissions:
   contents: read
 jobs:

@@ -63,6 +63,10 @@ public class AnuncioFotoService {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
+        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio vendido não pode receber fotos");
+        }
         long existing = anuncioFotoRepository.countByAnuncioId(anuncioId);
         if (arquivos == null || arquivos.isEmpty() || arquivos.size() > 10 || existing + arquivos.size() > 20) {
             throw new IllegalArgumentException("Limite de fotos excedido: 10 por lote e 20 por anúncio");
@@ -80,6 +84,7 @@ public class AnuncioFotoService {
             foto.setTipoFoto(com.josenetoo_dev.veiculos_api.enums.TipoFoto.OUTRO);
             registros.add(foto);
         }
+        anuncioService.reabrirRevisaoDeFotos(anuncio);
         return anuncioFotoRepository.saveAllAndFlush(registros).stream().map(AnuncioFotoResponse::new).toList();
     }
 
@@ -92,6 +97,10 @@ public class AnuncioFotoService {
 
     @Transactional
     public void deletarFoto(Long anuncioId, Long fotoId) {
+        // Mesmo lock usado na aprovação administrativa e no upload.
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
         AnuncioFoto foto = anuncioFotoRepository.findById(fotoId)
                 .orElseThrow(() -> new FotoNaoEncontradaException("Foto não encontrada"));
 
@@ -99,8 +108,11 @@ public class AnuncioFotoService {
             throw new FotoNaoEncontradaException("Foto não encontrada");
         }
 
-        exigirDonoDoAnuncio(foto.getAnuncio(), obterUsuarioAutenticado());
-
+        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio vendido não pode ter fotos alteradas");
+        }
+        anuncioService.reabrirRevisaoDeFotos(anuncio);
         anuncioFotoRepository.delete(foto);
         imageStorage.deleteAfterCommit(foto.getUrl());
     }
