@@ -28,7 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
  "logging.level.org.springframework.security=INFO",
- "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost"
+ "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost",
+ "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 })
 @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 @AutoConfigureMockMvc(printOnlyOnFailure = false, print = org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint.NONE)
@@ -39,8 +40,17 @@ class SecurityRegressionTest {
  @Autowired com.josenetoo_dev.veiculos_api.service.AnuncioService anuncioService;
 
  static final Path UPLOAD;
- static { try { UPLOAD = Files.createTempDirectory("auto-minas-security-"); } catch(Exception e) {throw new RuntimeException(e);} }
- @DynamicPropertySource static void properties(DynamicPropertyRegistry r) { r.add("upload.dir", () -> UPLOAD.toString()); }
+ static final Path PRIVATE;
+ static {
+  try {
+   UPLOAD = Files.createTempDirectory("auto-minas-security-");
+   PRIVATE = Files.createTempDirectory("auto-minas-private-");
+  } catch(Exception e) {throw new RuntimeException(e);}
+ }
+ @DynamicPropertySource static void properties(DynamicPropertyRegistry r) {
+  r.add("upload.dir", () -> UPLOAD.toString());
+  r.add("verification.storage.dir", () -> PRIVATE.toString());
+ }
  @Autowired MockMvc mvc;
  @Autowired org.springframework.context.ApplicationContext context;
  @Autowired UsuarioRepository usuarios;
@@ -49,6 +59,10 @@ class SecurityRegressionTest {
  @Autowired AnuncioFotoRepository fotos;
  @Autowired PropostaRepository propostas;
  @Autowired ModeracaoEventoRepository eventos;
+ @Autowired VerificacaoRepository verificacoes;
+ @Autowired EvidenciaVerificacaoRepository evidencias;
+ @Autowired EventoVerificacaoRepository eventosVerificacao;
+
  @Autowired MensagemRepository mensagens;
  @Autowired JwtUtil jwt;
  @Autowired PasswordEncoder encoder;
@@ -60,8 +74,11 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
-  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll(); anuncios.deleteAll(); veiculos.deleteAll(); usuarios.deleteAll();
+  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
+  evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
+  anuncios.deleteAll(); veiculos.deleteAll(); usuarios.deleteAll();
   try(var files=Files.list(UPLOAD)){ for(Path f:files.toList()) Files.delete(f); }
+  try(var files=Files.list(PRIVATE)){ for(Path f:files.toList()) Files.delete(f); }
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");
   tokenA=jwt.gerarToken(a.getId().toString()); tokenB=jwt.gerarToken(b.getId().toString()); tokenC=jwt.gerarToken(c.getId().toString());
   anuncio=new Anuncio(); anuncio.setUsuario(b); anuncio.setVersao("LT"); anuncio.setDocumentacao("Regular"); anuncio.setGarantia("Nenhuma");
@@ -351,6 +368,13 @@ class SecurityRegressionTest {
   usuarios.saveAndFlush(b);
   anuncio.setStatus(StatusAnuncio.PENDENTE);
   anuncios.saveAndFlush(anuncio);
+  // Fixture representa decisões já auditadas em testes antigos de moderação.
+  var iv=Verificacao.identidade(b);
+  iv.setStatus(StatusVerificacao.APROVADA);
+  verificacoes.saveAndFlush(iv);
+  var vv=Verificacao.veiculo(b, anuncio.getVeiculo());
+  vv.setStatus(StatusVerificacao.APROVADA);
+  verificacoes.saveAndFlush(vv);
  }
  @Test void newListingIsPendingAndCannotBypassReview() throws Exception {
   mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
