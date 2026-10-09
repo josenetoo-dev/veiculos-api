@@ -46,4 +46,13 @@ public class Denuncia {
 
     @Column(name = "motivo_decisao", length=500)
     private String motivoDecisao;
+
+    @Column(name = "revertido_em")
+    private LocalDateTime revertidoEm;
+
+    @Column(name = "revertido_por_id")
+    private Long revertidoPorId;
+
+    @Column(name = "motivo_reversao", length = 500)
+    private String motivoReversao;
 }
