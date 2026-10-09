@@ -30,6 +30,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail unauthorized(Exception ex) { return problem(401, "Credenciais inválidas", "AUTHENTICATION_REQUIRED"); }
     @ExceptionHandler({AcessoNegadoException.class, AccessDeniedException.class})
     public ProblemDetail forbidden(Exception ex) { return problem(403, "Acesso negado", "ACCESS_DENIED"); }
+    @ExceptionHandler(com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeUnavailableException.class)
+    public ProblemDetail mailUnavailable(Exception ex) {
+        return problem(503, "Alteração de e-mail temporariamente indisponível", "EMAIL_CHANGE_UNAVAILABLE");
+    }
+    @ExceptionHandler(com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeThrottledException.class)
+    public ProblemDetail mailThrottled(Exception ex) {
+        return problem(429, "Aguarde antes de pedir outro código", "EMAIL_CHANGE_RATE_LIMIT");
+    }
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail invalid(Exception ex) { return problem(400, "Requisição inválida", "INVALID_REQUEST"); }
     @ExceptionHandler(Exception.class)
