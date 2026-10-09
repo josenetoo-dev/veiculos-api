@@ -205,6 +205,29 @@ public class VerificacaoService {
         return VerificacaoResponse.from(verificacoes.save(v));
     }
 
+    /**
+     * Invalida documento antigo caso as características do veículo sejam alteradas.
+     * Exclui evidências após commit para exigir nova apresentação documental.
+     * Chamado somente dentro da transação que atualiza o anúncio.
+     */
+    @Transactional
+    public void invalidarVeiculoAlterado(Long veiculoId) {
+        if (veiculoId == null) return;
+        verificacoes.findByVeiculoId(veiculoId).ifPresent(v -> {
+            Verificacao locked = verificacoes.findByIdForUpdate(v.getId()).orElseThrow();
+            for (EvidenciaVerificacao e : evidencias.findByVerificacaoId(locked.getId())) {
+                evidencias.delete(e);
+                storage.removeAfterCommit(e.getArquivoChave());
+            }
+            locked.setStatus(StatusVerificacao.RASCUNHO);
+            locked.setMotivoRejeicao(null);
+            locked.setEnviadoEm(null);
+            locked.setRevisadoEm(null);
+            locked.setRevisadoPorId(null);
+            verificacoes.save(locked);
+        });
+    }
+
     @Transactional(readOnly = true)
     public Page<VerificacaoResponse> pendentes(Pageable pageable) {
         reviewer();
