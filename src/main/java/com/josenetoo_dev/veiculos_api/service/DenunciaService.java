@@ -112,12 +112,15 @@ public class DenunciaService {
         if (procedente) {
             Anuncio ad = anuncios.findByIdForUpdate(report.getAnuncio().getId())
                     .orElseThrow(() -> new AnuncioNaoEncontradoException("Anúncio não encontrado"));
-            if (ad.getStatus() == StatusAnuncio.ATIVO) {
-                ad.setStatus(StatusAnuncio.PAUSADO);
+            if (ad.getStatus() != StatusAnuncio.ARQUIVADO
+                    && ad.getStatus() != StatusAnuncio.VENDIDO
+                    && ad.getStatus() != StatusAnuncio.SUSPENSO) {
+                StatusAnuncio anterior = ad.getStatus();
+                ad.setStatus(StatusAnuncio.SUSPENSO);
                 ad.setDestaque(false);
                 anuncios.save(ad);
                 eventos.save(new ModeracaoEvento(ad.getId(),user.getId(),
-                        StatusAnuncio.ATIVO,StatusAnuncio.PAUSADO,reason));
+                        anterior,StatusAnuncio.SUSPENSO,reason));
             }
         }
         report.setStatus(procedente ? StatusDenuncia.CONFIRMADA : StatusDenuncia.DESCARTADA);
