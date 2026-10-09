@@ -59,6 +59,7 @@ public class AnuncioResponse {
 
     private LocalDateTime criadoEm = LocalDateTime.now();
 
+    private Long veiculoId;
     private Long usuarioId;
     private String usuarioNome;
     private String fotoCapaUrl;
@@ -87,6 +88,7 @@ public class AnuncioResponse {
         this.cambio = anuncio.getCambio();
         this.categoria = anuncio.getCategoria();
         this.criadoEm = anuncio.getCriadoEm();
+        this.veiculoId = anuncio.getVeiculo() == null ? null : anuncio.getVeiculo().getId();
         this.usuarioId = anuncio.getUsuario().getId();
         this.usuarioNome = anuncio.getUsuario().getNome();
     }
