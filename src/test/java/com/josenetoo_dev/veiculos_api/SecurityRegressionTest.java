@@ -171,4 +171,16 @@ class SecurityRegressionTest {
   } finally{release.countDown();executor.shutdownNow();}
   assertEquals(20,fotos.count());assertEquals(1,fileCount());
  }
+
+ @Test void cannotEditAnotherListing() throws Exception {
+  String body="""
+   {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"Alterado","descricao":"Carro","preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,"cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s"}
+   """.formatted(anuncio.getCombustivel().name(),anuncio.getCambio().name(),anuncio.getCategoria().name());
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenA)).contentType("application/json").content(body)).andExpect(status().isForbidden());
+  assertEquals("Onix",anuncios.findById(anuncio.getId()).orElseThrow().getTitulo());
+ }
+ @Test void photoMustBelongToListingInPath() throws Exception {
+  var f=new AnuncioFoto();f.setAnuncio(anuncio);f.setOrdem(0);f.setUrl("https://example.com/photo.png");f.setTipoFoto(TipoFoto.OUTRO);f=fotos.saveAndFlush(f);
+  mvc.perform(delete("/v1/anuncio/"+(anuncio.getId()+1000)+"/fotos/"+f.getId()).header("Authorization",bearer(tokenB))).andExpect(status().isNotFound());assertTrue(fotos.existsById(f.getId()));
+ }
 }
