@@ -42,6 +42,9 @@ class SecurityRegressionTest {
  @Autowired MensagemRepository mensagens;
  @Autowired JwtUtil jwt;
  @Autowired PasswordEncoder encoder;
+ @Autowired org.springframework.transaction.PlatformTransactionManager txManager;
+ @Autowired com.josenetoo_dev.veiculos_api.service.AnuncioFotoService fotoService;
+ @Autowired com.josenetoo_dev.veiculos_api.service.UsuarioService usuarioService;
  Usuario a, b, c;
  Anuncio anuncio;
  Proposta proposta;
@@ -92,4 +95,61 @@ class SecurityRegressionTest {
  @Test void malformedJsonReturnsSanitizedProblem() throws Exception {var r=mvc.perform(post("/auth/login").contentType("application/json").content("{ secret")).andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json")).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
  @Test void strangerCannotSendChatMessage() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenC)).contentType("application/json").content("{\"conteudo\":\"Intruso\"}")).andExpect(status().isForbidden());assertEquals(0,mensagens.count());}
  @Test void longChatMessageIsRejected() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"conteudo\":\""+"x".repeat(2001)+"\"}")).andExpect(status().isBadRequest());assertEquals(0,mensagens.count());}
+
+ @Test void storageAndRowsAreCleanedOnTransactionRollback() throws Exception {
+  var auth=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(b.getId().toString(),null,java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")));
+  org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+  var file=image("photo.png","image/png");
+  try {new org.springframework.transaction.support.TransactionTemplate(txManager).execute(status->{fotoService.uploadFotos(anuncio.getId(),java.util.List.of(file));status.setRollbackOnly();return null;});}
+  finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+  assertEquals(0,fileCount());assertEquals(0,fotos.count());
+ }
+ @Test void cumulativePhotoLimitIsEnforced() throws Exception {
+  for(int i=0;i<20;i++){var f=new AnuncioFoto();f.setAnuncio(anuncio);f.setOrdem(i);f.setUrl("https://example.com/"+i+".png");f.setTipoFoto(TipoFoto.OUTRO);fotos.saveAndFlush(f);}
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png")).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());assertEquals(20,fotos.count());
+ }
+ @Test void truncatedImageIsRejected() throws Exception {var f=image("photo.png","image/png");mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(new MockMultipartFile("fotos","photo.png","image/png",java.util.Arrays.copyOf(f.getBytes(),20))).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
+ @Test void pathTraversalFilenameIsRejected() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("../photo.png","image/png")).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
+ @Test void utf8PasswordCannotExceedBcryptByteLimit() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"Test\",\"email\":\"utf8@example.com\",\"telefone\":\"38999999999\",\"senha\":\""+"é".repeat(37)+"\"}")).andExpect(status().isBadRequest());assertFalse(usuarios.existsByEmail("utf8@example.com"));}
+ @Test void forgedExpiredAndRevokedTokensAreRejected() throws Exception {
+  var key=io.jsonwebtoken.security.Keys.hmacShaKeyFor("integration-test-key-at-least-32-bytes-long".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+  String expired=io.jsonwebtoken.Jwts.builder().setSubject(a.getId().toString()).claim("tv",0).setExpiration(new java.util.Date(1)).signWith(key).compact();
+  String legacy=io.jsonwebtoken.Jwts.builder().setSubject(a.getId().toString()).setExpiration(new java.util.Date(System.currentTimeMillis()+60000)).signWith(key).compact();
+  String badSubject=io.jsonwebtoken.Jwts.builder().setSubject("not-a-number").claim("tv",0).setExpiration(new java.util.Date(System.currentTimeMillis()+60000)).signWith(key).compact();
+  String forged=io.jsonwebtoken.Jwts.builder().setSubject(a.getId().toString()).claim("tv",0).setExpiration(new java.util.Date(System.currentTimeMillis()+60000)).signWith(io.jsonwebtoken.security.Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256)).compact();
+  for(String t:new String[]{expired,legacy,badSubject,forged})mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(t))).andExpect(status().isUnauthorized());
+ }
+ @Test void jwtRoleClaimCannotEscalatePrivileges() throws Exception {
+  var key=io.jsonwebtoken.security.Keys.hmacShaKeyFor("integration-test-key-at-least-32-bytes-long".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+  String t=io.jsonwebtoken.Jwts.builder().setSubject(a.getId().toString()).claim("tv",a.getTokenVersion()).claim("role","ADMIN").setExpiration(new java.util.Date(System.currentTimeMillis()+60000)).signWith(key).compact();
+  mvc.perform(get("/v1/admin/usuarios").header("Authorization",bearer(t))).andExpect(status().isForbidden());
+ }
+
+ @Test void staleProfileCannotUndoPasswordRevocation() throws Exception {
+  runStaleProfileRace(()->{var request=new com.josenetoo_dev.veiculos_api.dto.usuario_dto.TrocarSenhaRequest();request.setSenhaAtual("senhaTeste123");request.setNovaSenha("newSecurePassword123");usuarioService.atualizarSenha(request,a.getId());},false);
+  var saved=usuarios.findById(a.getId()).orElseThrow();assertTrue(encoder.matches("newSecurePassword123",saved.getSenha()));assertEquals(1,saved.getTokenVersion());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());
+ }
+ @Test void staleProfileCannotResurrectDeletedAccount() throws Exception {
+  runStaleProfileRace(()->usuarioService.deletarUsuario(a.getId()),true);
+  assertEquals(StatusUsuario.DELETED,usuarios.findById(a.getId()).orElseThrow().getStatus());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());
+ }
+ void runStaleProfileRace(Runnable securityChange,boolean mustReject) throws Exception {
+  var ready=new java.util.concurrent.CountDownLatch(1);var resume=new java.util.concurrent.CountDownLatch(1);
+  var executor=java.util.concurrent.Executors.newSingleThreadExecutor();
+  var future=executor.submit(()->{
+   authenticate(a.getId());
+   try {new org.springframework.transaction.support.TransactionTemplate(txManager).execute(status->{
+    usuarios.findById(a.getId()).orElseThrow();ready.countDown();
+    try{if(!resume.await(10,java.util.concurrent.TimeUnit.SECONDS))throw new IllegalStateException("Race timeout");}catch(InterruptedException e){throw new RuntimeException(e);}
+    var request=new com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioRequest();request.setNome("Updated");request.setEmail(a.getEmail());request.setTelefone(a.getTelefone());
+    if(mustReject)assertThrows(com.josenetoo_dev.veiculos_api.exception.ex.CredenciaisInvalidasException.class,()->usuarioService.atualizarUsuario(request,a.getId()));
+    else usuarioService.atualizarUsuario(request,a.getId());return null;
+   });} finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+  });
+  try{assertTrue(ready.await(10,java.util.concurrent.TimeUnit.SECONDS));authenticate(a.getId());securityChange.run();resume.countDown();future.get(10,java.util.concurrent.TimeUnit.SECONDS);}
+  finally{resume.countDown();executor.shutdownNow();org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+ }
+ void authenticate(Long id){org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(id.toString(),null,java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))));}
 }
