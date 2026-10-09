@@ -47,6 +47,7 @@ class SecurityRegressionTest {
  @Autowired AnuncioRepository anuncios;
  @Autowired AnuncioFotoRepository fotos;
  @Autowired PropostaRepository propostas;
+ @Autowired ModeracaoEventoRepository eventos;
  @Autowired MensagemRepository mensagens;
  @Autowired JwtUtil jwt;
  @Autowired PasswordEncoder encoder;
@@ -58,7 +59,7 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
-  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); anuncios.deleteAll(); usuarios.deleteAll();
+  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll(); anuncios.deleteAll(); usuarios.deleteAll();
   try(var files=Files.list(UPLOAD)){ for(Path f:files.toList()) Files.delete(f); }
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");
   tokenA=jwt.gerarToken(a.getId().toString()); tokenB=jwt.gerarToken(b.getId().toString()); tokenC=jwt.gerarToken(c.getId().toString());
@@ -330,6 +331,115 @@ class SecurityRegressionTest {
    .contentType("application/json").content(body)).andExpect(status().isTooManyRequests());
   org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
     .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+ }
+
+
+ // Fase 2A — publicacao sujeita à moderação administrativa.
+ private String listingJson(String title) {
+  return """
+     {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"%s","descricao":"Descricao do carro",
+      "preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,
+      "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false}
+      """.formatted(title, anuncio.getCombustivel().name(), anuncio.getCambio().name(), anuncio.getCategoria().name());
+ }
+ private void makeReviewerActiveSellerAndPendingListing() {
+  a.setRole(Role.REVIEWER);
+  usuarios.saveAndFlush(a);
+  b.setStatus(StatusUsuario.ACTIVE);
+  usuarios.saveAndFlush(b);
+  anuncio.setStatus(StatusAnuncio.PENDENTE);
+  anuncios.saveAndFlush(anuncio);
+ }
+ @Test void newListingIsPendingAndCannotBypassReview() throws Exception {
+  mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Novo carro")))
+       .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDENTE"));
+  assertEquals(1, anuncios.findByStatus(StatusAnuncio.PENDENTE,
+         org.springframework.data.domain.Pageable.unpaged()).getTotalElements());
+  mvc.perform(get("/v1/anuncio")).andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(get("/v1/anuncio/status/PENDENTE")).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/status/PENDENTE").header("Authorization",bearer(tokenB)))
+       .andExpect(jsonPath("$.totalElements").value(1));
+  assertEquals(0, eventos.count());
+ }
+ @Test void reviewerCanApproveAndPublishesWithAuditAndNoDuplicateApproval() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  mvc.perform(get("/v1/moderacao/anuncios")).andExpect(status().isUnauthorized());
+  mvc.perform(get("/v1/moderacao/anuncios").header("Authorization",bearer(tokenC)))
+       .andExpect(status().isForbidden());
+  mvc.perform(get("/v1/moderacao/anuncios").header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
+  var persisted=anuncios.findById(anuncio.getId()).orElseThrow();
+  assertEquals(StatusAnuncio.ATIVO,persisted.getStatus());
+  assertEquals(a.getId(),persisted.getRevisadoPorId());
+  assertNotNull(persisted.getRevisadoEm());
+  assertEquals(1,eventos.count());
+  var audit=eventos.findAll().get(0);
+  assertEquals(StatusAnuncio.PENDENTE,audit.getStatusAnterior());
+  assertEquals(StatusAnuncio.ATIVO,audit.getStatusNovo());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isOk());
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+  assertEquals(1,eventos.count());
+ }
+ @Test void pendingSellerCannotReceivePublicationApproval() throws Exception {
+  a.setRole(Role.REVIEWER); usuarios.saveAndFlush(a);
+  anuncio.setStatus(StatusAnuncio.PENDENTE); anuncios.saveAndFlush(anuncio);
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  assertEquals(0,eventos.count());
+ }
+ @Test void reviewerCannotReviewOwnListing() throws Exception {
+  a.setRole(Role.REVIEWER); usuarios.saveAndFlush(a);
+  anuncio.setUsuario(a); anuncio.setStatus(StatusAnuncio.PENDENTE);
+  anuncios.saveAndFlush(anuncio);
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
+  assertEquals(0,eventos.count());
+ }
+ @Test void rejectionIsPrivateAndSellerCanCorrectAndResubmit() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/rejeitar")
+       .header("Authorization",bearer(tokenA)).contentType("application/json")
+       .content("{\"motivo\":\"Falta foto do painel\"}"))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REJEITADO"))
+       .andExpect(jsonPath("$.motivoRejeicao").value("Falta foto do painel"));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/meus").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk())
+       .andExpect(jsonPath("$.content[0].motivoRejeicao").value("Falta foto do painel"));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenC)))
+       .andExpect(status().isNotFound());
+  assertEquals(StatusAnuncio.REJEITADO,eventos.findAll().get(0).getStatusNovo());
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Carro corrigido")))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"))
+       .andExpect(jsonPath("$.motivoRejeicao").doesNotExist());
+  assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getRevisadoPorId());
+  assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getMotivoRejeicao());
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenA))).andExpect(status().isOk());
+  assertEquals(2,eventos.count());
+ }
+ @Test void editingApprovedListingRequiresNewModeration() throws Exception {
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Carro alterado")))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+ }
+ @Test void normalUserCannotModerateAndBlankReasonIsRejected() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+       .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/rejeitar")
+       .header("Authorization",bearer(tokenA)).contentType("application/json")
+       .content("{\"motivo\":\"   \"}")).andExpect(status().isBadRequest());
+  assertEquals(0,eventos.count());
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
  }
 
 }
