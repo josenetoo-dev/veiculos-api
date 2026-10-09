@@ -45,6 +45,7 @@ class SecurityRegressionTest {
  @Autowired org.springframework.context.ApplicationContext context;
  @Autowired UsuarioRepository usuarios;
  @Autowired AnuncioRepository anuncios;
+ @Autowired VeiculoRepository veiculos;
  @Autowired AnuncioFotoRepository fotos;
  @Autowired PropostaRepository propostas;
  @Autowired ModeracaoEventoRepository eventos;
@@ -59,7 +60,7 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
-  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll(); anuncios.deleteAll(); usuarios.deleteAll();
+  mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll(); anuncios.deleteAll(); veiculos.deleteAll(); usuarios.deleteAll();
   try(var files=Files.list(UPLOAD)){ for(Path f:files.toList()) Files.delete(f); }
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");
   tokenA=jwt.gerarToken(a.getId().toString()); tokenB=jwt.gerarToken(b.getId().toString()); tokenC=jwt.gerarToken(c.getId().toString());
@@ -453,6 +454,54 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
        .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
   assertEquals(0,eventos.count());
+ }
+
+
+ // Fase 2B — persistência física distinta para veículos e anúncios.
+ @Test void listingCreationPersistsVehicleSeparatelyAndPreservesApiFields() throws Exception {
+  mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Novo cadastro")))
+       .andExpect(status().isCreated())
+       .andExpect(jsonPath("$.marca").value("Chevrolet"))
+       .andExpect(jsonPath("$.modelo").value("Onix"))
+       .andExpect(jsonPath("$.status").value("PENDENTE"))
+       .andExpect(jsonPath("$.veiculoId").isNumber());
+  var novo=anuncios.findAll().stream().filter(a1 -> "Novo cadastro".equals(a1.getTitulo()))
+       .findFirst().orElseThrow();
+  assertNotNull(novo.getVeiculo());
+  var veiculo=veiculos.findById(novo.getVeiculo().getId()).orElseThrow();
+  assertEquals(novo.getMarca(),veiculo.getMarca());
+  assertEquals(novo.getModelo(),veiculo.getModelo());
+  assertEquals(novo.getVersao(),veiculo.getVersao());
+  assertEquals(novo.getAno(),veiculo.getAno());
+  assertEquals(novo.getCombustivel(),veiculo.getCombustivel());
+  assertEquals(novo.getCambio(),veiculo.getCambio());
+  assertEquals(b.getId(),veiculo.getCadastradoPor().getId());
+  assertNotEquals(novo.getId(),0L);
+ }
+ @Test void editingListingKeepsVehicleAndLegacySnapshotInSync() throws Exception {
+  long vehicleId=anuncio.getVeiculo().getId();
+  String updated=listingJson("Atualizado").replace("\"marca\":\"Chevrolet\"",
+           "\"marca\":\"Fiat\"").replace("\"modelo\":\"Onix\"",
+           "\"modelo\":\"Argo\"");
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(updated))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.veiculoId").value(vehicleId))
+       .andExpect(jsonPath("$.marca").value("Fiat"))
+       .andExpect(jsonPath("$.status").value("PENDENTE"));
+  var after=anuncios.findById(anuncio.getId()).orElseThrow();
+  var veh=veiculos.findById(vehicleId).orElseThrow();
+  assertEquals("Fiat",after.getMarca());
+  assertEquals("Fiat",veh.getMarca());
+  assertEquals("Argo",after.getModelo());
+  assertEquals("Argo",veh.getModelo());
+  assertEquals(vehicleId,veh.getId());
+ }
+ @Test void photosAndProposalsStillRelateToAnnouncementNotVehicle() throws Exception {
+  assertEquals(anuncio.getId(), proposta.getAnuncio().getId());
+  assertNotNull(anuncio.getVeiculo().getId());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId()))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.veiculoId").isNumber());
  }
 
 }
