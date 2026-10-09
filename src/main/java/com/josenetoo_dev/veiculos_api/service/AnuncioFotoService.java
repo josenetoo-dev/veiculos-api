@@ -66,7 +66,7 @@ public class AnuncioFotoService {
         if ((anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
                 || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO)) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
-                    "Anúncio vendido não pode receber fotos");
+                    "Anúncio finalizado não pode receber fotos");
         }
         long existing = anuncioFotoRepository.countByAnuncioId(anuncioId);
         if (arquivos == null || arquivos.isEmpty() || arquivos.size() > 10 || existing + arquivos.size() > 20) {
@@ -109,9 +109,10 @@ public class AnuncioFotoService {
             throw new FotoNaoEncontradaException("Foto não encontrada");
         }
 
-        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
+        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
-                    "Anúncio vendido não pode ter fotos alteradas");
+                    "Anúncio finalizado não pode ter fotos alteradas");
         }
         anuncioService.reabrirRevisaoDeFotos(anuncio);
         anuncioFotoRepository.delete(foto);
