@@ -26,20 +26,29 @@ public class ModeracaoService {
     private final ModeracaoEventoRepository eventos;
 
     private Long revisorId() {
+        Long id;
         try {
-            return Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+            id = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
         } catch (NullPointerException | NumberFormatException e) {
             throw new CredenciaisInvalidasException("Revisor não autenticado");
         }
+        var staff = usuarios.findById(id)
+                .orElseThrow(() -> new CredenciaisInvalidasException("Revisor não encontrado"));
+        if (staff.getStatus() != StatusUsuario.ACTIVE) {
+            throw new AcessoNegadoException("Revisor precisa ter uma conta ativa");
+        }
+        return id;
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> pendentes(Pageable pageable) {
+        revisorId();
         return anuncios.findByStatus(StatusAnuncio.PENDENTE, pageable).map(AnuncioResponse::new);
     }
 
     @Transactional(readOnly = true)
     public AnuncioResponse consultar(Long id) {
+        revisorId();
         Anuncio anuncio = anuncios.findById(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anúncio não encontrado"));
         return new AnuncioResponse(anuncio);
