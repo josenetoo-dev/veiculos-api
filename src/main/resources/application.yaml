@@ -1,32 +1,44 @@
 spring:
   application:
     name: veiculos-api
-
   datasource:
-    url: jdbc:mysql://localhost:3306/projeto_veiculos
-    username: root
-    password:
-
+    url: ${DB_URL:jdbc:mysql://localhost:3306/projeto_veiculos}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 55MB
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration-ms: 1800000
+upload:
+  dir: uploads/fotos
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+logging:
+  level:
+    org.springframework.security: INFO
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+---
+spring:
+  config:
+    activate:
+      on-profile: local & !prod
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-    open-in-view: false
-
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
-
-jwt:
-  secret: ${JWT_SECRET:AutoMinasSecretKeyMuitoLongaParaFuncionar2026Jose}
-
-upload:
-  dir: uploads/fotos
-
-app:
-  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
-
-logging:
-  level:
-    org.springframework.security: DEBUG

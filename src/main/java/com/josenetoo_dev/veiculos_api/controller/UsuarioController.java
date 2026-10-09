@@ -36,7 +36,7 @@ public class UsuarioController {
 
     @Operation(summary = "Buscar usuario por id")
     @GetMapping("/{id}")
-    public ResponseEntity<UsuarioResponse> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioPublicResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity
                 .ok(usuarioService.buscarPorId(id));
     }
