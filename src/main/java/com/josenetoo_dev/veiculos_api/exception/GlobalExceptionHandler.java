@@ -24,7 +24,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             AnuncioIndisponivelException.class, VerificacaoIndisponivelException.class, DataIntegrityViolationException.class})
     public ProblemDetail conflict(Exception ex) { return problem(409, "Operação em conflito com o estado atual", "CONFLICT"); }
     @ExceptionHandler({UsuarioNaoEncontradoException.class, AnuncioNaoEncontradoException.class,
-            PropostaNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class})
+            PropostaNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class, DenunciaNaoEncontradaException.class})
     public ProblemDetail notFound(Exception ex) { return problem(404, "Recurso não encontrado", "NOT_FOUND"); }
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail unauthorized(Exception ex) { return problem(401, "Credenciais inválidas", "AUTHENTICATION_REQUIRED"); }
