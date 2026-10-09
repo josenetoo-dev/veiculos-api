@@ -29,6 +29,9 @@ public class AnuncioFotoService {
     private final AnuncioFotoRepository anuncioFotoRepository;
     private final AnuncioRepository anuncioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ImageValidator imageValidator;
+    private final ImageStorage imageStorage;
+    private final AnuncioService anuncioService;
 
     private Usuario obterUsuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -56,32 +59,33 @@ public class AnuncioFotoService {
     }
 
     @Transactional
-    public List<AnuncioFotoResponse> adicionarFotos(Long anuncioId, List<AnuncioFotoRequest> fotos) {
-        Anuncio anuncio = anuncioRepository.findById(anuncioId)
+    public List<AnuncioFotoResponse> uploadFotos(Long anuncioId, List<org.springframework.web.multipart.MultipartFile> arquivos) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
-
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-
-        List<AnuncioFoto> fotosParaSalvar = fotos.stream()
-                .map(f -> {
-                    AnuncioFoto foto = new AnuncioFoto();
-                    foto.setUrl(f.getUrl());
-                    foto.setOrdem(f.getOrdem());
-                    foto.setTipoFoto(f.getTipoFoto());
-                    foto.setAnuncio(anuncio);
-                    return foto;
-
-                })
-                .toList();
-
-
-        return anuncioFotoRepository.saveAll(fotosParaSalvar).stream()
-                .map(AnuncioFotoResponse::new)
-                .toList();
+        long existing = anuncioFotoRepository.countByAnuncioId(anuncioId);
+        if (arquivos == null || arquivos.isEmpty() || arquivos.size() > 10 || existing + arquivos.size() > 20) {
+            throw new IllegalArgumentException("Limite de fotos excedido: 10 por lote e 20 por anúncio");
+        }
+        // Não há gravação antes de validar TODO o lote.
+        var validated = arquivos.stream().map(imageValidator::validate).toList();
+        var registros = new java.util.ArrayList<AnuncioFoto>();
+        int ordem = anuncioFotoRepository.findByAnuncioId(anuncioId, Pageable.unpaged()).stream()
+                .mapToInt(AnuncioFoto::getOrdem).max().orElse(-1) + 1;
+        for (var image : validated) {
+            AnuncioFoto foto = new AnuncioFoto();
+            foto.setAnuncio(anuncio);
+            foto.setUrl(imageStorage.save(image));
+            foto.setOrdem(ordem++);
+            foto.setTipoFoto(com.josenetoo_dev.veiculos_api.enums.TipoFoto.OUTRO);
+            registros.add(foto);
+        }
+        return anuncioFotoRepository.saveAllAndFlush(registros).stream().map(AnuncioFotoResponse::new).toList();
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioFotoResponse> listarFotosPorAnuncio(Long anuncioId, Pageable pageable) {
+        anuncioService.exigirVisibilidadePorId(anuncioId);
         return anuncioFotoRepository.findByAnuncioId(anuncioId, pageable)
                 .map(AnuncioFotoResponse::new);
     }
@@ -98,6 +102,7 @@ public class AnuncioFotoService {
         exigirDonoDoAnuncio(foto.getAnuncio(), obterUsuarioAutenticado());
 
         anuncioFotoRepository.delete(foto);
+        imageStorage.deleteAfterCommit(foto.getUrl());
     }
 
 }

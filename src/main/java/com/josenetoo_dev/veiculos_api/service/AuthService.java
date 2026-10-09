@@ -43,7 +43,7 @@ public class AuthService {
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CredenciaisInvalidasException("Email ou senha inválidos"));
 
-        if (!passwordEncoder.matches(request.getSenha(), usuario.getSenha())) {
+        if (!usuario.getStatus().podeAutenticar() || !passwordEncoder.matches(request.getSenha(), usuario.getSenha())) {
             throw new CredenciaisInvalidasException("Email ou senha inválidos");
         }
 

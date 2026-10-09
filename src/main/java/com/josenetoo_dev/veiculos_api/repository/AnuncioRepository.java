@@ -10,11 +10,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface AnuncioRepository extends JpaRepository<Anuncio, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select a from Anuncio a where a.id = :id")
+    Optional<Anuncio> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
+
     boolean existsByCodigo(String codigo);
 
     Optional<Anuncio> findByCodigo(String codigo);
 
-    Page<Anuncio> findByDestaqueTrue(Pageable pageable);
+    Page<Anuncio> findByUsuarioId(Long usuarioId, Pageable pageable);
+    Page<Anuncio> findByDestaqueTrueAndStatus(StatusAnuncio status, Pageable pageable);
+    Page<Anuncio> findByCategoriaAndStatus(Categoria categoria, StatusAnuncio status, Pageable pageable);
+    Page<Anuncio> findByStatusAndUsuarioId(StatusAnuncio status, Long usuarioId, Pageable pageable);
 
     Page<Anuncio> findByStatus(StatusAnuncio status, Pageable pageable);
 

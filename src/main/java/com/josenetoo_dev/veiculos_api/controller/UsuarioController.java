@@ -19,6 +19,24 @@ import org.springframework.web.bind.annotation.*;
 public class UsuarioController {
     private final UsuarioService usuarioService;
 
+    private final com.josenetoo_dev.veiculos_api.service.EmailChangeService emailChangeService;
+
+    @Operation(summary = "Solicitar troca de e-mail após confirmar a senha atual")
+    @PostMapping("/me/email-change")
+    public ResponseEntity<Void> solicitarTrocaEmail(
+            @Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.usuario_dto.EmailChangeRequest request) {
+        emailChangeService.requestChange(request);
+        return ResponseEntity.accepted().build();
+    }
+
+    @Operation(summary = "Confirmar troca usando código enviado ao novo e-mail")
+    @PostMapping("/me/email-change/confirm")
+    public ResponseEntity<Void> confirmarTrocaEmail(
+            @Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.usuario_dto.EmailChangeConfirmation request) {
+        emailChangeService.confirmChange(request);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Dados do usuario autenticado")
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponse> meusDados() {
@@ -36,7 +54,7 @@ public class UsuarioController {
 
     @Operation(summary = "Buscar usuario por id")
     @GetMapping("/{id}")
-    public ResponseEntity<UsuarioResponse> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioPublicResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity
                 .ok(usuarioService.buscarPorId(id));
     }

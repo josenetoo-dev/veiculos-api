@@ -18,30 +18,39 @@ import java.math.BigDecimal;
 public class AnuncioRequest {
 
     @NotBlank
+    @Size(max = 255)
     private String versao;
 
+    @Size(max = 255)
     private String laudoCautelar;
 
     @NotBlank
+    @Size(max = 255)
     private String documentacao;
 
     @NotBlank
+    @Size(max = 255)
     private String garantia;
 
     @NotBlank
+    @Size(max = 255)
     private String titulo;
 
     @NotBlank
+    @Size(max = 255)
     private String descricao;
 
     @NotNull
     @Positive
+    @Digits(integer = 10, fraction = 2)
     private BigDecimal preco;
 
     @NotBlank
+    @Size(max = 255)
     private String marca;
 
     @NotBlank
+    @Size(max = 255)
     private String modelo;
 
     @NotNull
@@ -53,6 +62,7 @@ public class AnuncioRequest {
     private Integer quilometragem;
 
     @NotBlank
+    @Size(max = 255)
     private String cor;
 
     @NotNull

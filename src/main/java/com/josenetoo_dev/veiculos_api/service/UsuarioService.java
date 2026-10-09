@@ -23,11 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @Transactional(readOnly = true)
     private Usuario verificarId(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNaoEncontradoException("Usuario não encontrado"));
+    }
+
+    private Usuario verificarIdParaAlteracao(Long id) {
+        Usuario usuario = usuarioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new UsuarioNaoEncontradoException("Usuario não encontrado"));
+        // A entidade pode já estar no persistence context desde uma leitura anterior ao lock.
+        // Refresh sob o mesmo lock evita regravar senha/status/tokenVersion de um snapshot antigo.
+        entityManager.refresh(usuario, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (!usuario.getStatus().podeAutenticar()) {
+            throw new CredenciaisInvalidasException("Conta indisponível");
+        }
+        return usuario;
     }
 
     private Usuario obterUsuarioAutenticado() {
@@ -56,6 +70,7 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'REVIEWER')")
     public Page<UsuarioResponse> listarUsuarios(Pageable pageable) {
         return usuarioRepository.findAll(pageable)
                 .map(UsuarioResponse::new);
@@ -72,14 +87,14 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        Usuario usuario = verificarId(id);
+        Usuario usuario = verificarIdParaAlteracao(id);
 
-        if (usuarioRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-            throw new EmailJaCadastradoException("Email Já cadastrado exception");
+        // Um endereço novo só pode ser ativado após prova de posse da caixa de e-mail.
+        if (!usuario.getEmail().equalsIgnoreCase(request.getEmail())) {
+            throw new IllegalArgumentException("Utilize o fluxo de confirmação de e-mail");
         }
 
         usuario.setNome(request.getNome());
-        usuario.setEmail(request.getEmail());
         usuario.setTelefone(request.getTelefone());
 
         return new UsuarioResponse(usuarioRepository.save(usuario));
@@ -90,13 +105,14 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        Usuario usuario = verificarId(id);
+        Usuario usuario = verificarIdParaAlteracao(id);
 
         if (!passwordEncoder.matches(request.getSenhaAtual(), usuario.getSenha())) {
             throw new CredenciaisInvalidasException("Senha atual incorreta");
         }
 
         usuario.setSenha(passwordEncoder.encode(request.getNovaSenha()));
+        usuario.setTokenVersion(usuario.getTokenVersion() + 1);
 
         return new UsuarioResponse(usuarioRepository.save(usuario));
     }
@@ -106,15 +122,19 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        usuarioRepository.delete(verificarId(id));
+        Usuario usuario = verificarIdParaAlteracao(id);
+        usuario.setStatus(com.josenetoo_dev.veiculos_api.enums.StatusUsuario.DELETED);
+        usuario.setTokenVersion(usuario.getTokenVersion() + 1);
+        usuarioRepository.save(usuario);
     }
 
     @Transactional(readOnly = true)
-    public UsuarioResponse buscarPorId(Long id) {
-        return new UsuarioResponse(verificarId(id));
+    public com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioPublicResponse buscarPorId(Long id) {
+        return new com.josenetoo_dev.veiculos_api.dto.usuario_dto.UsuarioPublicResponse(verificarId(id));
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'REVIEWER')")
     public Page<UsuarioResponse> buscarPorNome(String nome, Pageable pageable) {
         return usuarioRepository.findByNomeContainingIgnoreCase(nome, pageable)
                 .map(UsuarioResponse::new);

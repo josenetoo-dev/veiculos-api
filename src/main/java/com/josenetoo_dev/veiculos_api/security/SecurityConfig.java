@@ -21,6 +21,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -46,6 +47,10 @@ public class SecurityConfig {
                                 "/error"
                         ).permitAll()
 
+                        .requestMatchers("/v1/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/v1/usuario", "/v1/usuario/buscar")
+                            .hasAnyRole("ADMIN", "REVIEWER")
+                        .requestMatchers(HttpMethod.GET, "/v1/anuncio/meus").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/anuncio", "/v1/anuncio/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
@@ -53,9 +58,9 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                                SecurityErrors.write(response, 401, "Não autenticado", "AUTHENTICATION_REQUIRED"))
                         .accessDeniedHandler((request, response, accessDeniedException) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN))
+                                SecurityErrors.write(response, 403, "Acesso negado", "ACCESS_DENIED"))
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface AnuncioFotoRepository extends JpaRepository<AnuncioFoto, Long> {
+    long countByAnuncioId(Long anuncioId);
     Page<AnuncioFoto> findByAnuncioId(Long anuncioId, Pageable pageable);
     Optional<AnuncioFoto> findFirstByAnuncioIdOrderByOrdemAsc(Long anuncioId);
 }

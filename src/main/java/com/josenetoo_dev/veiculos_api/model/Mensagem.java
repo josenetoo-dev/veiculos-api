@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
+@ToString(onlyExplicitlyIncluded = true)
 public class Mensagem {
 
     @Id
