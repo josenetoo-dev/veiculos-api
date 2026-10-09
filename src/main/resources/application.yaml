@@ -39,6 +39,9 @@ verification:
 upload:
   dir: uploads/fotos
 app:
+  contact-email:
+    enabled: ${CONTACT_EMAIL_ENABLED:false}
+    from: ${CONTACT_EMAIL_FROM:}
   email-change:
     enabled: ${EMAIL_CHANGE_ENABLED:false}
     from: ${EMAIL_CHANGE_FROM:}
