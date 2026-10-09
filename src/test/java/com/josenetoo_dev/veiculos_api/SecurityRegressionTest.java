@@ -29,12 +29,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
  "logging.level.org.springframework.security=INFO"
 })
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 @AutoConfigureMockMvc(printOnlyOnFailure = false, print = org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint.NONE)
 class SecurityRegressionTest {
  static final Path UPLOAD;
  static { try { UPLOAD = Files.createTempDirectory("auto-minas-security-"); } catch(Exception e) {throw new RuntimeException(e);} }
  @DynamicPropertySource static void properties(DynamicPropertyRegistry r) { r.add("upload.dir", () -> UPLOAD.toString()); }
  @Autowired MockMvc mvc;
+ @Autowired org.springframework.context.ApplicationContext context;
  @Autowired UsuarioRepository usuarios;
  @Autowired AnuncioRepository anuncios;
  @Autowired AnuncioFotoRepository fotos;
@@ -182,5 +184,13 @@ class SecurityRegressionTest {
  @Test void photoMustBelongToListingInPath() throws Exception {
   var f=new AnuncioFoto();f.setAnuncio(anuncio);f.setOrdem(0);f.setUrl("https://example.com/photo.png");f.setTipoFoto(TipoFoto.OUTRO);f=fotos.saveAndFlush(f);
   mvc.perform(delete("/v1/anuncio/"+(anuncio.getId()+1000)+"/fotos/"+f.getId()).header("Authorization",bearer(tokenB))).andExpect(status().isNotFound());assertTrue(fotos.existsById(f.getId()));
+ }
+
+ @Test void logsNeverContainPasswordsOrJwt(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+  assertFalse(context.containsBean("inMemoryUserDetailsManager"));
+  var response=mvc.perform(post("/auth/login").contentType("application/json").content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+  var matcher=java.util.regex.Pattern.compile("\"token\"\\s*:\"([^\"]+)\"").matcher(response);assertTrue(matcher.find());
+  assertFalse(output.getAll().contains(matcher.group(1)));assertFalse(output.getAll().contains("senhaTeste123"));assertFalse(output.getAll().contains("Using generated security password"));
+  assertFalse(a.toString().contains(a.getSenha()));assertFalse(a.toString().contains(a.getEmail()));
  }
 }
