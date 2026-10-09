@@ -716,7 +716,7 @@ class SecurityRegressionTest {
   var login=mvc.perform(post("/auth/login").contentType("application/json")
       .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-  var newTokenMatcher=java.util.regex.Pattern.compile("\\"token\\"\\s*:\\s*\\"([^\\"]+)\\"").matcher(login);
+  var newTokenMatcher= java.util.regex.Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"")
   assertTrue(newTokenMatcher.find());
   mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
       .header("Authorization",bearer(newTokenMatcher.group(1))).contentType("application/json")
