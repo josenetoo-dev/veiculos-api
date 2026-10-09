@@ -31,6 +31,7 @@ public class AnuncioFotoService {
     private final UsuarioRepository usuarioRepository;
     private final ImageValidator imageValidator;
     private final ImageStorage imageStorage;
+    private final AnuncioService anuncioService;
 
     private Usuario obterUsuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -84,6 +85,7 @@ public class AnuncioFotoService {
 
     @Transactional(readOnly = true)
     public Page<AnuncioFotoResponse> listarFotosPorAnuncio(Long anuncioId, Pageable pageable) {
+        anuncioService.exigirVisibilidadePorId(anuncioId);
         return anuncioFotoRepository.findByAnuncioId(anuncioId, pageable)
                 .map(AnuncioFotoResponse::new);
     }
