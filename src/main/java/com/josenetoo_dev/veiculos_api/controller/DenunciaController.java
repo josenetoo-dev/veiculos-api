@@ -50,4 +50,12 @@ public class DenunciaController {
                                      @Valid @RequestBody DecisaoDenunciaRequest request) {
         return service.decidir(id, false, request.motivo());
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/revisao/{id}/reverter")
+    public DenunciaResponse reverter(@PathVariable Long id,
+                                    @Valid @RequestBody DecisaoDenunciaRequest request) {
+        return service.reverter(id, request.motivo());
+    }
+
 }
