@@ -28,6 +28,7 @@ public class AnuncioService {
     private final UsuarioRepository usuarioRepository;
     private final AnuncioFotoRepository anuncioFotoRepository;
     private final ImageStorage imageStorage;
+    private final VerificacaoService verificacaoService;
     private final com.josenetoo_dev.veiculos_api.repository.PropostaRepository propostaRepository;
     private final com.josenetoo_dev.veiculos_api.repository.MensagemRepository mensagemRepository;
 
@@ -146,6 +147,19 @@ public class AnuncioService {
         if (anuncio.getStatus() == StatusAnuncio.VENDIDO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio vendido não pode ser editado");
+        }
+
+        boolean mudouVeiculo = !java.util.Objects.equals(anuncio.getVersao(), request.getVersao())
+                || !java.util.Objects.equals(anuncio.getMarca(), request.getMarca())
+                || !java.util.Objects.equals(anuncio.getModelo(), request.getModelo())
+                || !java.util.Objects.equals(anuncio.getAno(), request.getAno())
+                || anuncio.getQuilometragem() != request.getQuilometragem()
+                || !java.util.Objects.equals(anuncio.getCor(), request.getCor())
+                || anuncio.getCombustivel() != request.getCombustivel()
+                || anuncio.getCambio() != request.getCambio()
+                || anuncio.isSegundaMao() != request.isSegundaMao();
+        if (mudouVeiculo && anuncio.getVeiculo() != null) {
+            verificacaoService.invalidarVeiculoAlterado(anuncio.getVeiculo().getId());
         }
 
         anuncio.setVersao(request.getVersao());
