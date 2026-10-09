@@ -57,7 +57,9 @@ public class VerificacaoService {
     }
 
     private void requireVisible(Verificacao v, Usuario viewer) {
-        if (!v.getSolicitante().getId().equals(viewer.getId()) && !staff(viewer)) {
+        if (v.getSolicitante().getId().equals(viewer.getId())) return;
+        // Operadores não acessam rascunhos que o usuário ainda não enviou.
+        if (!staff(viewer) || v.getStatus() == StatusVerificacao.RASCUNHO) {
             throw new AcessoNegadoException("Acesso à verificação negado");
         }
     }
