@@ -184,4 +184,28 @@ class MySqlMigrationTest {
         assertEquals(0,upgraded.migrate().migrationsExecuted);
     }
 
+    @Test void archiveMigrationAddsColumnsWithoutDeletingOffersOrMessages() throws Exception {
+        String url=testUrl("archiving");
+        assertEquals(7,flyway(url,"7").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (801,'Legacy','archive@example.com','hash','38999999999','USER','ACTIVE',0)");
+            st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (802,801,'Chevrolet','Onix','LT',2022,100,'Branco','FLEX','MANUAL',true)");
+            st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (803,'AM-803','LT',false,'Regular','Nenhuma','Carro','Descricao',60000,'Chevrolet','Onix',2022,100,'Branco','FLEX',true,'PENDENTE','MANUAL','SEMINOVOS',NOW(),801,802)");
+            st.execute("INSERT INTO proposta(id,valor,descricao,status,criado_em,contraproposta_feita,anunciante_id,comprador_id) VALUES (804,59000,'Proposta','PENDENTE',NOW(),false,803,801)");
+            st.execute("INSERT INTO mensagem(id,conteudo,criado_em,proposta_id,remetente_id) VALUES (805,'Negociacao',NOW(),804,801)");
+        }
+        var m=flyway(url,"8");
+        assertEquals(1,m.migrate().migrationsExecuted);
+        assertTrue(m.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            try(var rs=st.executeQuery("SELECT id,arquivado_em,arquivado_por_id FROM anuncio WHERE id=803")) {
+                assertTrue(rs.next());assertEquals(803,rs.getLong(1));assertNull(rs.getTimestamp(2));assertNull(rs.getObject(3));
+            }
+            try(var rs=st.executeQuery("SELECT p.id,m.id FROM proposta p JOIN mensagem m ON m.proposta_id=p.id WHERE p.anunciante_id=803")) {
+                assertTrue(rs.next());assertEquals(804,rs.getLong(1));assertEquals(805,rs.getLong(2));
+            }
+        }
+        assertEquals(0,m.migrate().migrationsExecuted);
+    }
+
 }

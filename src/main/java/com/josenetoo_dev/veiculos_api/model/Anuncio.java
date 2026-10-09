@@ -88,6 +88,12 @@ public class Anuncio {
     @Column(name = "motivo_rejeicao", length = 500)
     private String motivoRejeicao;
 
+    @Column(name = "arquivado_em")
+    private LocalDateTime arquivadoEm;
+
+    @Column(name = "arquivado_por_id")
+    private Long arquivadoPorId;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Cambio cambio;

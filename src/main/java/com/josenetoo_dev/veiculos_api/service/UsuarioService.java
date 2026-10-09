@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
+    private final AnuncioService anuncioService;
     private final PasswordEncoder passwordEncoder;
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
@@ -123,6 +124,8 @@ public class UsuarioService {
         exigirProprioUsuario(usuarioAutenticado, id);
 
         Usuario usuario = verificarIdParaAlteracao(id);
+        // Evita anúncios públicos de contas encerradas, preservando provas de negociação.
+        anuncioService.arquivarAnunciosDeUsuario(id);
         usuario.setStatus(com.josenetoo_dev.veiculos_api.enums.StatusUsuario.DELETED);
         usuario.setTokenVersion(usuario.getTokenVersion() + 1);
         usuarioRepository.save(usuario);

@@ -118,7 +118,18 @@ class SecurityRegressionTest {
  @Test void adminRouteRequiresAdmin() throws Exception {for(Role role:new Role[]{Role.USER,Role.REVIEWER}){a.setRole(role);usuarios.saveAndFlush(a);mvc.perform(get("/v1/admin/usuarios").header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());}a.setRole(Role.ADMIN);usuarios.saveAndFlush(a);mvc.perform(get("/v1/admin/usuarios").header("Authorization",bearer(tokenA))).andExpect(status().isOk());}
  @Test void blockedStatesInvalidateExistingTokensAndLogin() throws Exception {for(StatusUsuario state:new StatusUsuario[]{StatusUsuario.SUSPENDED,StatusUsuario.BLOCKED,StatusUsuario.DELETED}){a.setStatus(state);usuarios.saveAndFlush(a);mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());mvc.perform(post("/auth/login").contentType("application/json").content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}")).andExpect(status().isUnauthorized());}}
  @Test void passwordChangeInvalidatesOldToken() throws Exception {mvc.perform(put("/v1/usuario/"+a.getId()+"/senha").header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"senhaAtual\":\"senhaTeste123\",\"novaSenha\":\"novaSenhaSegura123\"}")).andExpect(status().isOk());mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());}
- @Test void accountDeletionPreservesRowsAndDisablesToken() throws Exception {mvc.perform(delete("/v1/usuario/"+a.getId()).header("Authorization",bearer(tokenA))).andExpect(status().isNoContent());assertEquals(StatusUsuario.DELETED,usuarios.findById(a.getId()).orElseThrow().getStatus());assertTrue(propostas.existsById(proposta.getId()));mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());}
+ @Test void accountDeletionPreservesRowsAndDisablesToken() throws Exception {
+  anuncio.setUsuario(a);
+  anuncio.sincronizarVeiculo();
+  anuncios.saveAndFlush(anuncio);
+  mvc.perform(delete("/v1/usuario/"+a.getId()).header("Authorization",bearer(tokenA)))
+       .andExpect(status().isNoContent());
+  assertEquals(StatusUsuario.DELETED,usuarios.findById(a.getId()).orElseThrow().getStatus());
+  assertEquals(StatusAnuncio.ARQUIVADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  assertTrue(propostas.existsById(proposta.getId()));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());
+ }
  @Test void registrationCannotEscalateRoleOrState() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"D\",\"email\":\"d@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\",\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER")).andExpect(jsonPath("$.status").value("PENDING_CONTACT_VERIFICATION"));}
  @Test void malformedJsonReturnsSanitizedProblem() throws Exception {var r=mvc.perform(post("/auth/login").contentType("application/json").content("{ secret")).andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json")).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
  @Test void strangerCannotSendChatMessage() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenC)).contentType("application/json").content("{\"conteudo\":\"Intruso\"}")).andExpect(status().isForbidden());assertEquals(0,mensagens.count());}
@@ -255,7 +266,16 @@ class SecurityRegressionTest {
   mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
     .andExpect(status().isNoContent());
   assertEquals(0,fileCount());
-  assertFalse(anuncios.existsById(anuncio.getId()));
+  assertTrue(anuncios.existsById(anuncio.getId()));
+  var stored=anuncios.findById(anuncio.getId()).orElseThrow();
+  assertEquals(StatusAnuncio.ARQUIVADO,stored.getStatus());
+  assertNotNull(stored.getArquivadoEm());
+  assertEquals(b.getId(),stored.getArquivadoPorId());
+  assertTrue(propostas.existsById(proposta.getId()));
+  assertEquals(0,fotos.count());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/meus").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].status").value("ARQUIVADO"));
  }
  @Test void failedDeletionKeepsImageAfterRollback() throws Exception {
   mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png"))
@@ -745,6 +765,39 @@ class SecurityRegressionTest {
       .content("{\"token\":\""+matcher.group(1)+"\"}")).andExpect(status().isBadRequest());
   assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,
        usuarios.findById(a.getId()).orElseThrow().getStatus());
+ }
+
+
+ @Test void archivedListingCannotBeEditedOrReceiveNewProposalsAndPhotos() throws Exception {
+  mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isNoContent());
+  mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isNoContent());
+  assertEquals(StatusAnuncio.ARQUIVADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Tentativa de reabrir")))
+       .andExpect(status().isConflict());
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos")
+       .file(image("photo.png","image/png")).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isConflict());
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenC))
+       .contentType("application/json")
+       .content("{\"anuncioId\":"+anuncio.getId()+",\"descricao\":\"Oferta\",\"valor\":40000}"))
+       .andExpect(status().isConflict());
+  assertTrue(propostas.existsById(proposta.getId()));
+  assertEquals(1,propostas.count());
+ }
+ @Test void archivedListingPreservesNegotiationMessages() throws Exception {
+  var msg=new Mensagem();
+  msg.setProposta(proposta);
+  msg.setRemetente(a);
+  msg.setConteudo("Mensagem registrada antes do arquivamento");
+  mensagens.saveAndFlush(msg);
+  mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isNoContent());
+  assertTrue(mensagens.existsById(msg.getId()));
+  assertTrue(propostas.existsById(proposta.getId()));
+  assertEquals(StatusAnuncio.ARQUIVADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
  }
 
 }
