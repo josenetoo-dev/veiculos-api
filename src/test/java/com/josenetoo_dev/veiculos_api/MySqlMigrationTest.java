@@ -36,4 +36,27 @@ class MySqlMigrationTest {
         }
         assertEquals(0,f.migrate().migrationsExecuted);
     }
+
+    @Test void pendingEmailMigrationPreservesLegacyUser() throws Exception {
+        String url = testUrl("email");
+        assertEquals(2, flyway(url,"2").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (101,'Original','original@example.com','unchanged-hash','38999999999')");
+        }
+        var upgraded = flyway(url,"3");
+        assertEquals(1,upgraded.migrate().migrationsExecuted);
+        assertTrue(upgraded.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+            var r=st.executeQuery("SELECT id,email,senha,pending_email,pending_email_token_hash,pending_email_expires_at,pending_email_requested_at FROM usuario WHERE id=101")) {
+            assertTrue(r.next());
+            assertEquals(101,r.getLong("id"));
+            assertEquals("original@example.com",r.getString("email"));
+            assertEquals("unchanged-hash",r.getString("senha"));
+            assertNull(r.getString("pending_email"));
+            assertNull(r.getString("pending_email_token_hash"));
+            assertNull(r.getTimestamp("pending_email_expires_at"));
+            assertNull(r.getTimestamp("pending_email_requested_at"));
+        }
+    }
+
 }
