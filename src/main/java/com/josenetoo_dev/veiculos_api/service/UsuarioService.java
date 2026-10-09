@@ -89,12 +89,12 @@ public class UsuarioService {
 
         Usuario usuario = verificarIdParaAlteracao(id);
 
-        if (usuarioRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-            throw new EmailJaCadastradoException("Email Já cadastrado exception");
+        // Um endereço novo só pode ser ativado após prova de posse da caixa de e-mail.
+        if (!usuario.getEmail().equalsIgnoreCase(request.getEmail())) {
+            throw new IllegalArgumentException("Utilize o fluxo de confirmação de e-mail");
         }
 
         usuario.setNome(request.getNome());
-        usuario.setEmail(request.getEmail());
         usuario.setTelefone(request.getTelefone());
 
         return new UsuarioResponse(usuarioRepository.save(usuario));
