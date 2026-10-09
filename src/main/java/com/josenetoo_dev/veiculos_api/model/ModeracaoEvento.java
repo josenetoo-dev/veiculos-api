@@ -24,11 +24,11 @@ public class ModeracaoEvento {
     private Long revisorId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status_anterior", nullable = false, length = 20)
+    @Column(name = "status_anterior", nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private StatusAnuncio statusAnterior;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status_novo", nullable = false, length = 20)
+    @Column(name = "status_novo", nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private StatusAnuncio statusNovo;
 
     @Column(name = "motivo", length = 500)
