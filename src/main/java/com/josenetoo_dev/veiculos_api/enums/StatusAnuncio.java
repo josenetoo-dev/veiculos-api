@@ -6,5 +6,6 @@ public enum StatusAnuncio {
     REJEITADO,
     PAUSADO,
     VENDIDO,
-    ARQUIVADO
+    ARQUIVADO,
+    SUSPENSO
 }
