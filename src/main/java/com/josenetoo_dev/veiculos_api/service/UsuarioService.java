@@ -23,11 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @Transactional(readOnly = true)
     private Usuario verificarId(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNaoEncontradoException("Usuario não encontrado"));
+    }
+
+    private Usuario verificarIdParaAlteracao(Long id) {
+        Usuario usuario = usuarioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new UsuarioNaoEncontradoException("Usuario não encontrado"));
+        // A entidade pode já estar no persistence context desde uma leitura anterior ao lock.
+        // Refresh sob o mesmo lock evita regravar senha/status/tokenVersion de um snapshot antigo.
+        entityManager.refresh(usuario, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (!usuario.getStatus().podeAutenticar()) {
+            throw new CredenciaisInvalidasException("Conta indisponível");
+        }
+        return usuario;
     }
 
     private Usuario obterUsuarioAutenticado() {
@@ -73,7 +87,7 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        Usuario usuario = verificarId(id);
+        Usuario usuario = verificarIdParaAlteracao(id);
 
         if (usuarioRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
             throw new EmailJaCadastradoException("Email Já cadastrado exception");
@@ -91,7 +105,7 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        Usuario usuario = verificarId(id);
+        Usuario usuario = verificarIdParaAlteracao(id);
 
         if (!passwordEncoder.matches(request.getSenhaAtual(), usuario.getSenha())) {
             throw new CredenciaisInvalidasException("Senha atual incorreta");
@@ -108,7 +122,7 @@ public class UsuarioService {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);
 
-        Usuario usuario = verificarId(id);
+        Usuario usuario = verificarIdParaAlteracao(id);
         usuario.setStatus(com.josenetoo_dev.veiculos_api.enums.StatusUsuario.DELETED);
         usuario.setTokenVersion(usuario.getTokenVersion() + 1);
         usuarioRepository.save(usuario);
