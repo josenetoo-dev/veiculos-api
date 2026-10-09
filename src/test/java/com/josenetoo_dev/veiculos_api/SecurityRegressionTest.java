@@ -29,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
  "logging.level.org.springframework.security=INFO",
  "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost",
+ "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
  "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 })
 @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
@@ -678,6 +679,72 @@ class SecurityRegressionTest {
   assertFalse(disabled.available());
   assertThrows(com.josenetoo_dev.veiculos_api.exception.ex.ArmazenamentoPrivadoIndisponivelException.class,
        ()->disabled.read(java.util.UUID.randomUUID().toString()));
+ }
+
+
+ // Fase 3B — confirmação de e-mail antes de ativar a conta.
+ @Test void contactEmailFlowSendsCodeOnlyToMailboxAndActivatesAccount() throws Exception {
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar"))
+       .andExpect(status().isUnauthorized());
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
+       .header("Authorization",bearer(tokenA)))
+       .andExpect(status().isAccepted()).andExpect(content().string(""));
+  var captor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(captor.capture());
+  assertArrayEquals(new String[]{"a@example.com"},captor.getValue().getTo());
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(captor.getValue().getText());
+  assertTrue(matcher.find());
+  String code=matcher.group(1);
+  var before=usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,before.getStatus());
+  assertNotEquals(code,before.getContactEmailTokenHash());
+  assertNotNull(before.getContactEmailExpiresAt());
+  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+      .header("Authorization",bearer(tokenA)).contentType("application/json")
+      .content("{\"token\":\"not-the-correct-but-long-enough-code\"}"))
+      .andExpect(status().isBadRequest());
+  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+      .header("Authorization",bearer(tokenA)).contentType("application/json")
+      .content("{\"token\":\""+code+"\"}")).andExpect(status().isNoContent());
+  var after=usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(StatusUsuario.ACTIVE,after.getStatus());
+  assertNotNull(after.getContactEmailVerifiedAt());
+  assertNull(after.getContactEmailTokenHash());
+  assertEquals(1L,after.getTokenVersion());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isUnauthorized());
+  var login=mvc.perform(post("/auth/login").contentType("application/json")
+      .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+  var newTokenMatcher=java.util.regex.Pattern.compile("\\"token\\"\\s*:\\s*\\"([^\\"]+)\\"").matcher(login);
+  assertTrue(newTokenMatcher.find());
+  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+      .header("Authorization",bearer(newTokenMatcher.group(1))).contentType("application/json")
+      .content("{\"token\":\""+code+"\"}")).andExpect(status().isBadRequest());
+ }
+ @Test void contactEmailRequestIsThrottledPerAccount() throws Exception {
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isTooManyRequests());
+  org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
+      .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+ }
+ @Test void expiredContactTokenDoesNotActivateAccount() throws Exception {
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
+  var mailCaptor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(mailCaptor.capture());
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(mailCaptor.getValue().getText());
+  assertTrue(matcher.find());
+  a=usuarios.findById(a.getId()).orElseThrow();
+  a.setContactEmailExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
+  usuarios.saveAndFlush(a);
+  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+      .header("Authorization",bearer(tokenA)).contentType("application/json")
+      .content("{\"token\":\""+matcher.group(1)+"\"}")).andExpect(status().isBadRequest());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,
+       usuarios.findById(a.getId()).orElseThrow().getStatus());
  }
 
 }
