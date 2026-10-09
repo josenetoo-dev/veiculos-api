@@ -848,7 +848,7 @@ class SecurityRegressionTest {
       .header("Authorization",bearer(tokenC)).contentType("application/json")
       .content("{\"motivo\":\"Anuncio suspenso para apuracao\"}"))
       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMADA"));
-  assertEquals(StatusAnuncio.PAUSADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  assertEquals(StatusAnuncio.SUSPENSO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
   assertEquals(StatusDenuncia.CONFIRMADA,denuncias.findById(report).orElseThrow().getStatus());
   assertEquals(1,eventos.count());
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
@@ -873,6 +873,40 @@ class SecurityRegressionTest {
   assertEquals(StatusAnuncio.ATIVO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
   assertEquals(0,eventos.count());
   assertEquals(1,denuncias.count());
+ }
+
+
+ @Test void suspendedListingCannotBeReopenedWithoutAdminReviewAndAppeal() throws Exception {
+  a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
+  c.setStatus(StatusUsuario.ACTIVE); c.setRole(Role.REVIEWER); usuarios.saveAndFlush(c);
+  long report=reportListing(tokenA);
+  mvc.perform(post("/v1/denuncias/revisao/"+report+"/confirmar")
+       .header("Authorization",bearer(tokenC)).contentType("application/json")
+       .content("{\"motivo\":\"Indicios de fraude encontrados na revisao\"}"))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMADA"));
+  mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))
+       .contentType("application/json").content(listingJson("Tentativa de republicar")))
+       .andExpect(status().isConflict());
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos")
+       .file(image("photo.png","image/png")).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isConflict());
+  mvc.perform(post("/v1/denuncias/revisao/"+report+"/reverter")
+       .header("Authorization",bearer(tokenC)).contentType("application/json")
+       .content("{\"motivo\":\"Revisao equivocada\"}"))
+       .andExpect(status().isForbidden());
+  c.setRole(Role.ADMIN); usuarios.saveAndFlush(c);
+  mvc.perform(post("/v1/denuncias/revisao/"+report+"/reverter")
+       .header("Authorization",bearer(tokenC)).contentType("application/json")
+       .content("{\"motivo\":\"Falso positivo revisto pela administracao\"}"))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REVERTIDA"))
+       .andExpect(jsonPath("$.motivoReversao").value("Falso positivo revisto pela administracao"));
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(post("/v1/denuncias/revisao/"+report+"/reverter")
+       .header("Authorization",bearer(tokenC)).contentType("application/json")
+       .content("{\"motivo\":\"Duplicacao proibida\"}"))
+       .andExpect(status().isConflict());
+  assertEquals(2,eventos.count());
  }
 
 }
