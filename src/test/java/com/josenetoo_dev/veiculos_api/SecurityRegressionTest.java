@@ -367,6 +367,8 @@ class SecurityRegressionTest {
   b.setStatus(StatusUsuario.ACTIVE);
   usuarios.saveAndFlush(b);
   anuncio.setStatus(StatusAnuncio.PENDENTE);
+  anuncio.setQuilometragem(100); // mesmo valor usado nos DTOs dos testes de edição
+  anuncio.sincronizarVeiculo();
   anuncios.saveAndFlush(anuncio);
   // Fixture representa decisões já auditadas em testes antigos de moderação.
   var iv=Verificacao.identidade(b);
