@@ -59,4 +59,31 @@ class MySqlMigrationTest {
         }
     }
 
+    @Test void phase2ModerationMigrationUnpublishesLegacyActiveListingsWithoutDeletingData() throws Exception {
+        String url = testUrl("moderation");
+        var old = flyway(url,"3");
+        assertEquals(3,old.migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement()) {
+            stmt.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (201,'Legacy','legacy2@example.com','hash','38999999999')");
+            String prefix = "INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id) VALUES ";
+            stmt.execute(prefix+"(301,'AM-301','LT',false,'Regular','Nenhuma','Ativo','Descricao',10000,'Marca','Modelo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),201)");
+            stmt.execute(prefix+"(302,'AM-302','LT',false,'Regular','Nenhuma','Pausado','Descricao',10000,'Marca','Modelo',2022,100,'Branco','FLEX',false,'PAUSADO','MANUAL','SEMINOVOS',NOW(),201)");
+        }
+        var migrated = flyway(url,"4");
+        assertEquals(1,migrated.migrate().migrationsExecuted);
+        assertTrue(migrated.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement();
+            var rows=stmt.executeQuery("SELECT id,status,revisado_em,revisado_por_id,motivo_rejeicao FROM anuncio ORDER BY id")) {
+            assertTrue(rows.next()); assertEquals(301,rows.getLong(1)); assertEquals("PENDENTE",rows.getString(2));
+            assertNull(rows.getTimestamp(3));assertNull(rows.getObject(4));assertNull(rows.getString(5));
+            assertTrue(rows.next()); assertEquals(302,rows.getLong(1)); assertEquals("PAUSADO",rows.getString(2));
+            assertFalse(rows.next());
+        }
+        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement();
+            var logs=stmt.executeQuery("SELECT COUNT(*) FROM moderacao_evento")) {
+            assertTrue(logs.next());assertEquals(0,logs.getInt(1));
+        }
+        assertEquals(0,migrated.migrate().migrationsExecuted);
+    }
+
 }
