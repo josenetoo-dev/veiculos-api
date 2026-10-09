@@ -97,6 +97,10 @@ public class AnuncioFotoService {
 
     @Transactional
     public void deletarFoto(Long anuncioId, Long fotoId) {
+        // Mesmo lock usado na aprovação administrativa e no upload.
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
         AnuncioFoto foto = anuncioFotoRepository.findById(fotoId)
                 .orElseThrow(() -> new FotoNaoEncontradaException("Foto não encontrada"));
 
@@ -104,12 +108,11 @@ public class AnuncioFotoService {
             throw new FotoNaoEncontradaException("Foto não encontrada");
         }
 
-        exigirDonoDoAnuncio(foto.getAnuncio(), obterUsuarioAutenticado());
-        if (foto.getAnuncio().getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
+        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio vendido não pode ter fotos alteradas");
         }
-        anuncioService.reabrirRevisaoDeFotos(foto.getAnuncio());
+        anuncioService.reabrirRevisaoDeFotos(anuncio);
         anuncioFotoRepository.delete(foto);
         imageStorage.deleteAfterCommit(foto.getUrl());
     }
