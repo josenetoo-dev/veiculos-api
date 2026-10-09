@@ -64,7 +64,8 @@ public class AnuncioFotoService {
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
         if ((anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
-                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO)) {
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.SUSPENSO)) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio finalizado não pode receber fotos");
         }
@@ -110,7 +111,8 @@ public class AnuncioFotoService {
         }
 
         if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
-                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO) {
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.SUSPENSO) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio finalizado não pode ter fotos alteradas");
         }
