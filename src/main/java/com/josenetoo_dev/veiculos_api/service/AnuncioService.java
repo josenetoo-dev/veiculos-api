@@ -133,6 +133,21 @@ public class AnuncioService {
         return toResponse(anuncioRepository.save(anuncioSalvo));
     }
 
+    /**
+     * Modificar fotos de anúncio aprovado invalida sua moderação.
+     * Executado na mesma transação da alteração de mídia.
+     */
+    @Transactional
+    public void reabrirRevisaoDeFotos(Anuncio anuncio) {
+        if (anuncio.getStatus() != StatusAnuncio.PENDENTE) {
+            anuncio.setStatus(StatusAnuncio.PENDENTE);
+            anuncio.setRevisadoEm(null);
+            anuncio.setRevisadoPorId(null);
+            anuncio.setMotivoRejeicao(null);
+            anuncioRepository.save(anuncio);
+        }
+    }
+
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarAnuncios(Pageable pageable) {
         return anuncioRepository.findByStatus(StatusAnuncio.ATIVO, pageable)
