@@ -102,4 +102,41 @@ public class Anuncio {
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
+
+    /**
+     * Modelo normalizado introduzido pela V5. Os campos legados acima ainda
+     * funcionam como espelho até a migração definitiva, sem quebrar DTOs.
+     * Um veículo poderá ter outros anúncios no futuro; por isso ManyToOne.
+     */
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "veiculo_id", nullable = false)
+    private Veiculo veiculo;
+
+    /**
+     * Sincronização transicional: veículo e espelho legado são escritos na
+     * mesma transação. Não copiar dados de preço/descrição para o veículo.
+     */
+    public void sincronizarVeiculo() {
+        if (veiculo == null) {
+            veiculo = new Veiculo();
+        }
+        veiculo.setCadastradoPor(usuario);
+        veiculo.setMarca(marca);
+        veiculo.setModelo(modelo);
+        veiculo.setVersao(versao);
+        veiculo.setAno(ano);
+        veiculo.setQuilometragem(quilometragem);
+        veiculo.setCor(cor);
+        veiculo.setCombustivel(combustivel);
+        veiculo.setCambio(cambio);
+        veiculo.setSegundaMao(segundaMao);
+    }
+
+    // Compatibilidade com repositórios/testes que persistem Anuncio diretamente.
+    @PrePersist
+    private void assegurarVeiculo() {
+        if (veiculo == null) {
+            sincronizarVeiculo();
+        }
+    }
 }

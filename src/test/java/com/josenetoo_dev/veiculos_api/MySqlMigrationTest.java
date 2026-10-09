@@ -86,4 +86,49 @@ class MySqlMigrationTest {
         assertEquals(0,migrated.migrate().migrationsExecuted);
     }
 
+
+    @Test void vehicleMigrationBackfillsLegacyRowsWithoutLosingOffersOrPhotos() throws Exception {
+        String url = testUrl("vehicle");
+        var stage4 = flyway(url,"4");
+        assertEquals(4,stage4.migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (401,'Legacy','vehicle@example.com','old-hash','38999999999')");
+            st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id) VALUES (501,'AM-501','LT',false,'Regular','Nenhuma','Legacy Listing','Original',59000,'Chevrolet','Onix',2022,58100,'Branco','FLEX',true,'PENDENTE','MANUAL','SEMINOVOS',NOW(),401)");
+            st.execute("INSERT INTO anuncio_foto(id,anuncio_id,url,ordem,tipo_foto) VALUES (601,501,'https://example.com/legacy.png',0,'FRENTE')");
+            st.execute("INSERT INTO proposta(id,valor,descricao,status,criado_em,contraproposta_feita,anunciante_id,comprador_id) VALUES (701,59000,'Proposta','PENDENTE',NOW(),false,501,401)");
+        }
+        var migrated = flyway(url,"5");
+        assertEquals(1,migrated.migrate().migrationsExecuted);
+        assertTrue(migrated.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+            var rows=st.executeQuery("SELECT a.id,a.veiculo_id,a.codigo,a.marca,a.preco,a.status,v.id,v.marca,v.modelo,v.versao,v.ano,v.quilometragem,v.combustivel,v.cambio,v.cadastrado_por_id FROM anuncio a JOIN veiculo v ON v.id=a.veiculo_id WHERE a.id=501")) {
+            assertTrue(rows.next());
+            assertEquals(501,rows.getLong("id"));
+            assertEquals(501,rows.getLong("veiculo_id"));
+            assertEquals("AM-501",rows.getString("codigo"));
+            assertEquals("Chevrolet",rows.getString("marca"));
+            assertEquals(0,new java.math.BigDecimal("59000").compareTo(rows.getBigDecimal("preco")));
+            assertEquals("PENDENTE",rows.getString("status"));
+            assertEquals(501,rows.getLong(7));
+            assertEquals("Chevrolet",rows.getString(8));
+            assertEquals("Onix",rows.getString(9));
+            assertEquals("LT",rows.getString(10));
+            assertEquals(2022,rows.getInt(11));
+            assertEquals(58100,rows.getInt(12));
+            assertEquals("FLEX",rows.getString(13));
+            assertEquals("MANUAL",rows.getString(14));
+            assertEquals(401,rows.getLong(15));
+            assertFalse(rows.next());
+        }
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+            var rows=st.executeQuery("SELECT p.id,p.anunciante_id,f.anuncio_id,f.url FROM proposta p JOIN anuncio_foto f ON f.anuncio_id=p.anunciante_id WHERE p.id=701")) {
+            assertTrue(rows.next());
+            assertEquals(701,rows.getLong(1));
+            assertEquals(501,rows.getLong(2));
+            assertEquals(501,rows.getLong(3));
+            assertEquals("https://example.com/legacy.png",rows.getString(4));
+        }
+        assertEquals(0,migrated.migrate().migrationsExecuted);
+    }
+
 }
