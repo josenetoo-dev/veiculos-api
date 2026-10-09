@@ -27,11 +27,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.datasource.username=sa", "spring.datasource.password=",
  "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
- "logging.level.org.springframework.security=INFO"
+ "logging.level.org.springframework.security=INFO",
+ "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost"
 })
 @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 @AutoConfigureMockMvc(printOnlyOnFailure = false, print = org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint.NONE)
 class SecurityRegressionTest {
+ @org.springframework.test.context.bean.override.mockito.MockitoBean
+ org.springframework.mail.javamail.JavaMailSender emailSender;
+
+ @Autowired com.josenetoo_dev.veiculos_api.service.AnuncioService anuncioService;
+
  static final Path UPLOAD;
  static { try { UPLOAD = Files.createTempDirectory("auto-minas-security-"); } catch(Exception e) {throw new RuntimeException(e);} }
  @DynamicPropertySource static void properties(DynamicPropertyRegistry r) { r.add("upload.dir", () -> UPLOAD.toString()); }
@@ -193,4 +199,136 @@ class SecurityRegressionTest {
   assertFalse(output.getAll().contains(matcher.group(1)));assertFalse(output.getAll().contains("senhaTeste123"));assertFalse(output.getAll().contains("Using generated security password"));
   assertFalse(a.toString().contains(a.getSenha()));assertFalse(a.toString().contains(a.getEmail()));
  }
+
+ // Fase 1.1 — visibilidade do marketplace.
+ @Test void nonActiveListingsAreHiddenFromPublicSearchAndDetails() throws Exception {
+  anuncio.setStatus(StatusAnuncio.PAUSADO);
+  anuncio.setDestaque(true);
+  anuncios.saveAndFlush(anuncio);
+  long id = anuncio.getId();
+  mvc.perform(get("/v1/anuncio")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/destaques")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/categoria/"+anuncio.getCategoria())).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/"+id)).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/codigo/"+anuncio.getCodigo())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/"+id).header("Authorization",bearer(tokenA))).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/"+id).header("Authorization",bearer(tokenB))).andExpect(status().isOk());
+  mvc.perform(get("/v1/anuncio/status/PAUSADO")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/status/PAUSADO").header("Authorization",bearer(tokenA))).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/status/PAUSADO").header("Authorization",bearer(tokenB))).andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(get("/v1/anuncio/meus")).andExpect(status().isUnauthorized());
+  mvc.perform(get("/v1/anuncio/meus").header("Authorization",bearer(tokenA))).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/meus").header("Authorization",bearer(tokenB))).andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(get("/v1/anuncio/"+id+"/fotos")).andExpect(status().isNotFound());
+ }
+ @Test void soldListingIsNotPubliclyVisible() throws Exception {
+  anuncio.setStatus(StatusAnuncio.VENDIDO); anuncios.saveAndFlush(anuncio);
+  mvc.perform(get("/v1/anuncio")).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))).andExpect(status().isOk());
+ }
+ @Test void deletingListingRemovesNewImagesFromDiskAfterCommit() throws Exception {
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png"))
+    .header("Authorization",bearer(tokenB))).andExpect(status().isCreated());
+  assertEquals(1,fileCount());
+  mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
+    .andExpect(status().isNoContent());
+  assertEquals(0,fileCount());
+  assertFalse(anuncios.existsById(anuncio.getId()));
+ }
+ @Test void failedDeletionKeepsImageAfterRollback() throws Exception {
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png"))
+    .header("Authorization",bearer(tokenB))).andExpect(status().isCreated());
+  authenticate(b.getId());
+  try {
+   assertThrows(IllegalStateException.class,()->new org.springframework.transaction.support.TransactionTemplate(txManager)
+      .execute(status->{anuncioService.deletarAnuncio(anuncio.getId()); throw new IllegalStateException("rollback");}));
+  } finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+  assertEquals(1,fileCount());
+  assertTrue(anuncios.existsById(anuncio.getId()));
+ }
+
+ // Fase 1.1 — troca de e-mail com confirmação do endereço novo.
+ @Test void directEmailChangeWithoutVerificationIsRejected() throws Exception {
+  mvc.perform(put("/v1/usuario/"+a.getId()).header("Authorization",bearer(tokenA))
+   .contentType("application/json")
+   .content("{\"nome\":\"A\",\"email\":\"changed@example.com\",\"telefone\":\"38999999999\"}"))
+   .andExpect(status().isBadRequest());
+  assertEquals("a@example.com",usuarios.findById(a.getId()).orElseThrow().getEmail());
+ }
+ @Test void emailChangeRequiresCorrectCurrentPassword() throws Exception {
+  mvc.perform(post("/v1/usuario/me/email-change").header("Authorization",bearer(tokenA))
+   .contentType("application/json")
+   .content("{\"newEmail\":\"new@example.com\",\"currentPassword\":\"wrong\"}"))
+   .andExpect(status().isUnauthorized());
+  org.mockito.Mockito.verifyNoInteractions(emailSender);
+ }
+ @Test void emailChangeNeedsCodeFromNewMailboxAndRevokesOldTokens() throws Exception {
+  var body = "{\"newEmail\":\"new@example.com\",\"currentPassword\":\"senhaTeste123\"}";
+  mvc.perform(post("/v1/usuario/me/email-change").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content(body))
+   .andExpect(status().isAccepted()).andExpect(content().string(""));
+  var cap = org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(cap.capture());
+  assertArrayEquals(new String[]{"new@example.com"},cap.getValue().getTo());
+  var matcher = java.util.regex.Pattern.compile("Código: ([A-Za-z0-9_-]+)").matcher(cap.getValue().getText());
+  assertTrue(matcher.find());
+  String code = matcher.group(1);
+  var pending = usuarios.findById(a.getId()).orElseThrow();
+  assertEquals("a@example.com",pending.getEmail());
+  assertEquals("new@example.com",pending.getPendingEmail());
+  assertNotEquals(code,pending.getPendingEmailTokenHash());
+  mvc.perform(post("/v1/usuario/me/email-change/confirm").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content("{\"token\":\"invalid-but-long-enough-token-string\"}"))
+   .andExpect(status().isBadRequest());
+  mvc.perform(post("/v1/usuario/me/email-change/confirm").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content("{\"token\":\""+code+"\"}"))
+   .andExpect(status().isNoContent());
+  var changed = usuarios.findById(a.getId()).orElseThrow();
+  assertEquals("new@example.com",changed.getEmail());
+  assertNull(changed.getPendingEmailTokenHash());
+  assertEquals(1L,changed.getTokenVersion());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+   .andExpect(status().isUnauthorized());
+  mvc.perform(post("/auth/login").contentType("application/json")
+   .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
+   .andExpect(status().isUnauthorized());
+  var login = mvc.perform(post("/auth/login").contentType("application/json")
+   .content("{\"email\":\"new@example.com\",\"senha\":\"senhaTeste123\"}"))
+   .andExpect(status().isOk()).andReturn();
+  var loginTokenMatcher = java.util.regex.Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"")
+    .matcher(login.getResponse().getContentAsString());
+  assertTrue(loginTokenMatcher.find());
+  mvc.perform(post("/v1/usuario/me/email-change/confirm")
+    .header("Authorization",bearer(loginTokenMatcher.group(1)))
+    .contentType("application/json").content("{\"token\":\""+code+"\"}"))
+    .andExpect(status().isBadRequest());
+ }
+ @Test void emailChangeCodeExpiresAndCannotBeUsed() throws Exception {
+  mvc.perform(post("/v1/usuario/me/email-change").header("Authorization",bearer(tokenA))
+   .contentType("application/json")
+   .content("{\"newEmail\":\"new@example.com\",\"currentPassword\":\"senhaTeste123\"}"))
+   .andExpect(status().isAccepted());
+  var cap=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(cap.capture());
+  var m=java.util.regex.Pattern.compile("Código: ([A-Za-z0-9_-]+)").matcher(cap.getValue().getText());
+  assertTrue(m.find());
+  var user=usuarios.findById(a.getId()).orElseThrow();
+  user.setPendingEmailExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1));
+  usuarios.saveAndFlush(user);
+  mvc.perform(post("/v1/usuario/me/email-change/confirm").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content("{\"token\":\""+m.group(1)+"\"}"))
+   .andExpect(status().isBadRequest());
+  assertEquals("a@example.com",usuarios.findById(a.getId()).orElseThrow().getEmail());
+ }
+ @Test void emailChangeRequestIsRateLimited() throws Exception {
+  String body="{\"newEmail\":\"new@example.com\",\"currentPassword\":\"senhaTeste123\"}";
+  mvc.perform(post("/v1/usuario/me/email-change").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content(body)).andExpect(status().isAccepted());
+  mvc.perform(post("/v1/usuario/me/email-change").header("Authorization",bearer(tokenA))
+   .contentType("application/json").content(body)).andExpect(status().isTooManyRequests());
+  org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
+    .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+ }
+
 }
