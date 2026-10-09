@@ -56,5 +56,18 @@ public class Usuario {
     @Column(name = "pending_email_requested_at")
     private LocalDateTime pendingEmailRequestedAt;
 
+    // Contato verificado separadamente da análise manual de identidade.
+    @Column(name = "contact_email_token_hash", length = 64)
+    private String contactEmailTokenHash;
+
+    @Column(name = "contact_email_expires_at")
+    private LocalDateTime contactEmailExpiresAt;
+
+    @Column(name = "contact_email_requested_at")
+    private LocalDateTime contactEmailRequestedAt;
+
+    @Column(name = "contact_email_verified_at")
+    private LocalDateTime contactEmailVerifiedAt;
+
     private LocalDateTime criadoEm = LocalDateTime.now();
 }
