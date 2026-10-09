@@ -79,6 +79,15 @@ public class Anuncio {
     @Enumerated(EnumType.STRING)
     private StatusAnuncio status;
 
+    @Column(name = "revisado_em")
+    private LocalDateTime revisadoEm;
+
+    @Column(name = "revisado_por_id")
+    private Long revisadoPorId;
+
+    @Column(name = "motivo_rejeicao", length = 500)
+    private String motivoRejeicao;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Cambio cambio;

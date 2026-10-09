@@ -50,6 +50,9 @@ public class AnuncioResponse {
 
     private StatusAnuncio status;
 
+    // Motivo apresentado apenas ao titular de anúncio rejeitado; anúncio rejeitado não é público.
+    private String motivoRejeicao;
+
     private Cambio cambio;
 
     private Categoria categoria;
@@ -79,6 +82,8 @@ public class AnuncioResponse {
         this.combustivel = anuncio.getCombustivel();
         this.segundaMao = anuncio.isSegundaMao();
         this.status = anuncio.getStatus();
+        this.motivoRejeicao = anuncio.getStatus() == StatusAnuncio.REJEITADO
+                ? anuncio.getMotivoRejeicao() : null;
         this.cambio = anuncio.getCambio();
         this.categoria = anuncio.getCategoria();
         this.criadoEm = anuncio.getCriadoEm();
