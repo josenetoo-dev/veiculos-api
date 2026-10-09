@@ -43,5 +43,18 @@ public class Usuario {
     @Column(nullable = false)
     private long tokenVersion = 0;
 
+    // A troca de e-mail só é concluída após comprovar acesso ao endereço novo.
+    @Column(name = "pending_email", length = 254)
+    private String pendingEmail;
+
+    @Column(name = "pending_email_token_hash", length = 64)
+    private String pendingEmailTokenHash;
+
+    @Column(name = "pending_email_expires_at")
+    private LocalDateTime pendingEmailExpiresAt;
+
+    @Column(name = "pending_email_requested_at")
+    private LocalDateTime pendingEmailRequestedAt;
+
     private LocalDateTime criadoEm = LocalDateTime.now();
 }
