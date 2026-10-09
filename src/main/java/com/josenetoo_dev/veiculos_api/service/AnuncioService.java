@@ -122,7 +122,8 @@ public class AnuncioService {
         anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
-
+        // Veiculo e campos legados do anuncio são persistidos na mesma transação.
+        anuncio.sincronizarVeiculo();
 
         Anuncio anuncioSalvo = anuncioRepository.save(anuncio);
 
@@ -168,6 +169,7 @@ public class AnuncioService {
         anuncio.setMotivoRejeicao(null);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
+        anuncio.sincronizarVeiculo();
 
         return toResponse(anuncioRepository.save(anuncio));
     }
