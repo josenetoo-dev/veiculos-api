@@ -24,6 +24,7 @@ public class ModeracaoService {
     private final AnuncioRepository anuncios;
     private final UsuarioRepository usuarios;
     private final ModeracaoEventoRepository eventos;
+    private final VerificacaoRepository verificacoes;
 
     private Long revisorId() {
         Long id;
@@ -72,6 +73,14 @@ public class ModeracaoService {
         Anuncio anuncio = obterPendenteParaRevisao(id, revisorId);
         if (anuncio.getUsuario().getStatus() != StatusUsuario.ACTIVE) {
             throw new AnuncioIndisponivelException("Conta do vendedor ainda não está ativa");
+        }
+        // Revisão documental humana é obrigatória. Nunca publicar sem ambas as decisões.
+        if (!verificacoes.existsByUsuarioIdentidadeIdAndStatus(
+                anuncio.getUsuario().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)
+                || anuncio.getVeiculo() == null
+                || !verificacoes.existsByVeiculoIdAndStatus(
+                    anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
+            throw new AnuncioIndisponivelException("Identidade e veículo precisam de aprovação documental");
         }
 
         anuncio.setStatus(StatusAnuncio.ATIVO);
