@@ -160,4 +160,28 @@ class MySqlMigrationTest {
         assertEquals(0,migrated.migrate().migrationsExecuted);
     }
 
+    @Test void contactEmailMigrationKeepsExistingUsersAndPasswords() throws Exception {
+        String url=testUrl("contact");
+        assertEquals(6,flyway(url,"6").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (902,'Legacy','contact@example.com','old-hash','38999999999','USER','ACTIVE',3)");
+        }
+        var upgraded=flyway(url,"7");
+        assertEquals(1,upgraded.migrate().migrationsExecuted);
+        assertTrue(upgraded.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+             var r=st.executeQuery("SELECT email,senha,status,token_version,contact_email_token_hash,contact_email_expires_at,contact_email_requested_at,contact_email_verified_at FROM usuario WHERE id=902")) {
+            assertTrue(r.next());
+            assertEquals("contact@example.com",r.getString("email"));
+            assertEquals("old-hash",r.getString("senha"));
+            assertEquals("ACTIVE",r.getString("status"));
+            assertEquals(3,r.getLong("token_version"));
+            assertNull(r.getString("contact_email_token_hash"));
+            assertNull(r.getTimestamp("contact_email_expires_at"));
+            assertNull(r.getTimestamp("contact_email_requested_at"));
+            assertNull(r.getTimestamp("contact_email_verified_at"));
+        }
+        assertEquals(0,upgraded.migrate().migrationsExecuted);
+    }
+
 }

@@ -20,6 +20,23 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
 
     private final com.josenetoo_dev.veiculos_api.service.EmailChangeService emailChangeService;
+    private final com.josenetoo_dev.veiculos_api.service.ContatoEmailService contatoEmailService;
+
+    @Operation(summary = "Enviar código ao e-mail da conta para ativar o contato")
+    @PostMapping("/me/contato/email/solicitar")
+    public ResponseEntity<Void> solicitarContatoEmail() {
+        contatoEmailService.solicitar();
+        return ResponseEntity.accepted().build();
+    }
+
+    @Operation(summary = "Confirmar código recebido no e-mail cadastrado")
+    @PostMapping("/me/contato/email/confirmar")
+    public ResponseEntity<Void> confirmarContatoEmail(
+            @Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.usuario_dto.ConfirmarContatoEmailRequest request) {
+        contatoEmailService.confirmar(request);
+        return ResponseEntity.noContent().build();
+    }
+
 
     @Operation(summary = "Solicitar troca de e-mail após confirmar a senha atual")
     @PostMapping("/me/email-change")
