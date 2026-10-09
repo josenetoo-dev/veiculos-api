@@ -63,7 +63,8 @@ public class AnuncioFotoService {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO) {
+        if ((anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO)) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Anúncio vendido não pode receber fotos");
         }
