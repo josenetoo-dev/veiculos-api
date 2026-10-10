@@ -15,12 +15,13 @@ Um resultado `APROVADA_TECNICAMENTE` é **um sinal técnico**, **não** prova le
 
 - AWS SDK for Java v2 `software.amazon.awssdk:rekognition` e adapter isolado `AwsRekognitionBiometricProvider` só ativado por configuração. Usa credenciais IAM do ambiente (default provider chain), nunca segredos no repositório.
 - `DisabledBiometricProvider` retorna 503, sem chamar a AWS, se `BIOMETRIC_ENABLED=false`.
-- `V11__face_liveness_sessions.sql` adiciona a tabela `sessao_biometria` com UUID da sessão, vínculo à verificação, ID da evidência original, status técnico, datas, aceite registrado e versão de política. **Não armazena selfies, vídeos, embeddings faciais ou scores** no MySQL.
+- `V11__face_liveness_sessions.sql` adiciona as tabelas `sessao_biometria` e `dispensa_biometria` (justificativas do fallback humano) com UUID da sessão, vínculo à verificação, ID da evidência original, status técnico, datas, aceite registrado e versão de política. **Não armazena selfies, vídeos, embeddings faciais ou scores** no MySQL.
 - A frente do documento já é armazenada em `PrivateEvidenceStorage` criptografado; o backend a recupera após autenticar e verificar a titularidade da solicitação.
 - `CreateFaceLivenessSession` cria o identificador; o frontend o usa com o componente `FaceLivenessDetector` da AWS Amplify; quando o callback terminar, o backend chama `GetFaceLivenessSessionResults` e, somente com prova de vida satisfatória, `CompareFaces`.
 - Limiares configuráveis: 90/100 como **valores técnicos iniciais sujeitos a calibração**. Scores e imagens de referência não são retornados ao navegador, persistidos no banco ou incluídos em logs pela implementação.
 - Um token de sessão externo não é suficiente para recuperar resultados: a API exige JWT do **solicitante original** e vínculo com a verificação.
 - O resultado só se aplica ao **mesmo ID da evidência documental** usado quando a sessão foi iniciada. Se o documento for excluído e reenviado, mesmo com foto idêntica, o match anterior deixa de autorizar a submissão.
+- Exceção de acessibilidade: somente ADMIN ativo, distinto do solicitante, pode registrar **dispensa auditável** vinculada ao documento atual, com justificativa de 10 a 500 caracteres. A dispensa só permite enviar para análise humana — não produz um status de aprovação técnica nem confirma identidade.
 - No máximo **3 sessões por verificação/24 h**, com intervalo mínimo de **1 minuto**; o usuário não escolhe sessionId. Sessões não finalizadas expiram após **3 minutos**, seguindo o limite da AWS.
 - `VerificacaoService.enviar` impede envio de identidade sem resultado técnico aprovado nas últimas 24 h **somente quando a funcionalidade está habilitada**. A decisão administrativa posterior exige histórico compatível com a submissão e continua sendo humana.
 
@@ -37,6 +38,12 @@ Requisitos: solicitação do tipo IDENTIDADE em RASCUNHO/REJEITADA, do titular a
 **GET `/v1/verificacoes/{verificacaoId}/biometria/sessoes/{sessionId}/resultado`**
 
 Somente o titular autenticado consulta. Resposta contém status `CRIADA`, `APROVADA_TECNICAMENTE` ou `INCONCLUSIVA`. Resultados ainda em progresso continuam `CRIADA` (o navegador poderá tentar novamente por um período breve). Não aceita `confidence` ou `similarity` enviados pelo navegador como fonte de verdade.
+
+**POST `/v1/verificacoes/{verificacaoId}/biometria/dispensar` — somente ADMIN**
+
+Body: `{"motivo":"Justificativa registrada pelo revisor"}`. Retorna 204 sem corpo. Verifica conta administrativa ativa, titular diferente, verificação ainda em edição e ID do documento anexado. Escreve evento imutável em `dispensa_biometria`, com operador, motivo e data. Uma dispensa antiga deixa de ser válida quando a frente do documento é substituída.
+
+Esse endpoint oferece o caminho técnico para pessoas impedidas de concluir a biometria, mas não substitui suporte ao usuário, definição dos critérios administrativos nem revisão documental.
 
 ## Configuração (opt-in)
 
@@ -69,7 +76,7 @@ BIOMETRIC_POLICY_VERSION=biometria-v1
 
 - Frontend React integrado, HTTPS (câmera requer origem segura) e credenciais temporárias via IAM/Cognito configuradas.
 - Estabelecer base legal, aviso de privacidade, retenção e descarte, DPIA/RIPD quando necessário, direitos do titular e processo de contestação sob LGPD. Biometria é **dado pessoal sensível**.
-- Garantir **alternativa acessível** e procedimento manual controlado para pessoas que não puderem/queiram usar biometria — **ainda não há endpoint de exceção biométrica nesta entrega**. A flag deve ficar desligada até existir esse processo e sua política.
+- Garantir **alternativa acessível**: o endpoint ADMIN de dispensa foi implementado, mas ainda é necessário definir quem o opera, quais razões justificam a exceção, como contestar uma negativa e como registrar a revisão humana. A flag deve permanecer desligada até existir esse procedimento e a política de privacidade apropriada.
 - Testes reais controlados com documentos de teste autorizados e AWS própria, avaliação de falso positivo/falso negativo (incluindo variabilidade demográfica e iluminação), orçamento, quotas e detecção de abuso por IP.
 - Testar migrações V1–V11 e Hibernate validate em **backup restaurado do MySQL verdadeiro**; nenhum teste da CI equivale a isso.
 - Revisão externa de IAM, threat modeling e análise de impactos antes do lançamento.
