@@ -117,6 +117,9 @@ public class AnuncioService {
         anuncio.setAno(request.getAno());
         anuncio.setQuilometragem(request.getQuilometragem());
         anuncio.setCor(request.getCor());
+        anuncio.setCidade(request.getCidade() == null || request.getCidade().isBlank()
+                ? null : request.getCidade().strip());
+        anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
         // Nenhum anúncio novo é publicado automaticamente.
@@ -194,6 +197,9 @@ public class AnuncioService {
         anuncio.setAno(request.getAno());
         anuncio.setQuilometragem(request.getQuilometragem());
         anuncio.setCor(request.getCor());
+        anuncio.setCidade(request.getCidade() == null || request.getCidade().isBlank()
+                ? null : request.getCidade().strip());
+        anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
         // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
