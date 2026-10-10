@@ -26,6 +26,7 @@ public class VerificacaoService {
     private final VeiculoRepository veiculos;
     private final PrivateEvidenceStorage storage;
     private final ImageValidator validator;
+    private final BiometriaService biometriaService;
 
     private Usuario actor() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -194,6 +195,7 @@ public class VerificacaoService {
         Verificacao v = ownedCaseLocked(id, user);
         editable(v);
         requireEvidence(v);
+        biometriaService.exigirBiometriaParaEnvio(v);
         if (v.getTipo() == TipoVerificacao.VEICULO
                 && !verificacoes.existsByUsuarioIdentidadeIdAndStatus(
                     user.getId(), StatusVerificacao.APROVADA)) {
@@ -252,6 +254,7 @@ public class VerificacaoService {
             throw new IllegalArgumentException("Motivo de rejeição obrigatório");
         }
         requireEvidence(v);
+        if (aprovado) biometriaService.exigirBiometriaNaRevisao(v);
         if (aprovado && v.getTipo() == TipoVerificacao.VEICULO
                 && !verificacoes.existsByUsuarioIdentidadeIdAndStatus(
                     v.getSolicitante().getId(), StatusVerificacao.APROVADA)) {
