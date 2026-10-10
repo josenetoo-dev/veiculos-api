@@ -2,6 +2,7 @@ package com.josenetoo_dev.veiculos_api.service;
 
 import com.josenetoo_dev.veiculos_api.dto.auth.*;
 import com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeUnavailableException;
+import com.josenetoo_dev.veiculos_api.exception.ex.InvalidPasswordResetTokenException;
 import com.josenetoo_dev.veiculos_api.model.Usuario;
 import com.josenetoo_dev.veiculos_api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -56,12 +57,12 @@ public class PasswordResetService {
         mailer.send(user.getEmail(),token);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = InvalidPasswordResetTokenException.class)
     public void confirm(PasswordResetConfirmRequest request) {
         // Mesma mensagem de erro para endereço, token, expiração e status.
         String invalid="Código inválido ou expirado";
         Usuario user=users.findByEmail(request.email().trim().toLowerCase(Locale.ROOT))
-                .orElseThrow(()->new IllegalArgumentException(invalid));
+                .orElseThrow(()->new InvalidPasswordResetTokenException());
         user=users.findByIdForUpdate(user.getId()).orElseThrow();
 
         LocalDateTime now=LocalDateTime.now(ZoneOffset.UTC);
@@ -70,7 +71,7 @@ public class PasswordResetService {
                 || user.getPasswordResetExpiresAt()==null
                 || !user.getPasswordResetExpiresAt().isAfter(now)
                 || user.getPasswordResetFailedAttempts()>=MAX_FAILED_ATTEMPTS) {
-            throw new IllegalArgumentException(invalid);
+            throw new InvalidPasswordResetTokenException();
         }
 
         byte[] expected=user.getPasswordResetTokenHash().getBytes(StandardCharsets.US_ASCII);
@@ -83,10 +84,8 @@ public class PasswordResetService {
                 user.setPasswordResetExpiresAt(null);
             }
             users.saveAndFlush(user);
-            // IMPORTANTE: IllegalArgumentException unchecked reverteria o incremento.
-            // Utilizar retorno de controle e lançar apenas depois do commit (ver serviço).
-            returnInvalid();
-            return;
+            // No rollback para InvalidPasswordResetTokenException preserva as tentativas inválidas.
+            throw new InvalidPasswordResetTokenException();
         }
 
         user.setSenha(passwords.encode(request.newPassword()));
@@ -96,11 +95,6 @@ public class PasswordResetService {
         user.setPasswordResetFailedAttempts(0);
         user.setTokenVersion(user.getTokenVersion()+1);
         users.saveAndFlush(user);
-    }
-
-    private static void returnInvalid() {
-        // The caller handles this as an invalid operation outside the transaction.
-        throw new IllegalArgumentException("Código inválido ou expirado");
     }
 
     private static String hash(String value) {
