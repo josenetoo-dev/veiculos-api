@@ -23,7 +23,7 @@ public class FotoPublicaService {
     @Transactional(readOnly = true)
     public Content read(String filename) {
         if (filename == null || !filename.matches(
-                "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)")) {
+                "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)")) {
             throw new FotoNaoEncontradaException("Foto não encontrada");
         }
         AnuncioFoto photo=fotos.findFirstByUrlEndingWith("/uploads/fotos/" + filename)
