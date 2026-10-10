@@ -15,10 +15,11 @@
 | 7 | [#7](https://github.com/josenetoo-dev/veiculos-api/pull/7) | `feature/fase-4b-denuncias` | Denúncias privadas, suspensão e revisão, V9 |
 | 8 | [#8](https://github.com/josenetoo-dev/veiculos-api/pull/8) | `feature/fase-5-recuperacao-senha` | Recuperação segura de senha, SMTP opt-in, Flyway V10 |
 | 9 | [#9](https://github.com/josenetoo-dev/veiculos-api/pull/9) | `security/fase-5b-midia-autorizada` | Fotos condicionadas à visibilidade do anúncio; remove handler estático |
+| 10 | [#10](https://github.com/josenetoo-dev/veiculos-api/pull/10) | `feature/fase-6-biometria-aws` | AWS Face Liveness + CompareFaces com decisão humana, opt-in e V11 |
 
-Cada PR depende do anterior (o `base` de #7 é a branch de #6, etc.). O PR mais recente **não** está pronto para merge isolado na main.
+Cada PR depende do anterior (a base de #10 é a branch de #9, etc.). O PR mais recente **não** está pronto para merge isolado na main.
 
-**Procedimento após validação:** merge #1 na main; mudar base do #2 para main, revisar diff e CI; merge #2; mudar base do #3 para main; repetir até o #9. Respeitar aprovações, testes e migrações. Não há merge automático autorizado aqui.
+**Procedimento após validação:** merge #1 na main; mudar base do #2 para main, revisar diff e CI; merge #2; mudar base do #3 para main; repetir até o #10. Respeitar aprovações, testes e migrações. Não há merge automático autorizado aqui.
 
 ## Implementado no backend (quando os PRs forem integrados)
 - Login/cadastro JWT com verificação de status, revogação por versão de token, roles e controle de acesso.
@@ -31,18 +32,19 @@ Cada PR depende do anterior (o `base` de #7 é a branch de #6, etc.). O PR mais 
 - Publicação exige conta ACTIVE + identidade APROVADA + veículo APROVADA + aprovação de anúncio.
 - Exclusão lógica de anúncios mantém propostas/mensagens; encerramento de conta arquiva seus anúncios.
 - Denúncias de anúncios ATIVO; revisores podem suspender após comprovação, somente ADMIN pode reverter SUSPENSO para PENDENTE.
-- Migrações Flyway V1–V10, testes Java/Spring e MySQL efêmero. **Validar CI do commit mais recente antes de marcar como concluído.**
+- Migrações Flyway V1–V11, testes Java/Spring e MySQL efêmero. **Validar CI do commit mais recente antes de marcar como concluído.**
 
 ## O que ainda impede o uso público
 
 ### P0 — Bloqueadores
-1. **Migração real:** restaurar backup do MySQL original num ambiente separado, inspecionar schema legada, aplicar baseline V1 somente se compatível, ensaiar V2–V9 e iniciar com `ddl-auto=validate`. Não executar direto em produção.
+1. **Migração real:** restaurar backup do MySQL original num ambiente separado, inspecionar schema legada, aplicar baseline V1 somente se compatível, ensaiar V2–V11 e iniciar com `ddl-auto=validate`. Não executar direto em produção.
 2. **Armazenamento seguro:** configurar `VERIFICATION_STORAGE_KEY` (32 bytes aleatórios em Base64), `VERIFICATION_STORAGE_DIR` privado persistente, permissões, backups, restauração e rotação/recuperação de chave. Sem isso os endpoints de documento respondem 503.
 3. **SMTP:** configurar `CONTACT_EMAIL_ENABLED=true`, `CONTACT_EMAIL_FROM`, `SMTP_*` e autenticação do domínio/remetente. Sem SMTP, novas contas não se ativam. `EMAIL_CHANGE_ENABLED` é opção separada.
 4. **Operadores:** provisionar ADMIN inicial por procedimento restrito, verificar/revisar roles, definir fluxos de revisão, identidade legal e eventual apelação.
 5. **Privacidade/LGPD:** política de coleta/retenção/eliminação de documentos, base legal, minimização, termos, responsabilidades de operadores, direitos de titulares e processo de incidentes.
 6. **Frontend:** não foi identificado um repositório de frontend do Auto Minas dentre os repositórios conectados. É necessário integrar UI pública, cadastro, moderação, documento, email, propostas, denúncias e estados de erro; testar ponta a ponta.
 7. **Validação de segurança:** verificação independente de IDOR/BOLA, proteção do storage, testes em restaurado, análise de segurança dos uploads, logs, backup e observabilidade.
+8. **Biometria (opt-in):** frontend AWS Amplify com Cognito/federação, IAM de menor privilégio, confirmação de região/preço, AWS Budgets/limites, calibração de limiares, avaliação de LGPD e **fluxo alternativo acessível** antes de ligar `BIOMETRIC_ENABLED`. A CI só usa simulações do provedor.
 
 ### P1 — Antes de crescer
 - Rate limit por IP/conta e anti-spam de cadastro, mensagens, relatórios e SMTP.
