@@ -170,6 +170,12 @@ class BiometriaRegressionTest {
             .thenReturn(BiometricProvider.Outcome.AGUARDANDO)
             .thenReturn(BiometricProvider.Outcome.APROVADA_TECNICAMENTE);
         result(session,"CRIADA");
+        result(session,"CRIADA"); // chamada imediata usa cooldown, sem consultar AWS
+        assertNotNull(sessions.findById(session).orElseThrow().getConsultadoEm());
+        verify(provider,times(1)).consultar(eq(session),any(byte[].class),eq(90f),eq(90f));
+        var stored=sessions.findById(session).orElseThrow();
+        stored.setConsultadoEm(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(5));
+        sessions.saveAndFlush(stored);
         result(session,"APROVADA_TECNICAMENTE");
         result(session,"APROVADA_TECNICAMENTE"); // idempotente, não repete AWS
         verify(provider,times(2)).consultar(eq(session),any(byte[].class),eq(90f),eq(90f));
