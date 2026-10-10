@@ -1027,6 +1027,11 @@ class SecurityRegressionTest {
   mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isNotFound());
   mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenA)))
        .andExpect(status().isNotFound());
+  authenticate(b.getId());
+  try {
+   var direct=context.getBean(com.josenetoo_dev.veiculos_api.service.FotoPublicaService.class).read(filename);
+   assertArrayEquals(Files.readAllBytes(UPLOAD.resolve(filename)),direct.bytes());
+  } finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
   var own=mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
        .andExpect(status().isOk())
        .andExpect(header().string("Cache-Control","no-store, max-age=0"))
