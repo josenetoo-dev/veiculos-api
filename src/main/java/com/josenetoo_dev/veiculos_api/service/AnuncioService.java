@@ -234,6 +234,71 @@ public class AnuncioService {
         anuncioRepository.save(anuncio);
     }
 
+    /**
+     * Controle de estado pelo próprio vendedor; exige autenticação e ownership.
+     * Pausa remove anúncio da vitrine e de novas propostas imediatamente.
+     */
+    @Transactional
+    public AnuncioResponse pausarAnuncio(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.ATIVO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios publicados podem ser pausados");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.PAUSADO, dono.getId());
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    /**
+     * Reativação nunca publica automaticamente um anúncio pausado:
+     * ele retorna a PENDENTE, sujeito à moderação humana antes da vitrine.
+     */
+    @Transactional
+    public AnuncioResponse solicitarReativacao(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.PAUSADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios pausados podem solicitar reativação");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.PENDENTE, dono.getId());
+        anuncio.setRevisadoEm(null);
+        anuncio.setRevisadoPorId(null);
+        anuncio.setMotivoRejeicao(null);
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    /** 
+     * Encerramento irrevogável do anúncio como vendido, preservando
+     * propostas e histórico de mensagens sem reabrir novas negociações.
+     */
+    @Transactional
+    public AnuncioResponse marcarVendido(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.ATIVO
+                && anuncio.getStatus() != StatusAnuncio.PAUSADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios publicados ou pausados podem ser marcados como vendidos");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.VENDIDO, dono.getId());
+        anuncio.setDestaque(false);
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    private void atualizarStatusProprietario(Anuncio anuncio, StatusAnuncio novo, Long donoId) {
+        anuncio.setStatus(novo);
+        anuncio.setStatusAtualizadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        anuncio.setStatusAtualizadoPorId(donoId);
+    }
+
     @Transactional
     public void deletarAnuncio(Long id) {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
