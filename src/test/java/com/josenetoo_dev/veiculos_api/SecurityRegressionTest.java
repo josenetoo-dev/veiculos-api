@@ -1014,7 +1014,11 @@ class SecurityRegressionTest {
        .header("Authorization",bearer(tokenB)))
        .andExpect(status().isCreated());
   var image=fotos.findAll().get(0);
-  return image.getUrl().substring(image.getUrl().lastIndexOf('/')+1);
+  String name=image.getUrl().substring(image.getUrl().lastIndexOf('/')+1);
+  assertTrue(name.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)"));
+  assertTrue(fotos.findFirstByUrlEndingWith("/uploads/fotos/"+name).isPresent(),
+       "Photo lookup must find the image by canonical path");
+  return name;
  }
 
  @Test void publicPhotoAccessibleOnlyAfterListingIsApproved() throws Exception {
