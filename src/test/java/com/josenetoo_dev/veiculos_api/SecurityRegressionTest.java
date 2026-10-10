@@ -1152,10 +1152,10 @@ class SecurityRegressionTest {
       .andExpect(status().isOk()).andExpect(jsonPath("$.cidade").value("Pirapora"))
       .andExpect(jsonPath("$.uf").value("MG"));
   mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
-      .contentType("application/json").content(json.replace("\\"uf\\":\\"MG\\"","\\"uf\\":\\"ZZ\\"")))
+      .contentType("application/json").content(json.replace("\"uf\":\"MG\"","\"uf\":\"ZZ\"")))
       .andExpect(status().isBadRequest());
   mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
-      .contentType("application/json").content(json.replace("\\"cidade\\":\\"Várzea da Palma\\",","")))
+      .contentType("application/json").content(json.replace("\"cidade\":\"Várzea da Palma\",","")))
       .andExpect(status().isBadRequest());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getCidade());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getUf());
