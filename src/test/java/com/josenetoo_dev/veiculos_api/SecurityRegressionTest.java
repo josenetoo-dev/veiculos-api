@@ -1067,4 +1067,14 @@ class SecurityRegressionTest {
   mvc.perform(get("/uploads/fotos/not-a-uuid.jpg")).andExpect(status().isNotFound());
  }
 
+
+ @Test void biometricEndpointsAreDisabledByDefaultAndNeverCreateAwsSessions() throws Exception {
+  long verificationId=beginIdentity(tokenB);
+  mvc.perform(post("/v1/verificacoes/"+verificationId+"/biometria/sessoes")
+        .header("Authorization",bearer(tokenB)).contentType("application/json")
+        .content("{\"aceiteBiometria\":true}"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.code").value("BIOMETRIC_UNAVAILABLE"));
+ }
+
 }
