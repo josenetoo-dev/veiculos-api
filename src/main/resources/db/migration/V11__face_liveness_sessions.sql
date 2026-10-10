@@ -8,6 +8,7 @@ CREATE TABLE sessao_biometria (
  status VARCHAR(30) NOT NULL,
  criado_em DATETIME(6) NOT NULL,
  finalizado_em DATETIME(6) NULL,
+ consultado_em DATETIME(6) NULL,
  aceite_biometria_em DATETIME(6) NOT NULL,
  versao_politica VARCHAR(60) NOT NULL,
  CONSTRAINT fk_biometria_verificacao FOREIGN KEY (verificacao_id) REFERENCES verificacao(id),
