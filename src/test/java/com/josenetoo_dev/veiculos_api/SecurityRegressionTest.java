@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "logging.level.org.springframework.security=INFO",
  "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost",
  "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
+ "app.password-reset.enabled=true", "app.password-reset.from=no-reply@example.com",
  "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 })
 @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
@@ -907,6 +908,102 @@ class SecurityRegressionTest {
        .content("{\"motivo\":\"Duplicacao proibida\"}"))
        .andExpect(status().isConflict());
   assertEquals(2,eventos.count());
+ }
+
+
+ // Fase 5 — senha recuperada por código forte, sem revelar se a conta existe.
+ private String passwordResetToken() throws Exception {
+  var mail=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(mail.capture());
+  assertArrayEquals(new String[]{"a@example.com"}, mail.getValue().getTo());
+  var code=java.util.regex.Pattern.compile("Código: ([A-Za-z0-9_-]{40,})")
+    .matcher(mail.getValue().getText());
+  assertTrue(code.find());
+  return code.group(1);
+ }
+
+ private void requestPasswordReset(String email) throws Exception {
+  mvc.perform(post("/auth/password-reset/request").contentType("application/json")
+       .content("{\"email\":\""+email+"\"}"))
+       .andExpect(status().isAccepted()).andExpect(content().string(""));
+ }
+
+ @Test void passwordResetDoesNotExposeAccountExistence() throws Exception {
+  requestPasswordReset("missing@example.com");
+  org.mockito.Mockito.verifyNoInteractions(emailSender);
+  requestPasswordReset("a@example.com");
+  var token=passwordResetToken();
+  assertNotEquals(token,usuarios.findById(a.getId()).orElseThrow().getPasswordResetTokenHash());
+ }
+
+ @Test void validPasswordResetRevokesPreviousTokensAndOldPassword() throws Exception {
+  requestPasswordReset("a@example.com");
+  String token=passwordResetToken();
+  var stored=usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(0,stored.getPasswordResetFailedAttempts());
+  assertNotNull(stored.getPasswordResetExpiresAt());
+  mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"token\":\""+token+"\",\"newPassword\":\"novaSenhaABC123\"}"))
+       .andExpect(status().isNoContent());
+  var after=usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(1L,after.getTokenVersion());
+  assertNull(after.getPasswordResetTokenHash());
+  assertTrue(encoder.matches("novaSenhaABC123",after.getSenha()));
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+       .andExpect(status().isUnauthorized());
+  mvc.perform(post("/auth/login").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
+       .andExpect(status().isUnauthorized());
+  mvc.perform(post("/auth/login").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"senha\":\"novaSenhaABC123\"}"))
+       .andExpect(status().isOk());
+  mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"token\":\""+token+"\",\"newPassword\":\"qualquerSenha123\"}"))
+       .andExpect(status().isBadRequest());
+ }
+
+ @Test void wrongResetTokenPersistsAttemptCounterAndRevokesAtFive() throws Exception {
+  requestPasswordReset("a@example.com");
+  String valid=passwordResetToken();
+  for(int i=1;i<=5;i++){
+   mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+        .content("{\"email\":\"a@example.com\",\"token\":\"wrong-token-that-is-long-enough-1234567890\",\"newPassword\":\"novaSenhaABC123\"}"))
+        .andExpect(status().isBadRequest());
+   assertEquals(i,usuarios.findById(a.getId()).orElseThrow().getPasswordResetFailedAttempts());
+  }
+  assertNull(usuarios.findById(a.getId()).orElseThrow().getPasswordResetTokenHash());
+  mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"token\":\""+valid+"\",\"newPassword\":\"novaSenhaABC123\"}"))
+       .andExpect(status().isBadRequest());
+  assertEquals(0L,usuarios.findById(a.getId()).orElseThrow().getTokenVersion());
+ }
+
+ @Test void expiredPasswordResetTokenDoesNotChangePassword() throws Exception {
+  requestPasswordReset("a@example.com");
+  String token=passwordResetToken();
+  var user=usuarios.findById(a.getId()).orElseThrow();
+  user.setPasswordResetExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1));
+  usuarios.saveAndFlush(user);
+  mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"token\":\""+token+"\",\"newPassword\":\"novaSenhaABC123\"}"))
+       .andExpect(status().isBadRequest());
+  assertTrue(encoder.matches("senhaTeste123",usuarios.findById(a.getId()).orElseThrow().getSenha()));
+ }
+
+ @Test void passwordResetCooldownReturnsSameAcceptedStatusWithoutNewEmail() throws Exception {
+  requestPasswordReset("a@example.com");
+  requestPasswordReset("a@example.com");
+  org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
+       .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+ }
+
+ @Test void weakRecoveredPasswordIsRejectedByValidation() throws Exception {
+  requestPasswordReset("a@example.com");
+  String token=passwordResetToken();
+  mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
+       .content("{\"email\":\"a@example.com\",\"token\":\""+token+"\",\"newPassword\":\"123\"}"))
+       .andExpect(status().isBadRequest());
+  assertNotNull(usuarios.findById(a.getId()).orElseThrow().getPasswordResetTokenHash());
  }
 
 }
