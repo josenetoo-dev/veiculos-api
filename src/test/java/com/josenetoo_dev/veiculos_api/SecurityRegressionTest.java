@@ -1006,4 +1006,65 @@ class SecurityRegressionTest {
   assertNotNull(usuarios.findById(a.getId()).orElseThrow().getPasswordResetTokenHash());
  }
 
+
+ // Fase 5B — impedir vazamento por URL direta após moderação ou suspensão.
+ private String uploadPhotoAndReturnFilename() throws Exception {
+  mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos")
+       .file(image("photo.png","image/png"))
+       .header("Authorization",bearer(tokenB)))
+       .andExpect(status().isCreated());
+  var image=fotos.findAll().get(0);
+  String name=image.getUrl().substring(image.getUrl().lastIndexOf('/')+1);
+  assertTrue(name.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)"));
+  assertTrue(fotos.findFirstByUrlEndingWith("/uploads/fotos/"+name).isPresent(),
+       "Photo lookup must find the image by canonical path");
+  return name;
+ }
+
+ @Test void publicPhotoAccessibleOnlyAfterListingIsApproved() throws Exception {
+  String filename=uploadPhotoAndReturnFilename();
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenA)))
+       .andExpect(status().isNotFound());
+  authenticate(b.getId());
+  try {
+   var direct=context.getBean(com.josenetoo_dev.veiculos_api.service.FotoPublicaService.class).read(filename);
+   assertArrayEquals(Files.readAllBytes(UPLOAD.resolve(filename)),direct.bytes());
+  } finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
+  var own=mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+       .andExpect(handler().handlerType(com.josenetoo_dev.veiculos_api.controller.FotoPublicaController.class))
+       .andExpect(status().isOk())
+       .andExpect(header().string("Cache-Control","no-store, max-age=0"))
+       .andExpect(header().string("X-Content-Type-Options","nosniff"))
+       .andExpect(content().contentTypeCompatibleWith("image/png")).andReturn();
+  assertArrayEquals(Files.readAllBytes(UPLOAD.resolve(filename)),
+                    own.getResponse().getContentAsByteArray());
+  anuncio.setStatus(StatusAnuncio.ATIVO);anuncios.saveAndFlush(anuncio);
+  mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isOk());
+ }
+
+ @Test void directPhotoUrlCannotBypassSuspensionAndArchiving() throws Exception {
+  String filename=uploadPhotoAndReturnFilename();
+  anuncio.setStatus(StatusAnuncio.SUSPENSO);anuncios.saveAndFlush(anuncio);
+  mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenA)))
+       .andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk());
+  mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isNoContent());
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isNotFound());
+  assertFalse(Files.exists(UPLOAD.resolve(filename)));
+ }
+
+ @Test void orphanedAndNonCanonicalFilesAreNotServed() throws Exception {
+  String filename=java.util.UUID.randomUUID()+".png";
+  Files.write(UPLOAD.resolve(filename),new byte[]{1,2,3,4});
+  mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/other-file.png")).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/not-a-uuid.jpg")).andExpect(status().isNotFound());
+ }
+
 }

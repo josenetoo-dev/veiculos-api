@@ -1,9 +1,9 @@
 name: Auto Minas backend checks
 on:
   push:
-    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias, feature/fase-5-recuperacao-senha]
+    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias, feature/fase-5-recuperacao-senha, security/fase-5b-midia-autorizada]
   pull_request:
-    branches: [main, security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias]
+    branches: [main, security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias, feature/fase-5-recuperacao-senha]
 permissions:
   contents: read
 jobs:
