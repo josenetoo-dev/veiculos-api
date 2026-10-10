@@ -117,6 +117,11 @@ public class EmailChangeService {
         user.setContactEmailTokenHash(null);
         user.setContactEmailExpiresAt(null);
         user.setContactEmailRequestedAt(null);
+        // Códigos de recuperação para o endereço anterior não continuam válidos.
+        user.setPasswordResetTokenHash(null);
+        user.setPasswordResetExpiresAt(null);
+        user.setPasswordResetRequestedAt(null);
+        user.setPasswordResetFailedAttempts(0);
         user.setTokenVersion(user.getTokenVersion() + 1); // Revoga todos os tokens anteriores.
         usuarios.saveAndFlush(user);
     }
