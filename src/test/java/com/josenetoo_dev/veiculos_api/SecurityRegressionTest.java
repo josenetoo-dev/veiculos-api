@@ -1123,7 +1123,7 @@ class SecurityRegressionTest {
       .andExpect(status().isConflict());
   mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenC))
       .contentType("application/json")
-      .content("{\\"anuncioId\\":"+id+",\\"valor\\":50000,\\"descricao\\":\\"Teste de proposta\\"}"))
+       .content("{\"anuncioId\":"+id+",\"valor\":50000,\"descricao\":\"Teste de proposta\"}"))
       .andExpect(status().isConflict());
  }
 
