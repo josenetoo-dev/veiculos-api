@@ -145,11 +145,17 @@ public class BiometriaService {
         if(item.getStatus()!=StatusVerificacao.RASCUNHO && item.getStatus()!=StatusVerificacao.REJEITADA) {
             throw new VerificacaoIndisponivelException("Verificação já enviada");
         }
+        // Persistido sob lock na verificação: no máximo 1 consulta AWS a cada 3s.
+        if(sessao.getConsultadoEm()!=null && sessao.getConsultadoEm().isAfter(now().minusSeconds(3))) {
+            return SessaoBiometriaResponse.from(sessao);
+        }
         EvidenciaVerificacao doc=fotoFrente(verificationId);
         if(!doc.getId().equals(sessao.getDocumentoEvidenciaId())) {
             concluir(sessao,StatusSessaoBiometria.INCONCLUSIVA);
             return SessaoBiometriaResponse.from(sessao);
         }
+        sessao.setConsultadoEm(now());
+        sessoes.saveAndFlush(sessao);
         // Arquivo só é lido após controle de acesso; nenhuma imagem/score vai ao cliente.
         var outcome=provider.consultar(sessionId,storage.read(doc.getArquivoChave()),
                 livenessThreshold,faceThreshold);
