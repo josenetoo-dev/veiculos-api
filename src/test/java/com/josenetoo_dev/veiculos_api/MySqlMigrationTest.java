@@ -234,4 +234,29 @@ class MySqlMigrationTest {
         assertEquals(0,m.migrate().migrationsExecuted);
     }
 
+
+    @Test void passwordRecoveryMigrationAddsTokenMetadataWithoutChangingPasswords() throws Exception {
+        String url=testUrl("recovery");
+        assertEquals(9,flyway(url,"9").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (9901,'Legacy','reset@example.com','legacy-hash','38999999999','USER','ACTIVE',5)");
+        }
+        var migration=flyway(url,"10");
+        assertEquals(1,migration.migrate().migrationsExecuted);
+        assertTrue(migration.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+             var rows=st.executeQuery("SELECT id,email,senha,token_version,password_reset_token_hash,password_reset_expires_at,password_reset_requested_at,password_reset_failed_attempts FROM usuario WHERE id=9901")) {
+            assertTrue(rows.next());
+            assertEquals("reset@example.com",rows.getString("email"));
+            assertEquals("legacy-hash",rows.getString("senha"));
+            assertEquals(5,rows.getLong("token_version"));
+            assertNull(rows.getString("password_reset_token_hash"));
+            assertNull(rows.getTimestamp("password_reset_expires_at"));
+            assertNull(rows.getTimestamp("password_reset_requested_at"));
+            assertEquals(0,rows.getInt("password_reset_failed_attempts"));
+            assertFalse(rows.next());
+        }
+        assertEquals(0,migration.migrate().migrationsExecuted);
+    }
+
 }
