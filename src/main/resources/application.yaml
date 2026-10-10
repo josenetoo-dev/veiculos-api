@@ -33,6 +33,12 @@ jwt:
   secret: ${JWT_SECRET:}
   expiration-ms: 1800000
 verification:
+  biometric:
+    enabled: ${BIOMETRIC_ENABLED:false}
+    region: ${BIOMETRIC_AWS_REGION:sa-east-1}
+    liveness-threshold: ${BIOMETRIC_LIVENESS_THRESHOLD:90}
+    face-similarity-threshold: ${BIOMETRIC_FACE_SIMILARITY_THRESHOLD:90}
+    policy-version: ${BIOMETRIC_POLICY_VERSION:biometria-v1}
   storage:
     dir: ${VERIFICATION_STORAGE_DIR:private-verification-documents}
     key: ${VERIFICATION_STORAGE_KEY:}
