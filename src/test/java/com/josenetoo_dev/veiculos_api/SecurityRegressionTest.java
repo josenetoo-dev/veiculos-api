@@ -1033,6 +1033,7 @@ class SecurityRegressionTest {
    assertArrayEquals(Files.readAllBytes(UPLOAD.resolve(filename)),direct.bytes());
   } finally {org.springframework.security.core.context.SecurityContextHolder.clearContext();}
   var own=mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+       .andExpect(handler().handlerType(com.josenetoo_dev.veiculos_api.controller.FotoPublicaController.class))
        .andExpect(status().isOk())
        .andExpect(header().string("Cache-Control","no-store, max-age=0"))
        .andExpect(header().string("X-Content-Type-Options","nosniff"))
