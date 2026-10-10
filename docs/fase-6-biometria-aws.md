@@ -15,7 +15,7 @@ Um resultado `APROVADA_TECNICAMENTE` é **um sinal técnico**, **não** prova le
 
 - AWS SDK for Java v2 `software.amazon.awssdk:rekognition` e adapter isolado `AwsRekognitionBiometricProvider` só ativado por configuração. Usa credenciais IAM do ambiente (default provider chain), nunca segredos no repositório.
 - `DisabledBiometricProvider` retorna 503, sem chamar a AWS, se `BIOMETRIC_ENABLED=false`.
-- `V11__face_liveness_sessions.sql` adiciona as tabelas `sessao_biometria` e `dispensa_biometria` (justificativas do fallback humano) com UUID da sessão, vínculo à verificação, ID da evidência original, status técnico, datas, aceite registrado e versão de política. **Não armazena selfies, vídeos, embeddings faciais ou scores** no MySQL.
+- `V11__face_liveness_sessions.sql` adiciona as tabelas `sessao_biometria` e `dispensa_biometria` (justificativas do fallback humano) com UUID da sessão, vínculo à verificação, ID da evidência original, status técnico, datas, horário do último polling, aceite registrado e versão de política. **Não armazena selfies, vídeos, embeddings faciais ou scores** no MySQL.
 - A frente do documento já é armazenada em `PrivateEvidenceStorage` criptografado; o backend a recupera após autenticar e verificar a titularidade da solicitação.
 - `CreateFaceLivenessSession` cria o identificador; o frontend o usa com o componente `FaceLivenessDetector` da AWS Amplify; quando o callback terminar, o backend chama `GetFaceLivenessSessionResults` e, somente com prova de vida satisfatória, `CompareFaces`.
 - Limiares configuráveis: 90/100 como **valores técnicos iniciais sujeitos a calibração**. Scores e imagens de referência não são retornados ao navegador, persistidos no banco ou incluídos em logs pela implementação.
@@ -23,6 +23,7 @@ Um resultado `APROVADA_TECNICAMENTE` é **um sinal técnico**, **não** prova le
 - O resultado só se aplica ao **mesmo ID da evidência documental** usado quando a sessão foi iniciada. Se o documento for excluído e reenviado, mesmo com foto idêntica, o match anterior deixa de autorizar a submissão.
 - Exceção de acessibilidade: somente ADMIN ativo, distinto do solicitante, pode registrar **dispensa auditável** vinculada ao documento atual, com justificativa de 10 a 500 caracteres. A dispensa só permite enviar para análise humana — não produz um status de aprovação técnica nem confirma identidade.
 - No máximo **3 sessões por verificação/24 h**, com intervalo mínimo de **1 minuto**; o usuário não escolhe sessionId. Sessões não finalizadas expiram após **3 minutos**, seguindo o limite da AWS.
+- Polling de resultados protegido: no máximo **1 consulta AWS a cada 3 segundos por sessão**, registrando `consultado_em` no banco; respostas intermediárias continuam CRIADA.
 - `VerificacaoService.enviar` impede envio de identidade sem resultado técnico aprovado nas últimas 24 h **somente quando a funcionalidade está habilitada**. A decisão administrativa posterior exige histórico compatível com a submissão e continua sendo humana.
 
 ## Endpoints (JWT obrigatório)
