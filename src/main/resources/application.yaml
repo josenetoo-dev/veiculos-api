@@ -45,6 +45,9 @@ verification:
 upload:
   dir: uploads/fotos
 app:
+  staging:
+    demo:
+      enabled: ${STAGING_DEMO_ENABLED:false}
   password-reset:
     enabled: ${PASSWORD_RESET_ENABLED:false}
     from: ${PASSWORD_RESET_FROM:}
