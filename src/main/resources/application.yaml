@@ -39,6 +39,9 @@ verification:
 upload:
   dir: uploads/fotos
 app:
+  password-reset:
+    enabled: ${PASSWORD_RESET_ENABLED:false}
+    from: ${PASSWORD_RESET_FROM:}
   contact-email:
     enabled: ${CONTACT_EMAIL_ENABLED:false}
     from: ${CONTACT_EMAIL_FROM:}

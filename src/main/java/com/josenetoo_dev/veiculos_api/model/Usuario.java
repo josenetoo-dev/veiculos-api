@@ -69,5 +69,18 @@ public class Usuario {
     @Column(name = "contact_email_verified_at")
     private LocalDateTime contactEmailVerifiedAt;
 
+    // Token de recuperação: somente hash no banco, desafio de uso único.
+    @Column(name = "password_reset_token_hash", length = 64)
+    private String passwordResetTokenHash;
+
+    @Column(name = "password_reset_expires_at")
+    private LocalDateTime passwordResetExpiresAt;
+
+    @Column(name = "password_reset_requested_at")
+    private LocalDateTime passwordResetRequestedAt;
+
+    @Column(name = "password_reset_failed_attempts", nullable = false)
+    private int passwordResetFailedAttempts = 0;
+
     private LocalDateTime criadoEm = LocalDateTime.now();
 }
