@@ -64,6 +64,7 @@ class BiometriaRegressionTest {
     @Autowired VerificacaoRepository cases;
     @Autowired EvidenciaVerificacaoRepository evidence;
     @Autowired SessaoBiometriaRepository sessions;
+    @Autowired DispensaBiometriaRepository waivers;
     @Autowired EventoVerificacaoRepository events;
     @Autowired JwtUtil jwt;
     @Autowired PasswordEncoder encoder;
@@ -74,6 +75,7 @@ class BiometriaRegressionTest {
 
     @BeforeEach void setUp() throws Exception {
         sessions.deleteAll();
+        waivers.deleteAll();
         evidence.deleteAll();
         events.deleteAll();
         cases.deleteAll();
@@ -239,4 +241,67 @@ class BiometriaRegressionTest {
         verify(provider,never()).criarSessao();
         assertEquals(0,events.count());
     }
+
+    @Test void accessibilityExceptionOnlyAdminAndNeverApprovesAutomatically() throws Exception {
+        documents();
+        String path="/v1/verificacoes/"+caseId+"/biometria/dispensar";
+        String request="{\"motivo\":\"Câmera indisponível; revisão acessível solicitada\"}";
+        mvc.perform(post(path).header("Authorization","Bearer "+sellerToken)
+            .contentType("application/json").content(request))
+            .andExpect(status().isForbidden());
+        mvc.perform(post(path).header("Authorization","Bearer "+staffToken)
+            .contentType("application/json").content(request))
+            .andExpect(status().isForbidden());
+        reviewer.setRole(Role.ADMIN);users.saveAndFlush(reviewer);
+        mvc.perform(post(path).header("Authorization","Bearer "+staffToken)
+            .contentType("application/json").content(request))
+            .andExpect(status().isNoContent());
+        assertEquals(1,waivers.count());
+        var waiver=waivers.findAll().get(0);
+        assertEquals(caseId,waiver.getVerificacao().getId());
+        assertEquals(reviewer.getId(),waiver.getRevisorId());
+        assertTrue(waiver.getMotivo().contains("Câmera"));
+        assertEquals(StatusVerificacao.RASCUNHO,cases.findById(caseId).orElseThrow().getStatus());
+        mvc.perform(post(path).header("Authorization","Bearer "+staffToken)
+            .contentType("application/json").content(request))
+            .andExpect(status().isConflict());
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/enviar")
+            .header("Authorization","Bearer "+sellerToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("EM_ANALISE"));
+        // Administrador ainda tem que revisar e aprovar documentos manualmente.
+        assertEquals(0,events.count());
+        mvc.perform(post("/v1/verificacoes/revisao/"+caseId+"/aprovar")
+            .header("Authorization","Bearer "+staffToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APROVADA"));
+        verify(provider,never()).criarSessao();
+    }
+
+    @Test void previousWaiverCannotCoverNewIdentityDocument() throws Exception {
+        documents();
+        reviewer.setRole(Role.ADMIN);users.saveAndFlush(reviewer);
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/biometria/dispensar")
+            .header("Authorization","Bearer "+staffToken).contentType("application/json")
+            .content("{\"motivo\":\"Dispensa registrada para análise humana\"}"))
+            .andExpect(status().isNoContent());
+        var previous=evidence.findByVerificacaoId(caseId).stream()
+            .filter(e->e.getTipo()==TipoEvidencia.IDENTIDADE_FRENTE).findFirst().orElseThrow();
+        mvc.perform(delete("/v1/verificacoes/"+caseId+"/evidencias/"+previous.getId())
+            .header("Authorization","Bearer "+sellerToken)).andExpect(status().isNoContent());
+        addDocument(TipoEvidencia.IDENTIDADE_FRENTE);
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/enviar")
+            .header("Authorization","Bearer "+sellerToken)).andExpect(status().isConflict());
+        assertEquals(1,waivers.count());
+    }
+
+    @Test void adminCannotWaiveOwnBiometricReview() throws Exception {
+        documents();
+        seller.setRole(Role.ADMIN); users.saveAndFlush(seller);
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/biometria/dispensar")
+            .header("Authorization","Bearer "+sellerToken).contentType("application/json")
+            .content("{\"motivo\":\"Revisão própria não é permitida\"}"))
+            .andExpect(status().isForbidden());
+        assertEquals(0,waivers.count());
+    }
+
 }
