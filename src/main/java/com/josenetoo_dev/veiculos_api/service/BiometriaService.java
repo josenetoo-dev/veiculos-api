@@ -107,11 +107,11 @@ public class BiometriaService {
         EvidenciaVerificacao documento=fotoFrente(verificationId);
         LocalDateTime agora=now();
         if(sessoes.countByVerificacaoIdAndCriadoEmAfter(verificationId,agora.minusDays(1))>=MAX_SESSOES_24H) {
-            throw new com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeThrottledException();
+            throw new BiometriaLimiteExcedidoException();
         }
         var anterior=sessoes.findFirstByVerificacaoIdOrderByCriadoEmDesc(verificationId);
         if(anterior.isPresent() && anterior.get().getCriadoEm().isAfter(agora.minusMinutes(1))) {
-            throw new com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeThrottledException();
+            throw new BiometriaLimiteExcedidoException();
         }
         String id=provider.criarSessao();
         try { UUID.fromString(id); }
