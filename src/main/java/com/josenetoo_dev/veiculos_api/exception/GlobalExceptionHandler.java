@@ -38,6 +38,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail mailThrottled(Exception ex) {
         return problem(429, "Aguarde antes de pedir outro código", "EMAIL_CHANGE_RATE_LIMIT");
     }
+    @ExceptionHandler(BiometriaIndisponivelException.class)
+    public ProblemDetail biometricUnavailable(Exception ex) {
+        return problem(503, "Biometria temporariamente indisponível", "BIOMETRIC_UNAVAILABLE");
+    }
+
     @ExceptionHandler(ArmazenamentoPrivadoIndisponivelException.class)
     public ProblemDetail privateEvidenceStorageUnavailable(Exception ex) {
         return problem(503, "Recebimento de documentos temporariamente indisponível", "PRIVATE_STORAGE_UNAVAILABLE");
