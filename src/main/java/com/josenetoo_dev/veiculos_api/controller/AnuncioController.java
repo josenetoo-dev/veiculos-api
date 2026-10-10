@@ -91,6 +91,24 @@ public class AnuncioController {
                 .ok(anuncioService.atualizarAnuncio(request, id));
     }
 
+    @Operation(summary = "Pausar anúncio ativo (somente proprietário)")
+    @PostMapping("/{id}/pausar")
+    public ResponseEntity<AnuncioResponse> pausar(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.pausarAnuncio(id));
+    }
+
+    @Operation(summary = "Solicitar reativação; volta a PENDENTE para moderação")
+    @PostMapping("/{id}/reativar")
+    public ResponseEntity<AnuncioResponse> reativar(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.solicitarReativacao(id));
+    }
+
+    @Operation(summary = "Marcar como vendido (irreversível)")
+    @PostMapping("/{id}/vendido")
+    public ResponseEntity<AnuncioResponse> vendido(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.marcarVendido(id));
+    }
+
     @Operation(summary = "Deletar anuncio")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarAnuncio(@PathVariable Long id) {

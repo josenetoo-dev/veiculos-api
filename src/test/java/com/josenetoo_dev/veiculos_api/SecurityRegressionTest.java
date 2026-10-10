@@ -1077,4 +1077,89 @@ class SecurityRegressionTest {
         .andExpect(jsonPath("$.code").value("BIOMETRIC_UNAVAILABLE"));
  }
 
+
+ @Test void onlyOwnerMayPauseOrResumeAndResumptionRequiresModeration() throws Exception {
+  long id=anuncio.getId();
+  String url="/v1/anuncio/"+id;
+  mvc.perform(post(url+"/pausar")).andExpect(status().isUnauthorized());
+  mvc.perform(post(url+"/pausar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isForbidden());
+  mvc.perform(post(url+"/pausar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAUSADO"));
+  Anuncio paused=anuncios.findById(id).orElseThrow();
+  assertEquals(b.getId(),paused.getStatusAtualizadoPorId());
+  assertNotNull(paused.getStatusAtualizadoEm());
+  mvc.perform(get(url)).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio")).andExpect(status().isOk())
+      .andExpect(jsonPath("$.content.length()").value(0));
+  mvc.perform(post(url+"/pausar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isConflict());
+  mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isForbidden());
+  mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+  mvc.perform(get(url)).andExpect(status().isNotFound());
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isConflict());
+  mvc.perform(get(url).header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+  assertEquals(1,propostas.count());
+ }
+
+ @Test void onlyOwnerCanMarkSoldAndHistoricOffersRemain() throws Exception {
+  long id=anuncio.getId();
+  String url="/v1/anuncio/"+id;
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isForbidden());
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("VENDIDO"));
+  assertEquals(1,propostas.count());
+  assertEquals(StatusAnuncio.VENDIDO,anuncios.findById(id).orElseThrow().getStatus());
+  assertEquals(b.getId(),anuncios.findById(id).orElseThrow().getStatusAtualizadoPorId());
+  mvc.perform(get(url)).andExpect(status().isNotFound());
+  mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isConflict());
+  mvc.perform(post(url+"/pausar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isConflict());
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenC))
+      .contentType("application/json")
+       .content("{\"anuncioId\":"+id+",\"valor\":50000,\"descricao\":\"Teste de proposta\"}"))
+      .andExpect(status().isConflict());
+ }
+
+ @Test void listingLocationIsPersistedAndValidatedWithoutInventingLegacyValues() throws Exception {
+  String json = """
+  {"marca":"Chevrolet","modelo":"Onix","versao":"LT","ano":2022,
+   "preco":64900,"quilometragem":50000,"cor":"Branco","combustivel":"FLEX",
+   "cambio":"MANUAL","categoria":"SEMINOVOS","segundaMao":true,
+   "titulo":"Onix LT","descricao":"Carro para homologação",
+   "documentacao":"A verificar","garantia":"Não informada",
+   "cidade":"Várzea da Palma","uf":"MG"}""";
+  String data=mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
+      .contentType("application/json").content(json))
+      .andExpect(status().isCreated())
+      .andExpect(jsonPath("$.cidade").value("Várzea da Palma"))
+      .andExpect(jsonPath("$.uf").value("MG"))
+      .andExpect(jsonPath("$.status").value("PENDENTE"))
+      .andReturn().getResponse().getContentAsString();
+  Long id=((Number)com.jayway.jsonpath.JsonPath.read(data,"$.id")).longValue();
+  var saved=anuncios.findById(id).orElseThrow();
+  assertEquals("Várzea da Palma",saved.getCidade());
+  assertEquals("MG",saved.getUf());
+  String updated=json.replace("Várzea da Palma","Pirapora");
+  mvc.perform(put("/v1/anuncio/"+id).header("Authorization",bearer(tokenB))
+      .contentType("application/json").content(updated))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.cidade").value("Pirapora"))
+      .andExpect(jsonPath("$.uf").value("MG"));
+  mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
+      .contentType("application/json").content(json.replace("\"uf\":\"MG\"","\"uf\":\"ZZ\"")))
+      .andExpect(status().isBadRequest());
+  mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
+      .contentType("application/json").content(json.replace("\"cidade\":\"Várzea da Palma\",","")))
+      .andExpect(status().isBadRequest());
+  assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getCidade());
+  assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getUf());
+ }
+
+
 }

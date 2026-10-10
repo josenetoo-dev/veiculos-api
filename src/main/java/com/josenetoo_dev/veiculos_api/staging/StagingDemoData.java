@@ -38,6 +38,8 @@ public class StagingDemoData implements ApplicationRunner {
     private String adminPassword;
     @Value("${STAGING_DEMO_BUYER_PASSWORD:}")
     private String buyerPassword;
+    @Value("${STAGING_DEMO_SELLER_PASSWORD:}")
+    private String sellerPassword;
 
     private static final String ADMIN_EMAIL = "admin-demo@auto-minas.test";
     private static final String SELLER_EMAIL = "vendedor-demo@auto-minas.test";
@@ -46,13 +48,13 @@ public class StagingDemoData implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (adminPassword.length() < 16 || buyerPassword.length() < 16) {
+        if (adminPassword.length() < 16 || buyerPassword.length() < 16 || sellerPassword.length() < 16) {
             throw new IllegalStateException("Credenciais de homologação não configuradas");
         }
         Usuario admin = createIfMissing(ADMIN_EMAIL, "Administração — Teste",
                 adminPassword, Role.ADMIN);
         Usuario seller = createIfMissing(SELLER_EMAIL, "Vendedor de demonstração",
-                UUID.randomUUID().toString(), Role.USER);
+                sellerPassword, Role.USER);
         createIfMissing(BUYER_EMAIL, "Comprador de teste",
                 buyerPassword, Role.USER);
 
@@ -85,6 +87,8 @@ public class StagingDemoData implements ApplicationRunner {
             ad.setAno(v.year());
             ad.setQuilometragem(v.mileage());
             ad.setCor(v.color());
+            ad.setCidade("Várzea da Palma");
+            ad.setUf("MG");
             ad.setCombustivel(v.fuel());
             ad.setCambio(v.transmission());
             ad.setPreco(BigDecimal.valueOf(v.price()));

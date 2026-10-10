@@ -64,6 +64,20 @@ public class Anuncio {
     @Column(nullable = false)
     private String cor;
 
+    // Localidade do veículo informada pelo anunciante, não endereço do proprietário.
+    // Nullable para preservar anúncios legados durante migração aditiva V12.
+    @Column(name = "cidade", length = 100)
+    private String cidade;
+
+    @Column(name = "uf", length = 2)
+    private String uf;
+
+    @Column(name = "status_atualizado_em")
+    private LocalDateTime statusAtualizadoEm;
+
+    @Column(name = "status_atualizado_por_id")
+    private Long statusAtualizadoPorId;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private TipoCombustivel combustivel;

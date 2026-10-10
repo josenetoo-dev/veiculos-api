@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
     "app.staging.demo.enabled=true",
     "STAGING_DEMO_ADMIN_PASSWORD=staging-only-admin-password-123",
     "STAGING_DEMO_BUYER_PASSWORD=staging-only-buyer-password-123",
+    "STAGING_DEMO_SELLER_PASSWORD=staging-only-seller-password-123",
     "verification.biometric.enabled=false"
 })
 @ActiveProfiles("staging")
@@ -37,12 +38,14 @@ class StagingDemoDataTest {
         assertEquals(5, ads.count());
         var admin=users.findByEmail("admin-demo@auto-minas.test").orElseThrow();
         var buyer=users.findByEmail("comprador-demo@auto-minas.test").orElseThrow();
+        var seller=users.findByEmail("vendedor-demo@auto-minas.test").orElseThrow();
         assertEquals(Role.ADMIN, admin.getRole());
         assertEquals(Role.USER, buyer.getRole());
         assertEquals(StatusUsuario.ACTIVE, admin.getStatus());
         assertEquals(StatusUsuario.ACTIVE, buyer.getStatus());
         assertTrue(passwords.matches("staging-only-admin-password-123",admin.getSenha()));
         assertTrue(passwords.matches("staging-only-buyer-password-123",buyer.getSenha()));
+        assertTrue(passwords.matches("staging-only-seller-password-123",seller.getSenha()));
         assertEquals(5, ads.findByStatus(StatusAnuncio.ATIVO,
                 org.springframework.data.domain.Pageable.unpaged()).getTotalElements());
         ads.findAll().forEach(ad -> {
