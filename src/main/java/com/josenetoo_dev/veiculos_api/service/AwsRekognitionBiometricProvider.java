@@ -19,10 +19,18 @@ import software.amazon.awssdk.services.rekognition.model.*;
 public class AwsRekognitionBiometricProvider implements BiometricProvider {
     private final RekognitionClient client;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AwsRekognitionBiometricProvider(@Value("${verification.biometric.region}") String region) {
-        this.client = RekognitionClient.builder()
+        this(RekognitionClient.builder()
                 .region(Region.of(region))
-                .build();
+                .overrideConfiguration(c->c.apiCallTimeout(java.time.Duration.ofSeconds(12))
+                    .apiCallAttemptTimeout(java.time.Duration.ofSeconds(9)))
+                .build());
+    }
+
+    // Package-private constructor allows contract tests without credentials or AWS calls.
+    AwsRekognitionBiometricProvider(RekognitionClient client) {
+        this.client = client;
     }
 
     @Override
