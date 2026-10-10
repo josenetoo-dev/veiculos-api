@@ -259,4 +259,43 @@ class MySqlMigrationTest {
         assertEquals(0,migration.migrate().migrationsExecuted);
     }
 
+
+    @Test void biometricsV11AddsOnlySessionMetadataAndPreservesIdentity() throws Exception {
+        String url=testUrl("biometrics");
+        assertEquals(10,flyway(url,"10").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (9701,'Seller','biometria@example.com','hash','38999999999','USER','ACTIVE',1)");
+            st.execute("INSERT INTO verificacao(id,solicitante_id,usuario_identidade_id,tipo,status,criado_em) VALUES (9702,9701,9701,'IDENTIDADE','RASCUNHO',NOW())");
+        }
+        var migrated=flyway(url,"11");
+        assertEquals(1,migrated.migrate().migrationsExecuted);
+        assertTrue(migrated.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO sessao_biometria(id,verificacao_id,documento_evidencia_id,status,criado_em,aceite_biometria_em,versao_politica) VALUES ('00000000-0000-4000-8000-000000000001',9702,9703,'CRIADA',NOW(),NOW(),'biometria-v1')");
+            st.execute("INSERT INTO dispensa_biometria(verificacao_id,documento_evidencia_id,revisor_id,motivo,criado_em) VALUES (9702,9703,9704,'Dispensa humana de exemplo autorizada',NOW())");
+            assertThrows(SQLException.class, () -> st.execute("INSERT INTO dispensa_biometria(verificacao_id,documento_evidencia_id,revisor_id,motivo,criado_em) VALUES (9702,9703,9704,'Duplicidade proibida',NOW())"));
+            try(var rows=st.executeQuery("SELECT documento_evidencia_id,revisor_id FROM dispensa_biometria WHERE verificacao_id=9702")) {
+                assertTrue(rows.next());assertEquals(9703,rows.getLong(1));assertEquals(9704,rows.getLong(2));
+                assertFalse(rows.next());
+            }
+
+            try(var rows=st.executeQuery("SELECT s.status,s.verificacao_id,s.documento_evidencia_id,s.versao_politica,v.status FROM sessao_biometria s JOIN verificacao v ON v.id=s.verificacao_id")) {
+                assertTrue(rows.next());
+                assertEquals("CRIADA",rows.getString(1));
+                assertEquals(9702,rows.getLong(2));
+                assertEquals(9703,rows.getLong(3));
+                assertEquals("biometria-v1",rows.getString(4));
+                assertEquals("RASCUNHO",rows.getString(5));
+                assertFalse(rows.next());
+            }
+            try(var rows=st.executeQuery("SELECT email,senha,token_version FROM usuario WHERE id=9701")) {
+                assertTrue(rows.next());
+                assertEquals("biometria@example.com",rows.getString(1));
+                assertEquals("hash",rows.getString(2));
+                assertEquals(1,rows.getLong(3));
+            }
+        }
+        assertEquals(0,migrated.migrate().migrationsExecuted);
+    }
+
 }
