@@ -65,6 +65,22 @@ public class AnuncioRequest {
     @Size(max = 255)
     private String cor;
 
+    // O backend antigo não armazenava localização. Ambos opcionais apenas
+    // para compatibilidade com anúncios legados, mas nunca parcialmente.
+    @Size(max = 100)
+    private String cidade;
+
+    @Pattern(regexp = "AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO",
+        message = "UF deve ser uma sigla brasileira válida em letras maiúsculas")
+    private String uf;
+
+    @AssertTrue(message = "Informe cidade e UF juntas")
+    public boolean isLocalizacaoConsistente() {
+        boolean hasCity = cidade != null && !cidade.isBlank();
+        boolean hasUf = uf != null && !uf.isBlank();
+        return hasCity == hasUf;
+    }
+
     @NotNull
     private TipoCombustivel combustivel;
 
