@@ -13,3 +13,16 @@ CREATE TABLE sessao_biometria (
  CONSTRAINT fk_biometria_verificacao FOREIGN KEY (verificacao_id) REFERENCES verificacao(id),
  INDEX idx_biometria_verificacao_criado (verificacao_id, criado_em)
 );
+
+-- Recurso de acessibilidade/contestação: dispensa por ADMIN com justificativa.
+-- Este evento NÃO implica aprovação da identidade, só acesso à revisão humana.
+CREATE TABLE dispensa_biometria (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ verificacao_id BIGINT NOT NULL,
+ documento_evidencia_id BIGINT NOT NULL,
+ revisor_id BIGINT NOT NULL,
+ motivo VARCHAR(500) NOT NULL,
+ criado_em DATETIME(6) NOT NULL,
+ CONSTRAINT fk_dispensa_biometria_verificacao FOREIGN KEY (verificacao_id) REFERENCES verificacao(id),
+ CONSTRAINT uq_dispensa_documento UNIQUE (verificacao_id, documento_evidencia_id)
+);
