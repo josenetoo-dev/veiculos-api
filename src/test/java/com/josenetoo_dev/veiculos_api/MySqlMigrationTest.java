@@ -298,4 +298,38 @@ class MySqlMigrationTest {
         assertEquals(0,migrated.migrate().migrationsExecuted);
     }
 
+
+    @Test void v12LocationAndOwnerStatusMigrationPreservesLegacyListingAndNegotiation() throws Exception {
+        String url=testUrl("location_state");
+        assertEquals(11,flyway(url,"11").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (1201,'Seller','v12@example.com','unchanged','38999999999','USER','ACTIVE',0)");
+            st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (1202,1201,'Chevrolet','Onix','LT',2022,58100,'Branco','FLEX','MANUAL',true)");
+            st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (1203,'AM-1203','LT',false,'Regular','Nenhuma','Onix','Antes da migração',64000,'Chevrolet','Onix',2022,58100,'Branco','FLEX',true,'PAUSADO','MANUAL','SEMINOVOS',NOW(),1201,1202)");
+            st.execute("INSERT INTO proposta(id,valor,descricao,status,criado_em,contraproposta_feita,anunciante_id,comprador_id) VALUES (1204,63000,'Oferta preservada','PENDENTE',NOW(),false,1203,1201)");
+        }
+        var upgraded=flyway(url,"12");
+        assertEquals(1,upgraded.migrate().migrationsExecuted);
+        assertTrue(upgraded.validateWithResult().validationSuccessful);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            try(var rows=st.executeQuery("SELECT a.codigo,a.status,a.cidade,a.uf,a.status_atualizado_em,a.status_atualizado_por_id,p.descricao FROM anuncio a JOIN proposta p ON p.anunciante_id=a.id WHERE a.id=1203")) {
+                assertTrue(rows.next());
+                assertEquals("AM-1203",rows.getString(1));
+                assertEquals("PAUSADO",rows.getString(2));
+                assertNull(rows.getString(3));
+                assertNull(rows.getString(4));
+                assertNull(rows.getTimestamp(5));
+                assertNull(rows.getObject(6));
+                assertEquals("Oferta preservada",rows.getString(7));
+                assertFalse(rows.next());
+            }
+            st.execute("UPDATE anuncio SET cidade='Várzea da Palma',uf='MG',status_atualizado_em=NOW(),status_atualizado_por_id=1201 WHERE id=1203");
+            try(var rows=st.executeQuery("SELECT cidade,uf,status_atualizado_por_id FROM anuncio WHERE id=1203")) {
+                assertTrue(rows.next());assertEquals("Várzea da Palma",rows.getString(1));assertEquals("MG",rows.getString(2));
+                assertEquals(1201,rows.getLong(3));
+            }
+        }
+        assertEquals(0,upgraded.migrate().migrationsExecuted);
+    }
+
 }
