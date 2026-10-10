@@ -44,6 +44,9 @@ public class AnuncioResponse {
 
     private String cor;
 
+    private String cidade;
+    private String uf;
+
     private TipoCombustivel combustivel;
 
     private boolean segundaMao;
@@ -80,6 +83,8 @@ public class AnuncioResponse {
         this.ano = anuncio.getAno();
         this.quilometragem = anuncio.getQuilometragem();
         this.cor = anuncio.getCor();
+        this.cidade = anuncio.getCidade();
+        this.uf = anuncio.getUf();
         this.combustivel = anuncio.getCombustivel();
         this.segundaMao = anuncio.isSegundaMao();
         this.status = anuncio.getStatus();
