@@ -86,10 +86,10 @@ class BiometriaRegressionTest {
         otherToken=jwt.gerarToken(other.getId().toString());
         staffToken=jwt.gerarToken(reviewer.getId().toString());
         when(provider.criarSessao()).thenAnswer(x->UUID.randomUUID().toString());
-        caseId=Long.parseLong(mvc.perform(post("/v1/verificacoes/identidade")
+        String response=mvc.perform(post("/v1/verificacoes/identidade")
                 .header("Authorization","Bearer "+sellerToken))
-            .andExpect(status().isCreated())
-            .andReturn().getResponse().getContentAsString().split("\\"id\\":")[1].split("[,}]")[0].trim());
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        caseId=((Number)com.jayway.jsonpath.JsonPath.read(response,"$.id")).longValue();
     }
 
     Usuario createUser(String name,String email,Role role) {
@@ -111,7 +111,7 @@ class BiometriaRegressionTest {
             .file(image("arquivo")).param("tipo",type.name())
             .header("Authorization","Bearer "+sellerToken))
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return Long.parseLong(json.split("\\"id\\":")[1].split("[,}]")[0].trim());
+        return ((Number)com.jayway.jsonpath.JsonPath.read(json,"$.id")).longValue();
     }
 
     void documents() throws Exception {
@@ -128,9 +128,7 @@ class BiometriaRegressionTest {
             .andExpect(jsonPath("$.status").value("CRIADA"))
             .andExpect(jsonPath("$.documentoEvidenciaId").doesNotExist())
             .andReturn().getResponse().getContentAsString();
-        var matcher=java.util.regex.Pattern.compile("\\\"sessionId\\\"\\s*:\\s*\\\"([a-f0-9-]{36})\\\"").matcher(json);
-        assertTrue(matcher.find());
-        return matcher.group(1);
+        return com.jayway.jsonpath.JsonPath.read(json,"$.sessionId");
     }
 
     void result(String id,String expected) throws Exception {
