@@ -28,6 +28,14 @@ public class BiometriaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.iniciar(verificacaoId));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/dispensar")
+    public ResponseEntity<Void> dispensar(@PathVariable Long verificacaoId,
+            @Valid @RequestBody DispensarBiometriaRequest request) {
+        service.dispensarParaAnaliseHumana(verificacaoId,request.motivo());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/sessoes/{sessionId}/resultado")
     public SessaoBiometriaResponse resultado(
             @PathVariable Long verificacaoId, @PathVariable String sessionId) {
