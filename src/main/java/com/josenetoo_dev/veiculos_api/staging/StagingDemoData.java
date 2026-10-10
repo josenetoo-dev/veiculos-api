@@ -85,6 +85,8 @@ public class StagingDemoData implements ApplicationRunner {
             ad.setAno(v.year());
             ad.setQuilometragem(v.mileage());
             ad.setCor(v.color());
+            ad.setCidade("Várzea da Palma");
+            ad.setUf("MG");
             ad.setCombustivel(v.fuel());
             ad.setCambio(v.transmission());
             ad.setPreco(BigDecimal.valueOf(v.price()));
