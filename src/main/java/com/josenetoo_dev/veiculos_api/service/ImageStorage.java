@@ -39,6 +39,30 @@ public class ImageStorage {
         }
         return publicPrefix + name;
     }
+    /**
+     * Somente chamada após validar permissão e vínculo com AnuncioFoto no banco.
+     * Nunca aceita caminhos arbitrários, inclusive links simbólicos.
+     */
+    public byte[] readAuthorized(String filename) {
+        if (filename == null || !filename.matches(
+                "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)")) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.FotoNaoEncontradaException("Foto não encontrada");
+        }
+        Path location = directory.resolve(filename).normalize();
+        if (!location.startsWith(directory)) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.FotoNaoEncontradaException("Foto não encontrada");
+        }
+        try {
+            if (!Files.isRegularFile(location, LinkOption.NOFOLLOW_LINKS)
+                    || Files.size(location) > ImageValidator.MAX_BYTES) {
+                throw new com.josenetoo_dev.veiculos_api.exception.ex.FotoNaoEncontradaException("Foto não encontrada");
+            }
+            return Files.readAllBytes(location);
+        } catch (IOException e) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.FotoNaoEncontradaException("Foto não encontrada");
+        }
+    }
+
     public void deleteAfterCommit(String url) {
         if (url == null || !url.startsWith(publicPrefix)) return;
         String name = url.substring(publicPrefix.length());
