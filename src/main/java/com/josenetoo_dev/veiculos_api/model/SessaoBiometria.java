@@ -37,6 +37,10 @@ public class SessaoBiometria {
     @Column(name = "finalizado_em")
     private LocalDateTime finalizadoEm;
 
+    // Cooldown da leitura de resultados AWS; separado da data da decisão.
+    @Column(name = "consultado_em")
+    private LocalDateTime consultadoEm;
+
     @Column(name = "aceite_biometria_em", nullable = false)
     private LocalDateTime aceiteBiometriaEm = LocalDateTime.now(ZoneOffset.UTC);
 
