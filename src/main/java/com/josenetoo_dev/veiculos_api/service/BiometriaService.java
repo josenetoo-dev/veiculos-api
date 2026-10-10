@@ -28,6 +28,7 @@ public class BiometriaService {
     private final VerificacaoRepository verificacoes;
     private final EvidenciaVerificacaoRepository evidencias;
     private final SessaoBiometriaRepository sessoes;
+    private final DispensaBiometriaRepository dispensas;
     private final UsuarioRepository usuarios;
     private final PrivateEvidenceStorage storage;
     private final BiometricProvider provider;
@@ -171,10 +172,40 @@ public class BiometriaService {
      * a solicitação para revisão documental por um humano. Foto precisa ser a
      * mesma evidência que existia durante a comparação.
      */
+    /**
+     * Alternativa para acessibilidade, falso negativo ou indisponibilidade.
+     * ADMIN ativo e diferente do solicitante registra justificativa imutável.
+     * A dispensa não altera status do caso nem dispensa a revisão de documentos.
+     */
+    @Transactional
+    public void dispensarParaAnaliseHumana(Long verificacaoId, String motivo) {
+        if(!enabled) throw new BiometriaIndisponivelException();
+        Usuario operador=actor();
+        if(operador.getRole()!=Role.ADMIN)
+            throw new AcessoNegadoException("Somente ADMIN pode dispensar biometria");
+        if(motivo==null || motivo.strip().length()<10 || motivo.strip().length()>500)
+            throw new IllegalArgumentException("Justificativa inválida");
+        Verificacao verificacao=verificacoes.findByIdForUpdate(verificacaoId)
+            .orElseThrow(VerificacaoNaoEncontradaException::new);
+        if(verificacao.getTipo()!=TipoVerificacao.IDENTIDADE)
+            throw new VerificacaoIndisponivelException("Dispensa só é permitida para identidade");
+        if(verificacao.getSolicitante().getId().equals(operador.getId()))
+            throw new AcessoNegadoException("Não é possível dispensar a própria biometria");
+        if(verificacao.getStatus()!=StatusVerificacao.RASCUNHO
+                && verificacao.getStatus()!=StatusVerificacao.REJEITADA)
+            throw new VerificacaoIndisponivelException("Caso não está em edição");
+        EvidenciaVerificacao doc=fotoFrente(verificacaoId);
+        if(dispensas.existsByVerificacaoIdAndDocumentoEvidenciaId(verificacaoId,doc.getId()))
+            throw new VerificacaoIndisponivelException("Dispensa já registrada para este documento");
+        dispensas.saveAndFlush(new DispensaBiometria(
+            verificacao,doc.getId(),operador.getId(),motivo.strip()));
+    }
+
     @Transactional(readOnly = true)
     public void exigirBiometriaParaEnvio(Verificacao verificacao) {
         if(!enabled || verificacao.getTipo()!=TipoVerificacao.IDENTIDADE) return;
         EvidenciaVerificacao doc=fotoFrente(verificacao.getId());
+        if(dispensas.existsByVerificacaoIdAndDocumentoEvidenciaId(verificacao.getId(),doc.getId())) return;
         boolean aprovado=sessoes.existsByVerificacaoIdAndDocumentoEvidenciaIdAndStatusAndFinalizadoEmAfter(
             verificacao.getId(),doc.getId(),StatusSessaoBiometria.APROVADA_TECNICAMENTE,
             now().minusHours(24));
@@ -191,6 +222,7 @@ public class BiometriaService {
     public void exigirBiometriaNaRevisao(Verificacao verificacao) {
         if(!enabled || verificacao.getTipo()!=TipoVerificacao.IDENTIDADE) return;
         EvidenciaVerificacao doc=fotoFrente(verificacao.getId());
+        if(dispensas.existsByVerificacaoIdAndDocumentoEvidenciaId(verificacao.getId(),doc.getId())) return;
         if(verificacao.getEnviadoEm()==null
                 || !sessoes.existsByVerificacaoIdAndDocumentoEvidenciaIdAndStatusAndFinalizadoEmAfter(
                     verificacao.getId(), doc.getId(),StatusSessaoBiometria.APROVADA_TECNICAMENTE,
