@@ -1108,9 +1108,9 @@ class SecurityRegressionTest {
 
  @Test void newProposalIsBlockedAfterPauseAndSaleWhileOldOffersArePreserved() throws Exception {
   long id = anuncio.getId();
-  String offer = "{\\"anuncioId\\":" + id + ",\\"valor\\":50000,\\"descricao\\":\\"Nova proposta\\",}";
-  // JSON sem vírgula sobrando, para testar exclusivamente o estado do anúncio.
-  offer = offer.replace(",}", "}");
+  String offer = """
+      {"anuncioId":%d,"valor":50000,"descricao":"Nova proposta"}
+      """.formatted(id);
   mvc.perform(post("/v1/anuncio/" + id + "/pausar").header("Authorization", bearer(tokenB)))
       .andExpect(status().isOk());
   mvc.perform(post("/v1/proposta").header("Authorization", bearer(tokenC))
