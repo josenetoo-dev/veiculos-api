@@ -1106,6 +1106,22 @@ class SecurityRegressionTest {
   assertEquals(1,propostas.count());
  }
 
+ @Test void newProposalIsBlockedAfterPauseAndSaleWhileOldOffersArePreserved() throws Exception {
+  long id = anuncio.getId();
+  String offer = "{\\"anuncioId\\":" + id + ",\\"valor\\":50000,\\"descricao\\":\\"Nova proposta\\",}";
+  // JSON sem vírgula sobrando, para testar exclusivamente o estado do anúncio.
+  offer = offer.replace(",}", "}");
+  mvc.perform(post("/v1/anuncio/" + id + "/pausar").header("Authorization", bearer(tokenB)))
+      .andExpect(status().isOk());
+  mvc.perform(post("/v1/proposta").header("Authorization", bearer(tokenC))
+      .contentType("application/json").content(offer)).andExpect(status().isConflict());
+  mvc.perform(post("/v1/anuncio/" + id + "/vendido").header("Authorization", bearer(tokenB)))
+      .andExpect(status().isOk());
+  mvc.perform(post("/v1/proposta").header("Authorization", bearer(tokenC))
+      .contentType("application/json").content(offer)).andExpect(status().isConflict());
+  assertEquals(1, propostas.count(), "A proposta anterior deve continuar registrada");
+ }
+
  @Test void onlyOwnerCanMarkSoldAndHistoricOffersRemain() throws Exception {
   long id=anuncio.getId();
   String url="/v1/anuncio/"+id;
