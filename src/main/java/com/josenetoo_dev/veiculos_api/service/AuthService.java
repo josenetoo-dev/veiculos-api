@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -24,14 +25,15 @@ public class AuthService {
 
     @Transactional
     public UsuarioResponse register(RegisterRequest request) {
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
+        String normalizedEmail = request.getEmail().strip().toLowerCase(Locale.ROOT);
+        if (usuarioRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new EmailJaCadastradoException("Email já cadastrado");
         }
 
         Usuario usuario = new Usuario();
 
         usuario.setNome(request.getNome());
-        usuario.setEmail(request.getEmail());
+        usuario.setEmail(normalizedEmail);
         usuario.setTelefone(request.getTelefone());
         usuario.setSenha(passwordEncoder.encode(request.getSenha()));
 
@@ -40,7 +42,8 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+        String normalizedEmail = request.getEmail().strip().toLowerCase(Locale.ROOT);
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new CredenciaisInvalidasException("Email ou senha inválidos"));
 
         if (!usuario.getStatus().podeAutenticar() || !passwordEncoder.matches(request.getSenha(), usuario.getSenha())) {
