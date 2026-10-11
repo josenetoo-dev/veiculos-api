@@ -132,6 +132,19 @@ class SecurityRegressionTest {
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
   mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isUnauthorized());
  }
+ @Test void authenticationNormalizesEmailAndRejectsDuplicateDifferentCase() throws Exception {
+  mvc.perform(post("/auth/register").contentType("application/json")
+      .content("{\"nome\":\"Example\",\"email\":\"MiXeD@Example.COM\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
+      .andExpect(status().isCreated()).andExpect(jsonPath("$.email").value("mixed@example.com"));
+  assertTrue(usuarios.existsByEmail("mixed@example.com"));
+  mvc.perform(post("/auth/register").contentType("application/json")
+      .content("{\"nome\":\"Duplicate\",\"email\":\"MIXED@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
+      .andExpect(status().isConflict());
+  mvc.perform(post("/auth/login").contentType("application/json")
+      .content("{\"email\":\"MIXED@EXAMPLE.COM\",\"senha\":\"senhaTeste123\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.token").exists());
+ }
+
  @Test void registrationCannotEscalateRoleOrState() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"D\",\"email\":\"d@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\",\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER")).andExpect(jsonPath("$.status").value("PENDING_CONTACT_VERIFICATION"));}
  @Test void malformedJsonReturnsSanitizedProblem() throws Exception {var r=mvc.perform(post("/auth/login").contentType("application/json").content("{ secret")).andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json")).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
  @Test void strangerCannotSendChatMessage() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenC)).contentType("application/json").content("{\"conteudo\":\"Intruso\"}")).andExpect(status().isForbidden());assertEquals(0,mensagens.count());}
