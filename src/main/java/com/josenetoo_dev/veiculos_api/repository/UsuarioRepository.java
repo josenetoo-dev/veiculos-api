@@ -13,9 +13,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
       Optional<Usuario> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 
       boolean existsByEmail(String email);
+      boolean existsByEmailIgnoreCase(String email);
       boolean existsByEmailAndIdNot(String email, Long id);
 
       Optional<Usuario> findByEmail(String email);
+      Optional<Usuario> findByEmailIgnoreCase(String email);
 
       Page<Usuario> findByNomeContainingIgnoreCase(String nome, Pageable pageable);
 }
