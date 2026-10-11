@@ -32,7 +32,9 @@ public class PropostaService {
     public PropostaResponse mandarProposta(PropostaRequest request) {
         Proposta proposta = new Proposta();
 
-        Anuncio anuncio = anuncioRepository.findById(request.getAnuncioId())
+        // Mesmo lock de pausa/venda/moderação: impede propostas novas após a retirada
+        // do anúncio da vitrine, inclusive com requisições concorrentes.
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(request.getAnuncioId())
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
 
         Usuario usuario = obterUsuarioAutenticado();
