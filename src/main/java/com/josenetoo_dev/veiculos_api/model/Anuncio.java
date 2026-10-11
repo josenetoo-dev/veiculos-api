@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
+@ToString(onlyExplicitlyIncluded = true)
 public class Anuncio {
 
     @Id
@@ -64,6 +64,20 @@ public class Anuncio {
     @Column(nullable = false)
     private String cor;
 
+    // Localidade do veículo informada pelo anunciante, não endereço do proprietário.
+    // Nullable para preservar anúncios legados durante migração aditiva V12.
+    @Column(name = "cidade", length = 100)
+    private String cidade;
+
+    @Column(name = "uf", length = 2)
+    private String uf;
+
+    @Column(name = "status_atualizado_em")
+    private LocalDateTime statusAtualizadoEm;
+
+    @Column(name = "status_atualizado_por_id")
+    private Long statusAtualizadoPorId;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private TipoCombustivel combustivel;
@@ -79,6 +93,21 @@ public class Anuncio {
     @Enumerated(EnumType.STRING)
     private StatusAnuncio status;
 
+    @Column(name = "revisado_em")
+    private LocalDateTime revisadoEm;
+
+    @Column(name = "revisado_por_id")
+    private Long revisadoPorId;
+
+    @Column(name = "motivo_rejeicao", length = 500)
+    private String motivoRejeicao;
+
+    @Column(name = "arquivado_em")
+    private LocalDateTime arquivadoEm;
+
+    @Column(name = "arquivado_por_id")
+    private Long arquivadoPorId;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Cambio cambio;
@@ -93,4 +122,41 @@ public class Anuncio {
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
+
+    /**
+     * Modelo normalizado introduzido pela V5. Os campos legados acima ainda
+     * funcionam como espelho até a migração definitiva, sem quebrar DTOs.
+     * Um veículo poderá ter outros anúncios no futuro; por isso ManyToOne.
+     */
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "veiculo_id", nullable = false)
+    private Veiculo veiculo;
+
+    /**
+     * Sincronização transicional: veículo e espelho legado são escritos na
+     * mesma transação. Não copiar dados de preço/descrição para o veículo.
+     */
+    public void sincronizarVeiculo() {
+        if (veiculo == null) {
+            veiculo = new Veiculo();
+        }
+        veiculo.setCadastradoPor(usuario);
+        veiculo.setMarca(marca);
+        veiculo.setModelo(modelo);
+        veiculo.setVersao(versao);
+        veiculo.setAno(ano);
+        veiculo.setQuilometragem(quilometragem);
+        veiculo.setCor(cor);
+        veiculo.setCombustivel(combustivel);
+        veiculo.setCambio(cambio);
+        veiculo.setSegundaMao(segundaMao);
+    }
+
+    // Compatibilidade com repositórios/testes que persistem Anuncio diretamente.
+    @PrePersist
+    private void assegurarVeiculo() {
+        if (veiculo == null) {
+            sincronizarVeiculo();
+        }
+    }
 }

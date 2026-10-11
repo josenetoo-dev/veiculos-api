@@ -1,52 +1,54 @@
 package com.josenetoo_dev.veiculos_api.security;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.josenetoo_dev.veiculos_api.repository.UsuarioRepository;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
-import java.security.Key;
-import java.util.Date;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 @Component
 public class JwtUtil {
+    private final SecretKey key;
+    private final UsuarioRepository usuarios;
+    private final long expirationMs;
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    private final long expiracaoMs = 86400000;
-
-    private Key getChave() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
-    }
-
-    // Usa o id, não o e-mail: o e-mail pode ser trocado depois (PUT /v1/usuario/{id}),
-    // e um token com e-mail antigo como subject pararia de bater com o usuário no banco,
-    // derrubando a sessão em toda ação seguinte até fazer login de novo.
-    public String gerarToken(String subjectId) {
-        return Jwts.builder()
-                .setSubject(subjectId)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiracaoMs))
-                .signWith(getChave(), SignatureAlgorithm.HS256)
-                .compact();
-    }
-
-    public String extrairSubject(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getChave())
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
-    }
-
-    public boolean validarToken(String token) {
-        try {
-            extrairSubject(token);
-            return true;
-        } catch (Exception e) {
-            return false;
+    public JwtUtil(@Value("${jwt.secret:}") String secret,
+                   @Value("${jwt.expiration-ms:1800000}") long expirationMs,
+                   Environment environment, UsuarioRepository usuarios) {
+        boolean local = Arrays.asList(environment.getActiveProfiles()).contains("local")
+                && !Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        if (secret.isBlank() && local) {
+            key = Keys.secretKeyFor(SignatureAlgorithm.HS256); // efêmera, não versionada
+        } else {
+            if (secret.isBlank() || secret.getBytes(StandardCharsets.UTF_8).length < 32
+                    || secret.contains("AutoMinasSecretKey")) {
+                throw new IllegalStateException("JWT_SECRET deve ser fornecido com pelo menos 32 bytes e sem valor padrão conhecido");
+            }
+            key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         }
+        if (expirationMs < 60000 || expirationMs > 1800000) {
+            throw new IllegalStateException("Expiração JWT deve estar entre 1 e 30 minutos");
+        }
+        this.expirationMs = expirationMs;
+        this.usuarios = usuarios;
+    }
+
+    public String gerarToken(String subjectId) {
+        var usuario = usuarios.findById(Long.valueOf(subjectId)).orElseThrow();
+        if (!usuario.getStatus().podeAutenticar()) throw new IllegalStateException("Conta indisponível");
+        return Jwts.builder().setSubject(subjectId).claim("tv", usuario.getTokenVersion())
+                .setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + expirationMs))
+                .signWith(key, SignatureAlgorithm.HS256).compact();
+    }
+    public Claims extrairClaims(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+    }
+    public String extrairSubject(String token) { return extrairClaims(token).getSubject(); }
+    public boolean validarToken(String token) {
+        try { extrairClaims(token); return true; } catch (JwtException | IllegalArgumentException e) { return false; }
     }
 }

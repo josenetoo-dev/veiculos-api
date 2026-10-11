@@ -44,11 +44,17 @@ public class AnuncioResponse {
 
     private String cor;
 
+    private String cidade;
+    private String uf;
+
     private TipoCombustivel combustivel;
 
     private boolean segundaMao;
 
     private StatusAnuncio status;
+
+    // Motivo apresentado apenas ao titular de anúncio rejeitado; anúncio rejeitado não é público.
+    private String motivoRejeicao;
 
     private Cambio cambio;
 
@@ -56,6 +62,7 @@ public class AnuncioResponse {
 
     private LocalDateTime criadoEm = LocalDateTime.now();
 
+    private Long veiculoId;
     private Long usuarioId;
     private String usuarioNome;
     private String fotoCapaUrl;
@@ -76,12 +83,17 @@ public class AnuncioResponse {
         this.ano = anuncio.getAno();
         this.quilometragem = anuncio.getQuilometragem();
         this.cor = anuncio.getCor();
+        this.cidade = anuncio.getCidade();
+        this.uf = anuncio.getUf();
         this.combustivel = anuncio.getCombustivel();
         this.segundaMao = anuncio.isSegundaMao();
         this.status = anuncio.getStatus();
+        this.motivoRejeicao = anuncio.getStatus() == StatusAnuncio.REJEITADO
+                ? anuncio.getMotivoRejeicao() : null;
         this.cambio = anuncio.getCambio();
         this.categoria = anuncio.getCategoria();
         this.criadoEm = anuncio.getCriadoEm();
+        this.veiculoId = anuncio.getVeiculo() == null ? null : anuncio.getVeiculo().getId();
         this.usuarioId = anuncio.getUsuario().getId();
         this.usuarioNome = anuncio.getUsuario().getNome();
     }

@@ -1,0 +1,33 @@
+name: Auto Minas backend checks
+on:
+  push:
+    branches: [security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias, feature/fase-5-recuperacao-senha, security/fase-5b-midia-autorizada, feature/fase-6-biometria-aws, deploy/staging-stack, feature/fase-7-anuncios-localizacao-status]
+  pull_request:
+    branches: [main, security/fase-1, feature/fase-2-moderacao, feature/fase-2b-veiculos, feature/fase-3-verificacoes, feature/fase-3b-verificacao-email, feature/fase-4-historico-arquivamento, feature/fase-4b-denuncias, feature/fase-5-recuperacao-senha, security/fase-5b-midia-autorizada, feature/fase-6-biometria-aws]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MYSQL_TEST_URL: jdbc:mysql://127.0.0.1:3306/phase1_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: ./mvnw -B clean verify

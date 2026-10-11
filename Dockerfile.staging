@@ -1,0 +1,19 @@
+# Backend de HOMOLOGAÇÃO: build do código da branch, sem rodar testes aqui.
+# Testes precisam passar na CI antes de publicar. Multi-arch (amd64/arm64).
+FROM maven:3.9.11-eclipse-temurin-21 AS build
+WORKDIR /build
+COPY pom.xml ./
+COPY src ./src
+RUN mvn -B --no-transfer-progress -DskipTests package
+
+FROM eclipse-temurin:21-jre-jammy
+RUN groupadd --system --gid 10001 autominas && \
+    useradd --system --uid 10001 --gid 10001 --home-dir /app autominas && \
+    mkdir -p /app/uploads/fotos /app/private-verification-documents && \
+    chown -R 10001:10001 /app
+WORKDIR /app
+COPY --from=build --chown=10001:10001 /build/target/veiculos-api-0.0.1-SNAPSHOT.jar /app/app.jar
+USER 10001:10001
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65 -Djava.security.egd=file:/dev/./urandom"
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","/app/app.jar"]

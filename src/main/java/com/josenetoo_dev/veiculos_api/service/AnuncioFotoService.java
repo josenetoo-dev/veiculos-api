@@ -29,6 +29,9 @@ public class AnuncioFotoService {
     private final AnuncioFotoRepository anuncioFotoRepository;
     private final AnuncioRepository anuncioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ImageValidator imageValidator;
+    private final ImageStorage imageStorage;
+    private final AnuncioService anuncioService;
 
     private Usuario obterUsuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -56,38 +59,50 @@ public class AnuncioFotoService {
     }
 
     @Transactional
-    public List<AnuncioFotoResponse> adicionarFotos(Long anuncioId, List<AnuncioFotoRequest> fotos) {
-        Anuncio anuncio = anuncioRepository.findById(anuncioId)
+    public List<AnuncioFotoResponse> uploadFotos(Long anuncioId, List<org.springframework.web.multipart.MultipartFile> arquivos) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
-
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-
-        List<AnuncioFoto> fotosParaSalvar = fotos.stream()
-                .map(f -> {
-                    AnuncioFoto foto = new AnuncioFoto();
-                    foto.setUrl(f.getUrl());
-                    foto.setOrdem(f.getOrdem());
-                    foto.setTipoFoto(f.getTipoFoto());
-                    foto.setAnuncio(anuncio);
-                    return foto;
-
-                })
-                .toList();
-
-
-        return anuncioFotoRepository.saveAll(fotosParaSalvar).stream()
-                .map(AnuncioFotoResponse::new)
-                .toList();
+        if ((anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.SUSPENSO)) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio finalizado não pode receber fotos");
+        }
+        long existing = anuncioFotoRepository.countByAnuncioId(anuncioId);
+        if (arquivos == null || arquivos.isEmpty() || arquivos.size() > 10 || existing + arquivos.size() > 20) {
+            throw new IllegalArgumentException("Limite de fotos excedido: 10 por lote e 20 por anúncio");
+        }
+        // Não há gravação antes de validar TODO o lote.
+        var validated = arquivos.stream().map(imageValidator::validate).toList();
+        var registros = new java.util.ArrayList<AnuncioFoto>();
+        int ordem = anuncioFotoRepository.findByAnuncioId(anuncioId, Pageable.unpaged()).stream()
+                .mapToInt(AnuncioFoto::getOrdem).max().orElse(-1) + 1;
+        for (var image : validated) {
+            AnuncioFoto foto = new AnuncioFoto();
+            foto.setAnuncio(anuncio);
+            foto.setUrl(imageStorage.save(image));
+            foto.setOrdem(ordem++);
+            foto.setTipoFoto(com.josenetoo_dev.veiculos_api.enums.TipoFoto.OUTRO);
+            registros.add(foto);
+        }
+        anuncioService.reabrirRevisaoDeFotos(anuncio);
+        return anuncioFotoRepository.saveAllAndFlush(registros).stream().map(AnuncioFotoResponse::new).toList();
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioFotoResponse> listarFotosPorAnuncio(Long anuncioId, Pageable pageable) {
+        anuncioService.exigirVisibilidadePorId(anuncioId);
         return anuncioFotoRepository.findByAnuncioId(anuncioId, pageable)
                 .map(AnuncioFotoResponse::new);
     }
 
     @Transactional
     public void deletarFoto(Long anuncioId, Long fotoId) {
+        // Mesmo lock usado na aprovação administrativa e no upload.
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(anuncioId)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
         AnuncioFoto foto = anuncioFotoRepository.findById(fotoId)
                 .orElseThrow(() -> new FotoNaoEncontradaException("Foto não encontrada"));
 
@@ -95,9 +110,15 @@ public class AnuncioFotoService {
             throw new FotoNaoEncontradaException("Foto não encontrada");
         }
 
-        exigirDonoDoAnuncio(foto.getAnuncio(), obterUsuarioAutenticado());
-
+        if (anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.VENDIDO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == com.josenetoo_dev.veiculos_api.enums.StatusAnuncio.SUSPENSO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio finalizado não pode ter fotos alteradas");
+        }
+        anuncioService.reabrirRevisaoDeFotos(anuncio);
         anuncioFotoRepository.delete(foto);
+        imageStorage.deleteAfterCommit(foto.getUrl());
     }
 
 }

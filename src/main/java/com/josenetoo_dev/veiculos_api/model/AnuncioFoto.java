@@ -10,7 +10,7 @@ import lombok.*;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
+@ToString(onlyExplicitlyIncluded = true)
 public class AnuncioFoto {
 
     @Id

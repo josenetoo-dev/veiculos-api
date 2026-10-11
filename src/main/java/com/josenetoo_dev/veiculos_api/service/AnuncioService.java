@@ -27,6 +27,8 @@ public class AnuncioService {
     private final AnuncioRepository     anuncioRepository;
     private final UsuarioRepository usuarioRepository;
     private final AnuncioFotoRepository anuncioFotoRepository;
+    private final ImageStorage imageStorage;
+    private final VerificacaoService verificacaoService;
     private final com.josenetoo_dev.veiculos_api.repository.PropostaRepository propostaRepository;
     private final com.josenetoo_dev.veiculos_api.repository.MensagemRepository mensagemRepository;
 
@@ -69,6 +71,32 @@ public class AnuncioService {
         }
     }
 
+    /** Dados não publicados só podem ser consultados pelo vendedor ou administração. */
+    private void exigirVisibilidade(Anuncio anuncio) {
+        if (anuncio.getStatus() == StatusAnuncio.ATIVO) return;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new AnuncioNaoEncontradoException("Anuncio não encontrado");
+        }
+        boolean staff = authentication.getAuthorities().stream().anyMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority()) || "ROLE_REVIEWER".equals(authority.getAuthority()));
+        if (!staff && !anuncio.getUsuario().getId().toString().equals(authentication.getName())) {
+            throw new AnuncioNaoEncontradoException("Anuncio não encontrado");
+        }
+    }
+
+    /** Também utilizado pelo endpoint público de fotos para impedir enumeração de anúncios pausados. */
+    @Transactional(readOnly = true)
+    public void exigirVisibilidadePorId(Long anuncioId) {
+        exigirVisibilidade(verificarId(anuncioId));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AnuncioResponse> meusAnuncios(Pageable pageable) {
+        return anuncioRepository.findByUsuarioId(obterUsuarioAutenticado().getId(), pageable).map(this::toResponse);
+    }
+
     @Transactional
     public AnuncioResponse criarAnuncio(AnuncioRequest request) {
         Anuncio anuncio = new Anuncio();
@@ -89,12 +117,17 @@ public class AnuncioService {
         anuncio.setAno(request.getAno());
         anuncio.setQuilometragem(request.getQuilometragem());
         anuncio.setCor(request.getCor());
+        anuncio.setCidade(request.getCidade() == null || request.getCidade().isBlank()
+                ? null : request.getCidade().strip());
+        anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
-        anuncio.setStatus(StatusAnuncio.ATIVO);
+        // Nenhum anúncio novo é publicado automaticamente.
+        anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
-
+        // Veiculo e campos legados do anuncio são persistidos na mesma transação.
+        anuncio.sincronizarVeiculo();
 
         Anuncio anuncioSalvo = anuncioRepository.save(anuncio);
 
@@ -103,16 +136,54 @@ public class AnuncioService {
         return toResponse(anuncioRepository.save(anuncioSalvo));
     }
 
+    /**
+     * Modificar fotos de anúncio aprovado invalida sua moderação.
+     * Executado na mesma transação da alteração de mídia.
+     */
+    @Transactional
+    public void reabrirRevisaoDeFotos(Anuncio anuncio) {
+        if (anuncio.getStatus() == StatusAnuncio.SUSPENSO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio suspenso ou arquivado não pode ser reaberto pelo titular");
+        }
+        if (anuncio.getStatus() != StatusAnuncio.PENDENTE) {
+            anuncio.setStatus(StatusAnuncio.PENDENTE);
+            anuncio.setRevisadoEm(null);
+            anuncio.setRevisadoPorId(null);
+            anuncio.setMotivoRejeicao(null);
+            anuncioRepository.save(anuncio);
+        }
+    }
+
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarAnuncios(Pageable pageable) {
-        return anuncioRepository.findAll(pageable)
+        return anuncioRepository.findByStatus(StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 
     @Transactional
     public AnuncioResponse atualizarAnuncio(AnuncioRequest request, Long id) {
-        Anuncio anuncio = verificarId(id);
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
+        if (anuncio.getStatus() == StatusAnuncio.VENDIDO || anuncio.getStatus() == StatusAnuncio.ARQUIVADO
+                || anuncio.getStatus() == StatusAnuncio.SUSPENSO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Anúncio vendido não pode ser editado");
+        }
+
+        boolean mudouVeiculo = !java.util.Objects.equals(anuncio.getVersao(), request.getVersao())
+                || !java.util.Objects.equals(anuncio.getMarca(), request.getMarca())
+                || !java.util.Objects.equals(anuncio.getModelo(), request.getModelo())
+                || !java.util.Objects.equals(anuncio.getAno(), request.getAno())
+                || anuncio.getQuilometragem() != request.getQuilometragem()
+                || !java.util.Objects.equals(anuncio.getCor(), request.getCor())
+                || anuncio.getCombustivel() != request.getCombustivel()
+                || anuncio.getCambio() != request.getCambio()
+                || anuncio.isSegundaMao() != request.isSegundaMao();
+        if (mudouVeiculo && anuncio.getVeiculo() != null) {
+            verificacaoService.invalidarVeiculoAlterado(anuncio.getVeiculo().getId());
+        }
 
         anuncio.setVersao(request.getVersao());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
@@ -126,55 +197,170 @@ public class AnuncioService {
         anuncio.setAno(request.getAno());
         anuncio.setQuilometragem(request.getQuilometragem());
         anuncio.setCor(request.getCor());
+        anuncio.setCidade(request.getCidade() == null || request.getCidade().isBlank()
+                ? null : request.getCidade().strip());
+        anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
         anuncio.setSegundaMao(request.isSegundaMao());
-        anuncio.setStatus(StatusAnuncio.ATIVO);
+        // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
+        anuncio.setStatus(StatusAnuncio.PENDENTE);
+        anuncio.setRevisadoEm(null);
+        anuncio.setRevisadoPorId(null);
+        anuncio.setMotivoRejeicao(null);
         anuncio.setCambio(request.getCambio());
         anuncio.setCategoria(request.getCategoria());
+        anuncio.sincronizarVeiculo();
 
         return toResponse(anuncioRepository.save(anuncio));
     }
 
+    /**
+     * Arquivamento em vez de DELETE real: propostas, mensagens e auditoria
+     * permanecem disponíveis para fins de disputa e histórico.
+     */
+    private void arquivar(Anuncio anuncio, Long actorId) {
+        if (anuncio.getStatus() == StatusAnuncio.ARQUIVADO) return;
+        anuncio.setStatus(StatusAnuncio.ARQUIVADO);
+        anuncio.setDestaque(false);
+        anuncio.setArquivadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        anuncio.setArquivadoPorId(actorId);
+        // Arquivamento não apaga evidências da negociação: preserva os registros
+        // e arquivos das fotos. FotoPublicaService verifica o status do anúncio
+        // antes de servir qualquer imagem, inclusive por URL direta.
+        // Exclusão definitiva deve seguir uma política separada de retenção/LGPD.
+        anuncioRepository.save(anuncio);
+    }
+
+    /**
+     * Controle de estado pelo próprio vendedor; exige autenticação e ownership.
+     * Pausa remove anúncio da vitrine e de novas propostas imediatamente.
+     */
+    @Transactional
+    public AnuncioResponse pausarAnuncio(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.ATIVO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios publicados podem ser pausados");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.PAUSADO, dono.getId());
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    /**
+     * Reativação nunca publica automaticamente um anúncio pausado:
+     * ele retorna a PENDENTE, sujeito à moderação humana antes da vitrine.
+     */
+    @Transactional
+    public AnuncioResponse solicitarReativacao(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.PAUSADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios pausados podem solicitar reativação");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.PENDENTE, dono.getId());
+        anuncio.setRevisadoEm(null);
+        anuncio.setRevisadoPorId(null);
+        anuncio.setMotivoRejeicao(null);
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    /** 
+     * Encerramento irrevogável do anúncio como vendido, preservando
+     * propostas e histórico de mensagens sem reabrir novas negociações.
+     */
+    @Transactional
+    public AnuncioResponse marcarVendido(Long id) {
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario dono = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, dono);
+        if (anuncio.getStatus() != StatusAnuncio.ATIVO
+                && anuncio.getStatus() != StatusAnuncio.PAUSADO) {
+            throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
+                    "Somente anúncios publicados ou pausados podem ser marcados como vendidos");
+        }
+        atualizarStatusProprietario(anuncio, StatusAnuncio.VENDIDO, dono.getId());
+        anuncio.setDestaque(false);
+        return toResponse(anuncioRepository.saveAndFlush(anuncio));
+    }
+
+    private void atualizarStatusProprietario(Anuncio anuncio, StatusAnuncio novo, Long donoId) {
+        anuncio.setStatus(novo);
+        anuncio.setStatusAtualizadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        anuncio.setStatusAtualizadoPorId(donoId);
+    }
+
     @Transactional
     public void deletarAnuncio(Long id) {
-        Anuncio anuncio = verificarId(id);
-        exigirDonoDoAnuncio(anuncio, obterUsuarioAutenticado());
-        // Remove mensagens e propostas vinculadas (chave estrangeira), nessa ordem
-        mensagemRepository.deleteByPropostaAnuncioId(id);
-        propostaRepository.deleteByAnuncioId(id);
-        anuncioFotoRepository.findByAnuncioId(id,
-                        org.springframework.data.domain.Pageable.unpaged())
-                .forEach(f -> anuncioFotoRepository.delete(f));
-        anuncioRepository.delete(anuncio);
+        Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        Usuario owner = obterUsuarioAutenticado();
+        exigirDonoDoAnuncio(anuncio, owner);
+        arquivar(anuncio, owner.getId());
+    }
+
+    /**
+     * Chamado quando o usuário encerra a conta. Nunca exclui propostas nem chats.
+     */
+    @Transactional
+    public void arquivarAnunciosDeUsuario(Long usuarioId) {
+        for (Anuncio anuncio : anuncioRepository.findByUsuarioId(usuarioId, Pageable.unpaged())) {
+            Anuncio locked = anuncioRepository.findByIdForUpdate(anuncio.getId())
+                    .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+            arquivar(locked, usuarioId);
+        }
     }
 
     @Transactional(readOnly = true)
     public AnuncioResponse buscarPorId(Long id) {
-        return toResponse(verificarId(id));
+        Anuncio anuncio = verificarId(id);
+        exigirVisibilidade(anuncio);
+        return toResponse(anuncio);
     }
 
     @Transactional(readOnly = true)
     public AnuncioResponse buscarPorCodigo(String codigo) {
-        return anuncioRepository.findByCodigo(codigo)
-                .map(this::toResponse)
+        Anuncio anuncio = anuncioRepository.findByCodigo(codigo)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
+        exigirVisibilidade(anuncio);
+        return toResponse(anuncio);
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarDestaques(Pageable pageable) {
-        return anuncioRepository.findByDestaqueTrue(pageable)
+        return anuncioRepository.findByDestaqueTrueAndStatus(StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarPorStatus(StatusAnuncio status, Pageable pageable) {
-        return anuncioRepository.findByStatus(status, pageable)
-                .map(this::toResponse);
+        if (status == StatusAnuncio.ATIVO) {
+            return anuncioRepository.findByStatus(status, pageable).map(this::toResponse);
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return Page.empty(pageable);
+        }
+        boolean staff = auth.getAuthorities().stream().anyMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority()) || "ROLE_REVIEWER".equals(authority.getAuthority()));
+        if (staff) return anuncioRepository.findByStatus(status, pageable).map(this::toResponse);
+        try {
+            Long userId = Long.valueOf(auth.getName());
+            return anuncioRepository.findByStatusAndUsuarioId(status, userId, pageable).map(this::toResponse);
+        } catch (NumberFormatException e) {
+            return Page.empty(pageable);
+        }
     }
 
     @Transactional(readOnly = true)
     public Page<AnuncioResponse> listarPorCategoria(Categoria categoria, Pageable pageable) {
-        return anuncioRepository.findByCategoria(categoria, pageable)
+        return anuncioRepository.findByCategoriaAndStatus(categoria, StatusAnuncio.ATIVO, pageable)
                 .map(this::toResponse);
     }
 

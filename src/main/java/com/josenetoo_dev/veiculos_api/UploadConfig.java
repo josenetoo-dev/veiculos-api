@@ -1,22 +1,11 @@
 package com.josenetoo_dev.veiculos_api;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import java.nio.file.Paths;
 
+/**
+ * Nenhuma pasta física de upload é registrada como recurso estático.
+ * O download de fotos é mediado por controller com autorização baseada
+ * no status do anúncio e no proprietário.
+ */
 @Configuration
-public class UploadConfig implements WebMvcConfigurer {
-
-    @Value("${upload.dir}")
-    private String uploadDir;
-
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Caminho absoluto garante que o Spring encontra os arquivos independente de onde o app roda
-        String caminhoAbsoluto = Paths.get(uploadDir).toAbsolutePath().toString();
-        registry.addResourceHandler("/uploads/fotos/**")
-                .addResourceLocations("file:" + caminhoAbsoluto + "/");
-    }
-}
+public class UploadConfig { }

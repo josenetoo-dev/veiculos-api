@@ -37,6 +37,13 @@ public class AnuncioController {
                 .ok(anuncioService.listarAnuncios(pageable));
     }
 
+    @Operation(summary = "Anúncios do usuário autenticado, inclusive pausados e vendidos")
+    @GetMapping("/meus")
+    public ResponseEntity<Page<AnuncioResponse>> meusAnuncios(
+            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+        return ResponseEntity.ok(anuncioService.meusAnuncios(pageable));
+    }
+
     @Operation(summary = "Buscar anuncio por id")
     @GetMapping("/{id}")
     public ResponseEntity<AnuncioResponse> buscarPorId(@PathVariable Long id) {
@@ -82,6 +89,24 @@ public class AnuncioController {
     public ResponseEntity<AnuncioResponse> atualizarAnuncio(@Valid @RequestBody AnuncioRequest request, @PathVariable Long id) {
         return ResponseEntity
                 .ok(anuncioService.atualizarAnuncio(request, id));
+    }
+
+    @Operation(summary = "Pausar anúncio ativo (somente proprietário)")
+    @PostMapping("/{id}/pausar")
+    public ResponseEntity<AnuncioResponse> pausar(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.pausarAnuncio(id));
+    }
+
+    @Operation(summary = "Solicitar reativação; volta a PENDENTE para moderação")
+    @PostMapping("/{id}/reativar")
+    public ResponseEntity<AnuncioResponse> reativar(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.solicitarReativacao(id));
+    }
+
+    @Operation(summary = "Marcar como vendido (irreversível)")
+    @PostMapping("/{id}/vendido")
+    public ResponseEntity<AnuncioResponse> vendido(@PathVariable Long id) {
+        return ResponseEntity.ok(anuncioService.marcarVendido(id));
     }
 
     @Operation(summary = "Deletar anuncio")
