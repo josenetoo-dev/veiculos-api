@@ -224,13 +224,10 @@ public class AnuncioService {
         anuncio.setDestaque(false);
         anuncio.setArquivadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         anuncio.setArquivadoPorId(actorId);
-        // Fotos deixam de ser servidas por URLs locais após a transação confirmar.
-        // Registros externos legados requerem saneamento separado.
-        anuncioFotoRepository.findByAnuncioId(anuncio.getId(), Pageable.unpaged())
-                .forEach(f -> {
-                    anuncioFotoRepository.delete(f);
-                    imageStorage.deleteAfterCommit(f.getUrl());
-                });
+        // Arquivamento não apaga evidências da negociação: preserva os registros
+        // e arquivos das fotos. FotoPublicaService verifica o status do anúncio
+        // antes de servir qualquer imagem, inclusive por URL direta.
+        // Exclusão definitiva deve seguir uma política separada de retenção/LGPD.
         anuncioRepository.save(anuncio);
     }
 
