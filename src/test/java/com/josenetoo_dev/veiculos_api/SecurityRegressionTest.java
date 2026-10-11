@@ -261,20 +261,27 @@ class SecurityRegressionTest {
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
   mvc.perform(get("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB))).andExpect(status().isOk());
  }
- @Test void deletingListingRemovesNewImagesFromDiskAfterCommit() throws Exception {
+ @Test void archivingListingPreservesPhotosPrivately() throws Exception {
   mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png"))
     .header("Authorization",bearer(tokenB))).andExpect(status().isCreated());
   assertEquals(1,fileCount());
+  String storedPhoto = fotos.findAll().get(0).getUrl();
+  String filename = storedPhoto.substring(storedPhoto.lastIndexOf('/') + 1);
   mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
     .andExpect(status().isNoContent());
-  assertEquals(0,fileCount());
+  assertEquals(1,fileCount());
   assertTrue(anuncios.existsById(anuncio.getId()));
   var stored=anuncios.findById(anuncio.getId()).orElseThrow();
   assertEquals(StatusAnuncio.ARQUIVADO,stored.getStatus());
   assertNotNull(stored.getArquivadoEm());
   assertEquals(b.getId(),stored.getArquivadoPorId());
   assertTrue(propostas.existsById(proposta.getId()));
-  assertEquals(0,fotos.count());
+  assertEquals(1,fotos.count());
+  mvc.perform(get("/uploads/fotos/" + filename)).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/" + filename).header("Authorization", bearer(tokenA)))
+      .andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/" + filename).header("Authorization", bearer(tokenB)))
+      .andExpect(status().isOk());
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
   mvc.perform(get("/v1/anuncio/meus").header("Authorization",bearer(tokenB)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].status").value("ARQUIVADO"));
@@ -1054,9 +1061,13 @@ class SecurityRegressionTest {
        .andExpect(status().isOk());
   mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenB)))
        .andExpect(status().isNoContent());
-  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+  mvc.perform(get("/uploads/fotos/"+filename)).andExpect(status().isNotFound());
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenA)))
        .andExpect(status().isNotFound());
-  assertFalse(Files.exists(UPLOAD.resolve(filename)));
+  mvc.perform(get("/uploads/fotos/"+filename).header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk());
+  assertTrue(Files.exists(UPLOAD.resolve(filename)));
+  assertEquals(1,fotos.count());
  }
 
  @Test void orphanedAndNonCanonicalFilesAreNotServed() throws Exception {
