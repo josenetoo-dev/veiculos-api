@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,6 +20,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final com.josenetoo_dev.veiculos_api.service.PasswordResetService resetService;
+    private final com.josenetoo_dev.veiculos_api.service.UsuarioService usuarioService;
 
     @Operation(summary = "Solicitar recuperação de senha, sem revelar existência da conta")
     @PostMapping("/password-reset/request")
@@ -49,6 +51,14 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity
                 .ok(authService.login(request));
+    }
+
+    @Operation(summary = "Revogar as sessões JWT do usuário autenticado")
+    @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> logout() {
+        usuarioService.revogarSessoesDoUsuarioAutenticado();
+        return ResponseEntity.noContent().build();
     }
 
 }

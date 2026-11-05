@@ -50,3 +50,5 @@ Thumbs.db
 # Private verification evidence (AES-GCM encrypted, never commit)
 private-verification-documents/
 **/private-verification-documents/
+
+uploads/

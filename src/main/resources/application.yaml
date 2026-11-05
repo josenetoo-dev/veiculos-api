@@ -2,16 +2,17 @@ spring:
   application:
     name: veiculos-api
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/projeto_veiculos}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
     open-in-view: false
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    # Esquemas legados sem histórico Flyway exigem baseline auditado explícito.
+    enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: false
     locations: classpath:db/migration
   mail:
@@ -72,6 +73,20 @@ spring:
   config:
     activate:
       on-profile: local & !prod
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/projeto_veiculos}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

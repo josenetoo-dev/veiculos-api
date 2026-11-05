@@ -31,10 +31,10 @@ public class UsuarioController {
 
     @Operation(summary = "Confirmar código recebido no e-mail cadastrado")
     @PostMapping("/me/contato/email/confirmar")
-    public ResponseEntity<Void> confirmarContatoEmail(
+    public ResponseEntity<com.josenetoo_dev.veiculos_api.dto.auth.LoginResponse> confirmarContatoEmail(
             @Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.usuario_dto.ConfirmarContatoEmailRequest request) {
-        contatoEmailService.confirmar(request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(new com.josenetoo_dev.veiculos_api.dto.auth.LoginResponse(
+                contatoEmailService.confirmar(request)));
     }
 
 

@@ -83,4 +83,15 @@ public class Usuario {
     private int passwordResetFailedAttempts = 0;
 
     private LocalDateTime criadoEm = LocalDateTime.now();
+
+    /** Protege também criações internas que não passam pelo cadastro HTTP. */
+    @PrePersist
+    private void aplicarPadroesDeSeguranca() {
+        if (role == null) {
+            role = com.josenetoo_dev.veiculos_api.enums.Role.USER;
+        }
+        if (status == null) {
+            status = com.josenetoo_dev.veiculos_api.enums.StatusUsuario.PENDING_CONTACT_VERIFICATION;
+        }
+    }
 }

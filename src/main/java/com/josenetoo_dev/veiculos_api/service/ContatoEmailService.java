@@ -30,6 +30,7 @@ public class ContatoEmailService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final UsuarioRepository usuarios;
     private final ContatoEmailMailer mailer;
+    private final com.josenetoo_dev.veiculos_api.security.JwtUtil jwtUtil;
 
     private Usuario userLocked() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -69,7 +70,7 @@ public class ContatoEmailService {
     }
 
     @Transactional
-    public void confirmar(ConfirmarContatoEmailRequest request) {
+    public String confirmar(ConfirmarContatoEmailRequest request) {
         Usuario usuario = userLocked();
         if (usuario.getStatus() != StatusUsuario.PENDING_CONTACT_VERIFICATION
                 || usuario.getContactEmailTokenHash() == null || usuario.getContactEmailExpiresAt() == null
@@ -88,6 +89,7 @@ public class ContatoEmailService {
         usuario.setContactEmailRequestedAt(null);
         usuario.setTokenVersion(usuario.getTokenVersion() + 1); // revoga JWT anterior
         usuarios.saveAndFlush(usuario);
+        return jwtUtil.gerarToken(String.valueOf(usuario.getId()));
     }
 
     private static String hash(String raw) {

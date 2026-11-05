@@ -332,4 +332,21 @@ class MySqlMigrationTest {
         assertEquals(0,upgraded.migrate().migrationsExecuted);
     }
 
+    @Test void v13ConstrainsRoleAndStatusAndUsesSafeInsertDefaults() throws Exception {
+        String url=testUrl("enum");
+        assertEquals(12, flyway(url,"12").migrate().migrationsExecuted);
+        assertEquals(1, flyway(url,"13").migrate().migrationsExecuted);
+        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+            st.execute("INSERT INTO usuario(nome,email,senha,telefone) VALUES ('Default','default@example.com','hash','38999999999')");
+            try(var rows=st.executeQuery("SELECT role,status FROM usuario WHERE email='default@example.com'")) {
+                assertTrue(rows.next());
+                assertEquals("USER", rows.getString(1));
+                assertEquals("PENDING_CONTACT_VERIFICATION", rows.getString(2));
+            }
+            assertThrows(java.sql.SQLException.class, () -> st.execute(
+                    "INSERT INTO usuario(nome,email,senha,telefone,role,status) VALUES ('Invalid','invalid@example.com','hash','38999999999','','')"));
+        }
+        assertTrue(flyway(url,"13").validateWithResult().validationSuccessful);
+    }
+
 }
