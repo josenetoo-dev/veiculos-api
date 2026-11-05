@@ -36,6 +36,9 @@ public class AuthService {
         usuario.setEmail(normalizedEmail);
         usuario.setTelefone(request.getTelefone());
         usuario.setSenha(passwordEncoder.encode(request.getSenha()));
+        // O payload público não controla privilégios nem o estágio da verificação.
+        usuario.setRole(com.josenetoo_dev.veiculos_api.enums.Role.USER);
+        usuario.setStatus(com.josenetoo_dev.veiculos_api.enums.StatusUsuario.PENDING_CONTACT_VERIFICATION);
 
         return new UsuarioResponse(usuarioRepository.save(usuario));
     }

@@ -39,6 +39,7 @@ public class SecurityConfig {
                         // Preflight OPTIONS sempre liberado — obrigatório para CORS com Authorization header
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
                         .requestMatchers(
                                 "/auth/**",
                                 "/swagger-ui/**",

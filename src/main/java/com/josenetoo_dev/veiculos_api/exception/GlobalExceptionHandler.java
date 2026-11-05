@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.LinkedHashMap;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private ProblemDetail problem(int status, String detail, String code) {
         var p = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
         p.setProperty("code", code);
@@ -55,7 +58,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail invalid(Exception ex) { return problem(400, "Requisição inválida", "INVALID_REQUEST"); }
     @ExceptionHandler(Exception.class)
-    public ProblemDetail internal(Exception ex) { return problem(500, "Falha interna ao processar requisição", "INTERNAL_ERROR"); }
+    public ProblemDetail internal(Exception ex) {
+        log.error("Erro interno ao processar requisição", ex);
+        return problem(500, "Falha interna ao processar requisição", "INTERNAL_ERROR");
+    }
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {

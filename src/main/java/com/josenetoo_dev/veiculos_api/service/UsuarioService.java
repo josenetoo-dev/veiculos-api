@@ -119,6 +119,14 @@ public class UsuarioService {
     }
 
     @Transactional
+    public void revogarSessoesDoUsuarioAutenticado() {
+        Usuario autenticado = obterUsuarioAutenticado();
+        Usuario usuario = verificarIdParaAlteracao(autenticado.getId());
+        usuario.setTokenVersion(usuario.getTokenVersion() + 1);
+        usuarioRepository.save(usuario);
+    }
+
+    @Transactional
     public void deletarUsuario(Long id) {
         Usuario usuarioAutenticado = obterUsuarioAutenticado();
         exigirProprioUsuario(usuarioAutenticado, id);

@@ -145,7 +145,43 @@ class SecurityRegressionTest {
       .andExpect(status().isOk()).andExpect(jsonPath("$.token").exists());
  }
 
+ @Test void logoutRevokesOnlyCurrentUsersJwtAndNewLoginWorks() throws Exception {
+  mvc.perform(post("/auth/logout")).andExpect(status().isUnauthorized());
+  assertEquals(0L,usuarios.findById(a.getId()).orElseThrow().getTokenVersion());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isOk());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk());
+
+  mvc.perform(post("/auth/logout").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isNoContent());
+  assertEquals(1L,usuarios.findById(a.getId()).orElseThrow().getTokenVersion());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isUnauthorized());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk());
+
+  String login=mvc.perform(post("/auth/login").contentType("application/json")
+      .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+  var matcher=java.util.regex.Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"").matcher(login);
+  assertTrue(matcher.find());
+  String newToken=matcher.group(1);
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(newToken)))
+      .andExpect(status().isOk());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isUnauthorized());
+ }
+
  @Test void registrationCannotEscalateRoleOrState() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"D\",\"email\":\"d@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\",\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER")).andExpect(jsonPath("$.status").value("PENDING_CONTACT_VERIFICATION"));}
+ @Test void persistenceDefaultsNullRoleAndStatusToLeastPrivilegeAndPending() {
+  var user = new Usuario(); user.setNome("Null defaults"); user.setEmail("null-defaults@example.com");
+  user.setTelefone("38999999999"); user.setSenha(encoder.encode("senhaTeste123"));
+  user.setRole(null); user.setStatus(null);
+  user = usuarios.saveAndFlush(user);
+  assertEquals(Role.USER, user.getRole());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION, user.getStatus());
+ }
  @Test void malformedJsonReturnsSanitizedProblem() throws Exception {var r=mvc.perform(post("/auth/login").contentType("application/json").content("{ secret")).andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json")).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
  @Test void strangerCannotSendChatMessage() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenC)).contentType("application/json").content("{\"conteudo\":\"Intruso\"}")).andExpect(status().isForbidden());assertEquals(0,mensagens.count());}
  @Test void longChatMessageIsRejected() throws Exception {mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"conteudo\":\""+"x".repeat(2001)+"\"}")).andExpect(status().isBadRequest());assertEquals(0,mensagens.count());}
@@ -737,6 +773,9 @@ class SecurityRegressionTest {
   var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(captor.getValue().getText());
   assertTrue(matcher.find());
   String code=matcher.group(1);
+  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+      .contentType("application/json").content("{\"token\":\""+code+"\"}"))
+      .andExpect(status().isUnauthorized());
   var before=usuarios.findById(a.getId()).orElseThrow();
   assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,before.getStatus());
   assertNotEquals(code,before.getContactEmailTokenHash());
@@ -745,9 +784,14 @@ class SecurityRegressionTest {
       .header("Authorization",bearer(tokenA)).contentType("application/json")
       .content("{\"token\":\"not-the-correct-but-long-enough-code\"}"))
       .andExpect(status().isBadRequest());
-  mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
+  String confirmation=mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
       .header("Authorization",bearer(tokenA)).contentType("application/json")
-      .content("{\"token\":\""+code+"\"}")).andExpect(status().isNoContent());
+      .content("{\"token\":\""+code+"\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty())
+      .andReturn().getResponse().getContentAsString();
+  var confirmationTokenMatcher=java.util.regex.Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"").matcher(confirmation);
+  assertTrue(confirmationTokenMatcher.find());
+  String renewedToken=confirmationTokenMatcher.group(1);
   var after=usuarios.findById(a.getId()).orElseThrow();
   assertEquals(StatusUsuario.ACTIVE,after.getStatus());
   assertNotNull(after.getContactEmailVerifiedAt());
@@ -755,6 +799,8 @@ class SecurityRegressionTest {
   assertEquals(1L,after.getTokenVersion());
   mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
       .andExpect(status().isUnauthorized());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(renewedToken)))
+      .andExpect(status().isOk());
   var login=mvc.perform(post("/auth/login").contentType("application/json")
       .content("{\"email\":\"a@example.com\",\"senha\":\"senhaTeste123\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
