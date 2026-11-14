@@ -11,6 +11,7 @@ import com.josenetoo_dev.veiculos_api.model.AssinaturaVendedor;
 import com.josenetoo_dev.veiculos_api.model.VendaDeclarada;
 import com.josenetoo_dev.veiculos_api.repository.AnuncioRepository;
 import com.josenetoo_dev.veiculos_api.repository.VendaDeclaradaRepository;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,6 @@ public class VendaDeclaradaService {
     private final CurrentUserService currentUser;
     private final PlanoComercialService subscriptions;
     private final ContratoComercialService contracts;
-    private final ComissaoCalculator commissionCalculator;
 
     @Transactional
     public VendaDeclaradaResponse declarar(Long anuncioId, DeclararVendaRequest request) {
@@ -52,10 +52,10 @@ public class VendaDeclaradaService {
         sale.setPlanoCodigoSnapshot(subscription.getPlanoCodigoSnapshot());
         sale.setPlanoNomeSnapshot(subscription.getPlanoNomeSnapshot());
         sale.setValorFinal(request.valorFinal());
-        sale.setComissaoPercentual(subscription.getComissaoPercentualSnapshot());
-        sale.setComissaoCalculada(commissionCalculator.calculate(request.valorFinal(), subscription.getComissaoPercentualSnapshot()));
+        sale.setComissaoPercentual(BigDecimal.ZERO);
+        sale.setComissaoCalculada(BigDecimal.ZERO);
         sale.setDataVendaDeclarada(request.dataVenda());
-        sale.setSituacao("PENDENTE_CONFERENCIA_COBRANCA_EXTERNA");
+        sale.setSituacao("DECLARADA");
         return new VendaDeclaradaResponse(vendas.saveAndFlush(sale));
     }
 
