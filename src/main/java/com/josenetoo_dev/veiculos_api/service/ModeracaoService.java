@@ -25,6 +25,8 @@ public class ModeracaoService {
     private final UsuarioRepository usuarios;
     private final ModeracaoEventoRepository eventos;
     private final VerificacaoRepository verificacoes;
+    private final PlanoComercialService planos;
+    private final ContratoComercialService contratos;
 
     private Long revisorId() {
         Long id;
@@ -81,6 +83,10 @@ public class ModeracaoService {
                 || !verificacoes.existsByVeiculoIdAndStatus(
                     anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
             throw new AnuncioIndisponivelException("Identidade e veículo precisam de aprovação documental");
+        }
+        planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        if (!contratos.temAceitePublicado(anuncio.getUsuario().getId())) {
+            throw new AnuncioIndisponivelException("É necessário aceitar a versão comercial vigente do contrato");
         }
 
         anuncio.setStatus(StatusAnuncio.ATIVO);

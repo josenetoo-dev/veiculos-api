@@ -12,6 +12,9 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/v1/proposta/{propostaId}/mensagens")
@@ -36,5 +39,27 @@ public class MensagemController {
             @PageableDefault(size = 50, sort = "criadoEm") Pageable pageable) {
         return ResponseEntity
                 .ok(mensagemService.listarMensagens(propostaId, pageable));
+    }
+
+    @Operation(summary = "Excluir logicamente mensagem própria enviada há até cinco minutos")
+    @DeleteMapping("/{mensagemId}")
+    public ResponseEntity<Void> excluirMensagem(@PathVariable Long propostaId, @PathVariable Long mensagemId) {
+        mensagemService.excluirMensagem(propostaId, mensagemId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/anexos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MensagemResponse> enviarImagem(@PathVariable Long propostaId,
+            @RequestParam("arquivo") MultipartFile arquivo) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(mensagemService.enviarImagem(propostaId, arquivo));
+    }
+
+    @GetMapping("/{mensagemId}/arquivo")
+    public ResponseEntity<byte[]> baixarImagem(@PathVariable Long propostaId, @PathVariable Long mensagemId) {
+        var image = mensagemService.baixarImagem(propostaId, mensagemId);
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store, private")
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"imagem\"")
+                .contentType(MediaType.parseMediaType(image.mime())).body(image.bytes());
     }
 }

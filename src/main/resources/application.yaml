@@ -45,6 +45,9 @@ verification:
     key: ${VERIFICATION_STORAGE_KEY:}
 upload:
   dir: uploads/fotos
+seller:
+  pii:
+    encryption-key: ${SELLER_PII_KEY:}
 app:
   staging:
     demo:

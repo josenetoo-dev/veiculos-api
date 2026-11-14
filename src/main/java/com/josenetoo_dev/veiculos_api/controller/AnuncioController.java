@@ -37,6 +37,27 @@ public class AnuncioController {
                 .ok(anuncioService.listarAnuncios(pageable));
     }
 
+    @Operation(summary = "Pesquisar anúncios publicados com filtros públicos")
+    @GetMapping("/buscar")
+    public ResponseEntity<Page<AnuncioResponse>> buscarPublicamente(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String marca,
+            @RequestParam(required = false) String cidade,
+            @RequestParam(required = false) String uf,
+            @RequestParam(required = false) Categoria categoria,
+            @RequestParam(required = false) com.josenetoo_dev.veiculos_api.enums.TipoCombustivel combustivel,
+            @RequestParam(required = false) com.josenetoo_dev.veiculos_api.enums.Cambio cambio,
+            @RequestParam(required = false) java.math.BigDecimal precoMin,
+            @RequestParam(required = false) java.math.BigDecimal precoMax,
+            @RequestParam(required = false) Integer anoMin,
+            @RequestParam(defaultValue = "recentes") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(anuncioService.buscarPublicamente(q, tipo, marca, cidade, uf, categoria, combustivel,
+                cambio, precoMin, precoMax, anoMin, sort, page, size));
+    }
+
     @Operation(summary = "Anúncios do usuário autenticado, inclusive pausados e vendidos")
     @GetMapping("/meus")
     public ResponseEntity<Page<AnuncioResponse>> meusAnuncios(
@@ -105,8 +126,9 @@ public class AnuncioController {
 
     @Operation(summary = "Marcar como vendido (irreversível)")
     @PostMapping("/{id}/vendido")
-    public ResponseEntity<AnuncioResponse> vendido(@PathVariable Long id) {
-        return ResponseEntity.ok(anuncioService.marcarVendido(id));
+    public ResponseEntity<AnuncioResponse> vendido(@PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.comercial.DeclararVendaRequest request) {
+        return ResponseEntity.ok(anuncioService.marcarVendido(id, request));
     }
 
     @Operation(summary = "Deletar anuncio")

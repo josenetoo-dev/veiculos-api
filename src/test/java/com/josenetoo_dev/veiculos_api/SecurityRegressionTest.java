@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
  "app.password-reset.enabled=true", "app.password-reset.from=no-reply@example.com",
  "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+ ,"seller.pii.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 })
 @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 @AutoConfigureMockMvc(printOnlyOnFailure = false, print = org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint.NONE)
@@ -65,6 +66,12 @@ class SecurityRegressionTest {
  @Autowired VerificacaoRepository verificacoes;
  @Autowired EvidenciaVerificacaoRepository evidencias;
  @Autowired EventoVerificacaoRepository eventosVerificacao;
+ @Autowired PlanoComercialRepository planos;
+ @Autowired AssinaturaVendedorRepository assinaturas;
+ @Autowired EventoAssinaturaRepository eventosAssinatura;
+ @Autowired ContratoVersaoRepository contratos;
+ @Autowired AceiteContratoRepository aceitesContrato;
+ @Autowired VendaDeclaradaRepository vendasDeclaradas;
 
  @Autowired MensagemRepository mensagens;
  @Autowired JwtUtil jwt;
@@ -77,12 +84,15 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
+  vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
   evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
   anuncios.deleteAll(); veiculos.deleteAll(); usuarios.deleteAll();
   try(var files=Files.list(UPLOAD)){ for(Path f:files.toList()) Files.delete(f); }
   try(var files=Files.list(PRIVATE)){ for(Path f:files.toList()) Files.delete(f); }
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");
+  seedCommercialCatalog();
+  enableCommercialSeller(b);
   tokenA=jwt.gerarToken(a.getId().toString()); tokenB=jwt.gerarToken(b.getId().toString()); tokenC=jwt.gerarToken(c.getId().toString());
   anuncio=new Anuncio(); anuncio.setUsuario(b); anuncio.setVersao("LT"); anuncio.setDocumentacao("Regular"); anuncio.setGarantia("Nenhuma");
   anuncio.setTitulo("Onix"); anuncio.setDescricao("Carro"); anuncio.setPreco(new BigDecimal("50000")); anuncio.setMarca("Chevrolet"); anuncio.setModelo("Onix"); anuncio.setAno(2022); anuncio.setCor("Branco");
@@ -90,11 +100,130 @@ class SecurityRegressionTest {
   anuncio=anuncios.saveAndFlush(anuncio);
   proposta=new Proposta(); proposta.setAnuncio(anuncio); proposta.setComprador(a); proposta.setValor(BigDecimal.TEN); proposta.setDescricao("Oferta"); proposta.setStatus(StatusProposta.PENDENTE); proposta=propostas.saveAndFlush(proposta);
  }
+ void seedCommercialCatalog() {
+  for (Object[] row : new Object[][]{{"BASIC","Básico","75.00","0.65"},{"PROFESSIONAL","Profissional","125.00","0.65"},{"PREMIUM","Premium","175.00","0.50"}}) {
+   PlanoComercial p=new PlanoComercial();p.setCodigo((String)row[0]);p.setNome((String)row[1]);p.setMensalidade(new BigDecimal((String)row[2]));p.setComissaoPercentual(new BigDecimal((String)row[3]));p.setBeneficiosJson("[]");planos.saveAndFlush(p);
+  }
+ }
+ void enableCommercialSeller(Usuario seller) throws Exception {
+  String content="Contrato revisado para teste de integração";
+  var contract=new ContratoVersao();contract.setVersao("TEST-1");contract.setTitulo("Contrato de teste");contract.setConteudo(content);
+  contract.setHashSha256(java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(content.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+  contract.setPublicado(true);contract=contratos.saveAndFlush(contract);
+  aceitesContrato.saveAndFlush(new AceiteContrato(seller,contract,contract.getHashSha256()));
+  PlanoComercial plan=planos.findByCodigoAndAtivoTrue("BASIC").orElseThrow();
+  AssinaturaVendedor subscription=new AssinaturaVendedor();subscription.setVendedor(seller);subscription.snapshot(plan);
+  subscription.setStatus(StatusAssinatura.ATIVA);subscription.setSituacaoFinanceira("CONFIRMADO_EXTERNAMENTE");
+  subscription.setInicioVigencia(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+  subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusMonths(1));
+  subscription.setReferenciaPagamentoExterno("TEST-EXTERNAL-REFERENCE");assinaturas.saveAndFlush(subscription);
+ }
+ String saleJson(){return "{\"valorFinal\":50000,\"dataVenda\":\"2025-01-01\"}";}
  Usuario user(String nome,String email){ Usuario u=new Usuario(); u.setNome(nome);u.setEmail(email);u.setTelefone("38999999999");u.setSenha(encoder.encode("senhaTeste123"));return usuarios.saveAndFlush(u); }
  String bearer(String t){return "Bearer "+t;}
  long fileCount() throws Exception {try(var s=Files.list(UPLOAD)){return s.count();}}
  MockMultipartFile image(String name,String type) throws Exception {var bytes=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB),"png",bytes);return new MockMultipartFile("fotos",name,type,bytes.toByteArray());}
  @Test void anonymousCannotReadPrivateAccount() throws Exception {mvc.perform(get("/v1/usuario/me")).andExpect(status().isUnauthorized());}
+ @Test void commercialCatalogIsPublicAndUsesConfiguredMonthlyBrlValues() throws Exception {
+  mvc.perform(get("/v1/planos")).andExpect(status().isOk())
+    .andExpect(jsonPath("$[0].codigo").value("BASIC"))
+    .andExpect(jsonPath("$[0].mensalidade").value(75.00))
+    .andExpect(jsonPath("$[0].comissaoPercentual").value(0.65))
+    .andExpect(jsonPath("$[1].mensalidade").value(125.00))
+    .andExpect(jsonPath("$[1].comissaoPercentual").value(0.65))
+    .andExpect(jsonPath("$[2].codigo").value("PREMIUM"))
+    .andExpect(jsonPath("$[2].mensalidade").value(175.00))
+    .andExpect(jsonPath("$[2].comissaoPercentual").value(0.50))
+    .andExpect(jsonPath("$[2].periodicidade").value("MENSAL"));
+ }
+ @Test void publicSearchFiltersMotorcyclesWithoutRequiringAuthentication() throws Exception {
+  Anuncio moto=new Anuncio();moto.setUsuario(b);moto.setVersao("ABS");moto.setDocumentacao("Regular");moto.setGarantia("Nenhuma");
+  moto.setTitulo("Honda CG 160");moto.setDescricao("Moto urbana");moto.setPreco(new BigDecimal("15000"));moto.setMarca("Honda");moto.setModelo("CG 160");
+  moto.setAno(2024);moto.setCor("Preta");moto.setCombustivel(TipoCombustivel.FLEX);moto.setCambio(Cambio.MANUAL);moto.setCategoria(Categoria.MOTOS);moto.setStatus(StatusAnuncio.ATIVO);
+  moto.setCidade("Belo Horizonte");moto.setUf("MG");anuncios.saveAndFlush(moto);
+  mvc.perform(get("/v1/anuncio/buscar").param("tipo","MOTO").param("cidade","Belo Horizonte").param("uf","MG"))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].categoria").value("MOTOS"));
+ }
+ @Test void chatMessageCanOnlyBeSoftDeletedByItsSenderWithinTheServerWindow() throws Exception {
+  var sent=mvc.perform(post("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenA))
+    .contentType("application/json").content("{\"conteudo\":\"Mensagem de teste\"}"))
+    .andExpect(status().isCreated()).andReturn();
+  Number messageIdValue=com.jayway.jsonpath.JsonPath.read(sent.getResponse().getContentAsString(),"$.id");
+  long messageId=messageIdValue.longValue();
+  mvc.perform(delete("/v1/proposta/"+proposta.getId()+"/mensagens/"+messageId).header("Authorization",bearer(tokenB)))
+    .andExpect(status().isForbidden());
+  mvc.perform(delete("/v1/proposta/"+proposta.getId()+"/mensagens/"+messageId).header("Authorization",bearer(tokenA)))
+    .andExpect(status().isNoContent());
+  Mensagem stored=mensagens.findById(messageId).orElseThrow();
+  assertNotNull(stored.getExcluidaEm());assertEquals(a.getId(),stored.getExcluidaPorId());
+  mvc.perform(get("/v1/proposta/"+proposta.getId()+"/mensagens").header("Authorization",bearer(tokenB)))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
+ }
+ @Test void chatImageAttachmentIsSanitizedPrivateAndLimitedToNegotiationParticipants() throws Exception {
+  MockMultipartFile source=image("test.png","image/png");
+  MockMultipartFile attachment=new MockMultipartFile("arquivo","veiculo.png","image/png",source.getBytes());
+  var uploaded=mvc.perform(multipart("/v1/proposta/"+proposta.getId()+"/mensagens/anexos").file(attachment)
+    .header("Authorization",bearer(tokenA)))
+    .andExpect(status().isCreated()).andExpect(jsonPath("$.tipoMidia").value("image/png")).andReturn();
+  long messageId=((Number)com.jayway.jsonpath.JsonPath.read(uploaded.getResponse().getContentAsString(),"$.id")).longValue();
+  mvc.perform(get("/v1/proposta/"+proposta.getId()+"/mensagens/"+messageId+"/arquivo"))
+    .andExpect(status().isUnauthorized());
+  mvc.perform(get("/v1/proposta/"+proposta.getId()+"/mensagens/"+messageId+"/arquivo").header("Authorization",bearer(tokenC)))
+    .andExpect(status().isForbidden());
+  mvc.perform(get("/v1/proposta/"+proposta.getId()+"/mensagens/"+messageId+"/arquivo").header("Authorization",bearer(tokenB)))
+    .andExpect(status().isOk()).andExpect(header().string("X-Content-Type-Options","nosniff"))
+    .andExpect(header().string("Cache-Control","no-store, private"));
+ }
+ @Test void planSelectionOnlyCreatesUnpaidIntentAndRequiresAuthentication() throws Exception {
+  mvc.perform(post("/v1/assinaturas/intencoes").contentType("application/json").content("{\"codigoPlano\":\"BASIC\"}"))
+    .andExpect(status().isUnauthorized());
+  mvc.perform(post("/v1/assinaturas/intencoes").header("Authorization",bearer(tokenA)).contentType("application/json")
+    .content("{\"codigoPlano\":\"premium\"}"))
+    .andExpect(status().isConflict());
+  mvc.perform(put("/v1/usuario/me/dados-vendedor").header("Authorization",bearer(tokenA)).contentType("application/json")
+    .content("{\"nomeCompleto\":\"Ana Compradora\",\"cpf\":\"529.982.247-25\"}"))
+    .andExpect(status().isOk());
+  mvc.perform(post("/v1/assinaturas/intencoes").header("Authorization",bearer(tokenA)).contentType("application/json")
+    .content("{\"codigoPlano\":\"premium\"}"))
+    .andExpect(status().isCreated()).andExpect(jsonPath("$.codigoPlano").value("PREMIUM"))
+    .andExpect(jsonPath("$.mensalidade").value(175.00)).andExpect(jsonPath("$.status").value("INTENCAO"))
+    .andExpect(jsonPath("$.situacaoFinanceira").value("PENDENTE_EXTERNO"));
+  assertEquals(0,assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(a.getId(),StatusAssinatura.ATIVA).stream().count());
+ }
+ @Test void planBenefitsCanOnlyBeConfiguredByAnAdministrator() throws Exception {
+  Usuario admin=user("Admin", "admin-plans@example.com");admin.setRole(Role.ADMIN);admin.setStatus(StatusUsuario.ACTIVE);admin=usuarios.saveAndFlush(admin);
+  String adminToken=jwt.gerarToken(admin.getId().toString());
+  mvc.perform(put("/v1/planos/BASIC/beneficios").header("Authorization",bearer(tokenA)).contentType("application/json")
+    .content("{\"beneficios\":[\"Condição aprovada pelo negócio\"]}"))
+    .andExpect(status().isForbidden());
+  mvc.perform(put("/v1/planos/BASIC/beneficios").header("Authorization",bearer(adminToken)).contentType("application/json")
+    .content("{\"beneficios\":[\"Condição aprovada pelo negócio\"]}"))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.beneficiosJson").value("[\"Condição aprovada pelo negócio\"]"));
+ }
+ @Test void sellerCpfIsValidatedEncryptedUniqueAndNeverReturnedRaw() throws Exception {
+  mvc.perform(put("/v1/usuario/me/dados-vendedor").header("Authorization",bearer(tokenA)).contentType("application/json")
+    .content("{\"nomeCompleto\":\"  Ana   Minas  \",\"cpf\":\"529.982.247-25\"}"))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.nomeCompleto").value("Ana Minas"))
+    .andExpect(jsonPath("$.cpfMascarado").value("***.***.***-25"))
+    .andExpect(jsonPath("$.cpf").doesNotExist());
+  Usuario saved=usuarios.findById(a.getId()).orElseThrow();
+  assertEquals("A",saved.getNome(),"Nome público da conta não deve ser substituído pelo nome civil protegido");
+  assertNotNull(saved.getNomeCompletoVendedorCiphertext());
+  assertNotEquals("52998224725",saved.getCpfCiphertext());assertTrue(saved.getCpfCiphertext().length()>25);
+  assertEquals("25",saved.getCpfFinalDigitos());
+  mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA)))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.cpf").doesNotExist()).andExpect(jsonPath("$.cpfCiphertext").doesNotExist());
+  mvc.perform(get("/v1/usuario/me/dados-vendedor").header("Authorization",bearer(tokenA)))
+    .andExpect(status().isOk()).andExpect(jsonPath("$.nomeCompleto").value("Ana Minas"));
+  mvc.perform(get("/v1/usuario/"+a.getId()).header("Authorization",bearer(tokenB))).andExpect(status().isOk())
+    .andExpect(jsonPath("$.nome").value("A")).andExpect(jsonPath("$.nomeCompleto").doesNotExist());
+  mvc.perform(put("/v1/usuario/me/dados-vendedor").header("Authorization",bearer(tokenB)).contentType("application/json")
+    .content("{\"nomeCompleto\":\"Outra Pessoa\",\"cpf\":\"52998224725\"}"))
+    .andExpect(status().isConflict());
+  mvc.perform(put("/v1/usuario/me/dados-vendedor").header("Authorization",bearer(tokenC)).contentType("application/json")
+    .content("{\"nomeCompleto\":\"Pessoa Inválida\",\"cpf\":\"11111111111\"}"))
+    .andExpect(status().isBadRequest());
+ }
  @Test void commonUserCannotListAccounts() throws Exception {mvc.perform(get("/v1/usuario").header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());}
  @Test void commonUserCannotSearchAccounts() throws Exception {mvc.perform(get("/v1/usuario/buscar?nome=B").header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());}
  @Test void publicProfileOmitsPrivateFields() throws Exception {mvc.perform(get("/v1/usuario/"+b.getId()).header("Authorization",bearer(tokenA))).andExpect(status().isOk()).andExpect(jsonPath("$.email").doesNotExist()).andExpect(jsonPath("$.telefone").doesNotExist()).andExpect(jsonPath("$.senha").doesNotExist());}
@@ -491,6 +620,14 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
   assertEquals(1,eventos.count());
+ }
+ @Test void reviewerCannotPublishSellerWithoutActivePlanEvenAfterDocumentReview() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  var subscription=assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(b.getId(),StatusAssinatura.ATIVA).orElseThrow();
+  subscription.setStatus(StatusAssinatura.CANCELADA);assinaturas.saveAndFlush(subscription);
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").header("Authorization",bearer(tokenA)))
+    .andExpect(status().isConflict());
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
  }
  @Test void pendingSellerCannotReceivePublicationApproval() throws Exception {
   a.setRole(Role.REVIEWER); a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
@@ -1169,7 +1306,7 @@ class SecurityRegressionTest {
   mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenB)))
       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
   mvc.perform(get(url)).andExpect(status().isNotFound());
-  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)))
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)).contentType("application/json").content(saleJson()))
       .andExpect(status().isConflict());
   mvc.perform(get(url).header("Authorization",bearer(tokenB)))
       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
@@ -1185,7 +1322,7 @@ class SecurityRegressionTest {
       .andExpect(status().isOk());
   mvc.perform(post("/v1/proposta").header("Authorization", bearer(tokenC))
       .contentType("application/json").content(offer)).andExpect(status().isConflict());
-  mvc.perform(post("/v1/anuncio/" + id + "/vendido").header("Authorization", bearer(tokenB)))
+  mvc.perform(post("/v1/anuncio/" + id + "/vendido").header("Authorization", bearer(tokenB)).contentType("application/json").content(saleJson()))
       .andExpect(status().isOk());
   mvc.perform(post("/v1/proposta").header("Authorization", bearer(tokenC))
       .contentType("application/json").content(offer)).andExpect(status().isConflict());
@@ -1195,12 +1332,17 @@ class SecurityRegressionTest {
  @Test void onlyOwnerCanMarkSoldAndHistoricOffersRemain() throws Exception {
   long id=anuncio.getId();
   String url="/v1/anuncio/"+id;
-  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenA)))
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenA)).contentType("application/json").content(saleJson()))
       .andExpect(status().isForbidden());
-  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)))
+  mvc.perform(post(url+"/vendido").header("Authorization",bearer(tokenB)).contentType("application/json").content(saleJson()))
       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("VENDIDO"));
   assertEquals(1,propostas.count());
   assertEquals(StatusAnuncio.VENDIDO,anuncios.findById(id).orElseThrow().getStatus());
+  VendaDeclarada declared=vendasDeclaradas.findByAnuncioId(id).orElseThrow();
+  assertEquals(0,new BigDecimal("50000.00").compareTo(declared.getValorFinal()));
+  assertEquals(new BigDecimal("0.65"),declared.getComissaoPercentual());
+  assertEquals(new BigDecimal("325.00"),declared.getComissaoCalculada());
+  assertEquals("PENDENTE_CONFERENCIA_COBRANCA_EXTERNA",declared.getSituacao());
   assertEquals(b.getId(),anuncios.findById(id).orElseThrow().getStatusAtualizadoPorId());
   mvc.perform(get(url)).andExpect(status().isNotFound());
   mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenB)))

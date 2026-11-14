@@ -21,13 +21,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         p.setProperty("code", code);
         return p;
     }
-    @ExceptionHandler({EmailJaCadastradoException.class, PropostaJaCanceladaException.class,
+    @ExceptionHandler({EmailJaCadastradoException.class, CpfJaCadastradoException.class, PropostaJaCanceladaException.class,
             PropostaJaAceitaException.class, PropostaJaNegadaException.class,
             NaoPodeCancelarAndNegarPropostaException.class, ContrapropostaJaRealizadaException.class,
             AnuncioIndisponivelException.class, VerificacaoIndisponivelException.class, DataIntegrityViolationException.class})
     public ProblemDetail conflict(Exception ex) { return problem(409, "Operação em conflito com o estado atual", "CONFLICT"); }
     @ExceptionHandler({UsuarioNaoEncontradoException.class, AnuncioNaoEncontradoException.class,
-            PropostaNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class, DenunciaNaoEncontradaException.class})
+            PropostaNaoEncontradaException.class, MensagemNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class, DenunciaNaoEncontradaException.class})
     public ProblemDetail notFound(Exception ex) { return problem(404, "Recurso não encontrado", "NOT_FOUND"); }
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail unauthorized(Exception ex) { return problem(401, "Credenciais inválidas", "AUTHENTICATION_REQUIRED"); }
@@ -54,6 +54,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ArmazenamentoPrivadoIndisponivelException.class)
     public ProblemDetail privateEvidenceStorageUnavailable(Exception ex) {
         return problem(503, "Recebimento de documentos temporariamente indisponível", "PRIVATE_STORAGE_UNAVAILABLE");
+    }
+    @ExceptionHandler(DadosPessoaisIndisponiveisException.class)
+    public ProblemDetail sellerPersonalDataUnavailable(Exception ex) {
+        return problem(503, "Proteção de dados pessoais temporariamente indisponível", "PERSONAL_DATA_PROTECTION_UNAVAILABLE");
     }
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail invalid(Exception ex) { return problem(400, "Requisição inválida", "INVALID_REQUEST"); }

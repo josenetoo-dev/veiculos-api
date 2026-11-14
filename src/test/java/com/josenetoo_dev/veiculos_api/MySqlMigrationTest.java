@@ -2,36 +2,48 @@ package com.josenetoo_dev.veiculos_api;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.extension.ExtendWith;
 import java.sql.*;
-import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIfEnvironmentVariable(named="MYSQL_TEST_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:3306/phase1_test.*")
+@ExtendWith(MySqlTestEnabledCondition.class)
 class MySqlMigrationTest {
     static String testUrl(String purpose) {
-        String base = System.getenv("MYSQL_TEST_URL");
-        if (base == null || !base.startsWith("jdbc:mysql://127.0.0.1:3306/phase1_test")) throw new IllegalStateException("Somente MySQL local temporário de testes");
-        return "jdbc:mysql://127.0.0.1:3306/phase1_test_"+purpose+"_"+UUID.randomUUID().toString().replace("-", "")+"?createDatabaseIfNotExist=true";
+        return MySqlTestConfiguration.fromEnvironment().schemaUrl(purpose);
     }
-    Flyway flyway(String url, String target) {return Flyway.configure().dataSource(url,"root","").locations("classpath:db/migration").target(target).load();}
+    static Connection testConnection(String url) throws SQLException {
+        var configuration = MySqlTestConfiguration.fromEnvironment();
+        return DriverManager.getConnection(url, configuration.user(), configuration.password());
+    }
+    static Flyway flyway(String url, String target) {
+        var configuration = MySqlTestConfiguration.fromEnvironment();
+        return Flyway.configure().dataSource(url, configuration.user(), configuration.password())
+                .locations("classpath:db/migration").target(target).load();
+    }
+    static Flyway flyway(String url) {
+        var configuration = MySqlTestConfiguration.fromEnvironment();
+        return Flyway.configure().dataSource(url, configuration.user(), configuration.password())
+                .locations("classpath:db/migration").load();
+    }
     @Test void freshDatabaseGetsLegacyTablesAndSecurityColumns() throws Exception {
         String url=testUrl("fresh");var f=flyway(url,"2");assertEquals(2,f.migrate().migrationsExecuted);assertTrue(f.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var s=c.createStatement();var r=s.executeQuery("SELECT role,status,token_version FROM usuario")){assertFalse(r.next());}
+        try(var c=testConnection(url);var s=c.createStatement();var r=s.executeQuery("SELECT role,status,token_version FROM usuario")){assertFalse(r.next());}
         assertEquals(0,f.migrate().migrationsExecuted);
     }
     @Test void existingDatabaseRequiresExplicitBaselineAndPreservesData() throws Exception {
         String url=testUrl("legacy");flyway(url,"1").migrate();
-        try(var c=DriverManager.getConnection(url,"root","");var s=c.createStatement()) {
+        try(var c=testConnection(url);var s=c.createStatement()) {
             s.execute("INSERT INTO usuario(id,nome,email,senha,telefone,criado_em) VALUES(77,'Legado','legacy@example.com','test-only-password-hash','38999999999',NOW())");
             s.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id) VALUES(88,'AM-88','LT',false,'Regular','Nenhuma','Carro','Descrição antiga',10000,'Marca','Modelo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),77)");
             s.execute("INSERT INTO anuncio_foto(id,anuncio_id,url,ordem,tipo_foto) VALUES(99,88,'https://example.com/legacy.png',0,'FRENTE')");
             s.execute("DROP TABLE flyway_schema_history"); // apenas DB isolado recém-criado: simula legado sem Flyway
         }
         var f=flyway(url,"2");assertThrows(org.flywaydb.core.api.FlywayException.class,f::migrate);
-        Flyway.configure().dataSource(url,"root","").baselineVersion("1").load().baseline();
+        var configuration = MySqlTestConfiguration.fromEnvironment();
+        Flyway.configure().dataSource(url, configuration.user(), configuration.password())
+                .baselineVersion("1").load().baseline();
         assertEquals(1,f.migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var s=c.createStatement();var r=s.executeQuery("SELECT u.id,u.nome,u.email,u.senha,u.telefone,u.role,u.status,u.token_version,a.codigo,a.preco,f.url FROM usuario u JOIN anuncio a ON a.usuario_id=u.id JOIN anuncio_foto f ON f.anuncio_id=a.id")) {
+        try(var c=testConnection(url);var s=c.createStatement();var r=s.executeQuery("SELECT u.id,u.nome,u.email,u.senha,u.telefone,u.role,u.status,u.token_version,a.codigo,a.preco,f.url FROM usuario u JOIN anuncio a ON a.usuario_id=u.id JOIN anuncio_foto f ON f.anuncio_id=a.id")) {
             assertTrue(r.next());assertEquals(77,r.getLong(1));assertEquals("Legado",r.getString(2));assertEquals("legacy@example.com",r.getString(3));assertEquals("test-only-password-hash",r.getString(4));assertEquals("38999999999",r.getString(5));assertEquals("USER",r.getString(6));assertEquals("ACTIVE",r.getString(7));assertEquals(0,r.getLong(8));assertEquals("AM-88",r.getString(9));assertEquals(0,new java.math.BigDecimal("10000").compareTo(r.getBigDecimal(10)));assertEquals("https://example.com/legacy.png",r.getString(11));assertFalse(r.next());
         }
         assertEquals(0,f.migrate().migrationsExecuted);
@@ -40,13 +52,13 @@ class MySqlMigrationTest {
     @Test void pendingEmailMigrationPreservesLegacyUser() throws Exception {
         String url = testUrl("email");
         assertEquals(2, flyway(url,"2").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (101,'Original','original@example.com','unchanged-hash','38999999999')");
         }
         var upgraded = flyway(url,"3");
         assertEquals(1,upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+        try(var c=testConnection(url);var st=c.createStatement();
             var r=st.executeQuery("SELECT id,email,senha,pending_email,pending_email_token_hash,pending_email_expires_at,pending_email_requested_at FROM usuario WHERE id=101")) {
             assertTrue(r.next());
             assertEquals(101,r.getLong("id"));
@@ -63,7 +75,7 @@ class MySqlMigrationTest {
         String url = testUrl("moderation");
         var old = flyway(url,"3");
         assertEquals(3,old.migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement()) {
+        try(var c=testConnection(url); var stmt=c.createStatement()) {
             stmt.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (201,'Legacy','legacy2@example.com','hash','38999999999')");
             String prefix = "INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id) VALUES ";
             stmt.execute(prefix+"(301,'AM-301','LT',false,'Regular','Nenhuma','Ativo','Descricao',10000,'Marca','Modelo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),201)");
@@ -72,14 +84,14 @@ class MySqlMigrationTest {
         var migrated = flyway(url,"4");
         assertEquals(1,migrated.migrate().migrationsExecuted);
         assertTrue(migrated.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement();
+        try(var c=testConnection(url); var stmt=c.createStatement();
             var rows=stmt.executeQuery("SELECT id,status,revisado_em,revisado_por_id,motivo_rejeicao FROM anuncio ORDER BY id")) {
             assertTrue(rows.next()); assertEquals(301,rows.getLong(1)); assertEquals("PENDENTE",rows.getString(2));
             assertNull(rows.getTimestamp(3));assertNull(rows.getObject(4));assertNull(rows.getString(5));
             assertTrue(rows.next()); assertEquals(302,rows.getLong(1)); assertEquals("PAUSADO",rows.getString(2));
             assertFalse(rows.next());
         }
-        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement();
+        try(var c=testConnection(url); var stmt=c.createStatement();
             var logs=stmt.executeQuery("SELECT COUNT(*) FROM moderacao_evento")) {
             assertTrue(logs.next());assertEquals(0,logs.getInt(1));
         }
@@ -91,7 +103,7 @@ class MySqlMigrationTest {
         String url = testUrl("vehicle");
         var stage4 = flyway(url,"4");
         assertEquals(4,stage4.migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+        try(var c=testConnection(url); var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (401,'Legacy','vehicle@example.com','old-hash','38999999999')");
             st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id) VALUES (501,'AM-501','LT',false,'Regular','Nenhuma','Legacy Listing','Original',59000,'Chevrolet','Onix',2022,58100,'Branco','FLEX',true,'PENDENTE','MANUAL','SEMINOVOS',NOW(),401)");
             st.execute("INSERT INTO anuncio_foto(id,anuncio_id,url,ordem,tipo_foto) VALUES (601,501,'https://example.com/legacy.png',0,'FRENTE')");
@@ -100,7 +112,7 @@ class MySqlMigrationTest {
         var migrated = flyway(url,"5");
         assertEquals(1,migrated.migrate().migrationsExecuted);
         assertTrue(migrated.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+        try(var c=testConnection(url);var st=c.createStatement();
             var rows=st.executeQuery("SELECT a.id,a.veiculo_id,a.codigo,a.marca,a.preco,a.status,v.id,v.marca,v.modelo,v.versao,v.ano,v.quilometragem,v.combustivel,v.cambio,v.cadastrado_por_id FROM anuncio a JOIN veiculo v ON v.id=a.veiculo_id WHERE a.id=501")) {
             assertTrue(rows.next());
             assertEquals(501,rows.getLong("id"));
@@ -120,7 +132,7 @@ class MySqlMigrationTest {
             assertEquals(401,rows.getLong(15));
             assertFalse(rows.next());
         }
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+        try(var c=testConnection(url);var st=c.createStatement();
             var rows=st.executeQuery("SELECT p.id,p.anunciante_id,f.anuncio_id,f.url FROM proposta p JOIN anuncio_foto f ON f.anuncio_id=p.anunciante_id WHERE p.id=701")) {
             assertTrue(rows.next());
             assertEquals(701,rows.getLong(1));
@@ -134,14 +146,14 @@ class MySqlMigrationTest {
     @Test void verificationTablesAreAddedWithoutTouchingLegacyRecords() throws Exception {
         String url=testUrl("verification");
         assertEquals(5,flyway(url,"5").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (401,'Legacy','verification@example.com','old-hash','38999999999')");
             st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (501,401,'Chevrolet','Onix','LT',2022,60000,'Branco','FLEX','MANUAL',true)");
         }
         var migrated=flyway(url,"6");
         assertEquals(1,migrated.migrate().migrationsExecuted);
         assertTrue(migrated.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root",""); var stmt=c.createStatement()) {
+        try(var c=testConnection(url); var stmt=c.createStatement()) {
             stmt.execute("INSERT INTO verificacao (id,solicitante_id,usuario_identidade_id,tipo,status,criado_em) VALUES (601,401,401,'IDENTIDADE','EM_ANALISE',NOW())");
             stmt.execute("INSERT INTO evidencia_verificacao (id,verificacao_id,tipo,arquivo_chave,tipo_midia,tamanho,criado_em) VALUES (701,601,'IDENTIDADE_FRENTE','00000000-0000-4000-8000-000000000001','image/png',100,NOW())");
             stmt.execute("INSERT INTO evento_verificacao (id,verificacao_id,revisor_id,resultado,criado_em) VALUES (801,601,401,'APROVADA',NOW())");
@@ -163,13 +175,13 @@ class MySqlMigrationTest {
     @Test void contactEmailMigrationKeepsExistingUsersAndPasswords() throws Exception {
         String url=testUrl("contact");
         assertEquals(6,flyway(url,"6").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (902,'Legacy','contact@example.com','old-hash','38999999999','USER','ACTIVE',3)");
         }
         var upgraded=flyway(url,"7");
         assertEquals(1,upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+        try(var c=testConnection(url);var st=c.createStatement();
              var r=st.executeQuery("SELECT email,senha,status,token_version,contact_email_token_hash,contact_email_expires_at,contact_email_requested_at,contact_email_verified_at FROM usuario WHERE id=902")) {
             assertTrue(r.next());
             assertEquals("contact@example.com",r.getString("email"));
@@ -187,7 +199,7 @@ class MySqlMigrationTest {
     @Test void archiveMigrationAddsColumnsWithoutDeletingOffersOrMessages() throws Exception {
         String url=testUrl("archiving");
         assertEquals(7,flyway(url,"7").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (801,'Legacy','archive@example.com','hash','38999999999','USER','ACTIVE',0)");
             st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (802,801,'Chevrolet','Onix','LT',2022,100,'Branco','FLEX','MANUAL',true)");
             st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (803,'AM-803','LT',false,'Regular','Nenhuma','Carro','Descricao',60000,'Chevrolet','Onix',2022,100,'Branco','FLEX',true,'PENDENTE','MANUAL','SEMINOVOS',NOW(),801,802)");
@@ -197,7 +209,7 @@ class MySqlMigrationTest {
         var m=flyway(url,"8");
         assertEquals(1,m.migrate().migrationsExecuted);
         assertTrue(m.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             try(var rs=st.executeQuery("SELECT id,arquivado_em,arquivado_por_id FROM anuncio WHERE id=803")) {
                 assertTrue(rs.next());assertEquals(803,rs.getLong(1));assertNull(rs.getTimestamp(2));assertNull(rs.getObject(3));
             }
@@ -212,7 +224,7 @@ class MySqlMigrationTest {
     @Test void listingReportsMigrationPreservesLegacyAdsAndEnforcesUniqueness() throws Exception {
         String url=testUrl("reports");
         assertEquals(8,flyway(url,"8").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+        try(var c=testConnection(url); var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (901,'Seller','seller@example.com','old-hash','38999999999','USER','ACTIVE',0)");
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (902,'Buyer','buyer@example.com','old-hash','38999999998','USER','ACTIVE',0)");
             st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (903,901,'Chevrolet','Onix','LT',2022,100,'Branco','FLEX','MANUAL',true)");
@@ -221,7 +233,7 @@ class MySqlMigrationTest {
         var m=flyway(url,"9");
         assertEquals(1,m.migrate().migrationsExecuted);
         assertTrue(m.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root",""); var st=c.createStatement()) {
+        try(var c=testConnection(url); var st=c.createStatement()) {
             st.execute("INSERT INTO denuncia(anuncio_id,denunciante_id,categoria,relato,status,criado_em) VALUES (904,902,'POSSIVEL_FRAUDE','Relato de fraude','ABERTA',NOW())");
             assertThrows(SQLException.class,()->st.execute("INSERT INTO denuncia(anuncio_id,denunciante_id,categoria,relato,status,criado_em) VALUES (904,902,'OUTRO','Duplicada','ABERTA',NOW())"));
             try(var rs=st.executeQuery("SELECT status FROM anuncio WHERE id=904")) {
@@ -238,13 +250,13 @@ class MySqlMigrationTest {
     @Test void passwordRecoveryMigrationAddsTokenMetadataWithoutChangingPasswords() throws Exception {
         String url=testUrl("recovery");
         assertEquals(9,flyway(url,"9").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (9901,'Legacy','reset@example.com','legacy-hash','38999999999','USER','ACTIVE',5)");
         }
         var migration=flyway(url,"10");
         assertEquals(1,migration.migrate().migrationsExecuted);
         assertTrue(migration.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement();
+        try(var c=testConnection(url);var st=c.createStatement();
              var rows=st.executeQuery("SELECT id,email,senha,token_version,password_reset_token_hash,password_reset_expires_at,password_reset_requested_at,password_reset_failed_attempts FROM usuario WHERE id=9901")) {
             assertTrue(rows.next());
             assertEquals("reset@example.com",rows.getString("email"));
@@ -263,14 +275,14 @@ class MySqlMigrationTest {
     @Test void biometricsV11AddsOnlySessionMetadataAndPreservesIdentity() throws Exception {
         String url=testUrl("biometrics");
         assertEquals(10,flyway(url,"10").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (9701,'Seller','biometria@example.com','hash','38999999999','USER','ACTIVE',1)");
             st.execute("INSERT INTO verificacao(id,solicitante_id,usuario_identidade_id,tipo,status,criado_em) VALUES (9702,9701,9701,'IDENTIDADE','RASCUNHO',NOW())");
         }
         var migrated=flyway(url,"11");
         assertEquals(1,migrated.migrate().migrationsExecuted);
         assertTrue(migrated.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO sessao_biometria(id,verificacao_id,documento_evidencia_id,status,criado_em,aceite_biometria_em,versao_politica) VALUES ('00000000-0000-4000-8000-000000000001',9702,9703,'CRIADA',NOW(),NOW(),'biometria-v1')");
             st.execute("INSERT INTO dispensa_biometria(verificacao_id,documento_evidencia_id,revisor_id,motivo,criado_em) VALUES (9702,9703,9704,'Dispensa humana de exemplo autorizada',NOW())");
             assertThrows(SQLException.class, () -> st.execute("INSERT INTO dispensa_biometria(verificacao_id,documento_evidencia_id,revisor_id,motivo,criado_em) VALUES (9702,9703,9704,'Duplicidade proibida',NOW())"));
@@ -302,7 +314,7 @@ class MySqlMigrationTest {
     @Test void v12LocationAndOwnerStatusMigrationPreservesLegacyListingAndNegotiation() throws Exception {
         String url=testUrl("location_state");
         assertEquals(11,flyway(url,"11").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(id,nome,email,senha,telefone,role,status,token_version) VALUES (1201,'Seller','v12@example.com','unchanged','38999999999','USER','ACTIVE',0)");
             st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (1202,1201,'Chevrolet','Onix','LT',2022,58100,'Branco','FLEX','MANUAL',true)");
             st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (1203,'AM-1203','LT',false,'Regular','Nenhuma','Onix','Antes da migração',64000,'Chevrolet','Onix',2022,58100,'Branco','FLEX',true,'PAUSADO','MANUAL','SEMINOVOS',NOW(),1201,1202)");
@@ -311,7 +323,7 @@ class MySqlMigrationTest {
         var upgraded=flyway(url,"12");
         assertEquals(1,upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             try(var rows=st.executeQuery("SELECT a.codigo,a.status,a.cidade,a.uf,a.status_atualizado_em,a.status_atualizado_por_id,p.descricao FROM anuncio a JOIN proposta p ON p.anunciante_id=a.id WHERE a.id=1203")) {
                 assertTrue(rows.next());
                 assertEquals("AM-1203",rows.getString(1));
@@ -336,7 +348,7 @@ class MySqlMigrationTest {
         String url=testUrl("enum");
         assertEquals(12, flyway(url,"12").migrate().migrationsExecuted);
         assertEquals(1, flyway(url,"13").migrate().migrationsExecuted);
-        try(var c=DriverManager.getConnection(url,"root","");var st=c.createStatement()) {
+        try(var c=testConnection(url);var st=c.createStatement()) {
             st.execute("INSERT INTO usuario(nome,email,senha,telefone) VALUES ('Default','default@example.com','hash','38999999999')");
             try(var rows=st.executeQuery("SELECT role,status FROM usuario WHERE email='default@example.com'")) {
                 assertTrue(rows.next());
@@ -347,6 +359,40 @@ class MySqlMigrationTest {
                     "INSERT INTO usuario(nome,email,senha,telefone,role,status) VALUES ('Invalid','invalid@example.com','hash','38999999999','','')"));
         }
         assertTrue(flyway(url,"13").validateWithResult().validationSuccessful);
+    }
+
+    @Test void v17AddsPrivateChatAttachmentMetadataWithoutChangingExistingMessages() throws Exception {
+        String url = testUrl("chat_attachments");
+        assertEquals(16, flyway(url, "16").migrate().migrationsExecuted);
+        try (var c = testConnection(url); var st = c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (990,'Chat','chat@example.com','hash','38999999999')");
+            st.execute("INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao) VALUES (991,990,'Marca','Modelo','LT',2022,100,'Branco','FLEX','MANUAL',false)");
+            st.execute("INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id) VALUES (991,'AM-991','LT',false,'Regular','Nenhuma','Carro','Descrição',10000,'Marca','Modelo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),990,991)");
+            st.execute("INSERT INTO proposta(id,valor,descricao,status,criado_em,contraproposta_feita,anunciante_id,comprador_id) VALUES (992,10,'Oferta','PENDENTE',NOW(),false,991,990)");
+            st.execute("INSERT INTO mensagem(id,conteudo,criado_em,proposta_id,remetente_id) VALUES (993,'Texto legado',NOW(),992,990)");
+        }
+        assertEquals(1, flyway(url, "17").migrate().migrationsExecuted);
+        try (var c = testConnection(url); var st = c.createStatement();
+             var rows = st.executeQuery("SELECT conteudo,arquivo_chave,arquivo_nome,tipo_midia,arquivo_tamanho FROM mensagem WHERE id=993")) {
+            assertTrue(rows.next());
+            assertEquals("Texto legado", rows.getString(1));
+            assertNull(rows.getString(2)); assertNull(rows.getString(3)); assertNull(rows.getString(4)); assertNull(rows.getObject(5));
+        }
+        assertTrue(flyway(url, "17").validateWithResult().validationSuccessful);
+    }
+
+    @Test void v18AddsEncryptedSellerNameWithoutOverwritingExistingPublicName() throws Exception {
+        String url = testUrl("seller_name");
+        assertEquals(17, flyway(url, "17").migrate().migrationsExecuted);
+        try (var c = testConnection(url); var st = c.createStatement()) {
+            st.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (994,'Nome público','public-name@example.com','hash','38999999999')");
+        }
+        assertEquals(1, flyway(url, "18").migrate().migrationsExecuted);
+        try (var c = testConnection(url); var st = c.createStatement();
+             var rows = st.executeQuery("SELECT nome,nome_completo_vendedor_ciphertext FROM usuario WHERE id=994")) {
+            assertTrue(rows.next()); assertEquals("Nome público", rows.getString(1)); assertNull(rows.getString(2));
+        }
+        assertTrue(flyway(url, "18").validateWithResult().validationSuccessful);
     }
 
 }

@@ -32,6 +32,22 @@ public class Usuario {
     @Column(nullable = false)
     private String telefone;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "cpf_ciphertext", columnDefinition = "LONGTEXT")
+    private String cpfCiphertext;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "cpf_lookup_hash", length = 64, unique = true)
+    private String cpfLookupHash;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "cpf_final_digitos", length = 2)
+    private String cpfFinalDigitos;
+
+    @jakarta.persistence.Column(name = "nome_completo_vendedor_ciphertext", columnDefinition = "LONGTEXT")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String nomeCompletoVendedorCiphertext;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private com.josenetoo_dev.veiculos_api.enums.Role role = com.josenetoo_dev.veiculos_api.enums.Role.USER;

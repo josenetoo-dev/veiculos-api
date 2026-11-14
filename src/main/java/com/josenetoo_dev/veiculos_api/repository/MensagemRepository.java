@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
     Page<Mensagem> findByPropostaIdOrderByCriadoEmAsc(Long propostaId, Pageable pageable);
 
+    Page<Mensagem> findByPropostaIdAndExcluidaEmIsNullOrderByCriadoEmAsc(Long propostaId, Pageable pageable);
+
     @Modifying
     @Query("DELETE FROM Mensagem m WHERE m.proposta.anuncio.id = :anuncioId")
     void deleteByPropostaAnuncioId(Long anuncioId);

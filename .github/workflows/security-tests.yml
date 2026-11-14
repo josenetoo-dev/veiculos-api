@@ -13,16 +13,18 @@ jobs:
       mysql:
         image: mysql:8.4
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_ROOT_PASSWORD: mysql-test-only-password
         ports:
-          - 3306:3306
+          - 13306:3306
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
     env:
-      MYSQL_TEST_URL: jdbc:mysql://127.0.0.1:3306/phase1_test
+      MYSQL_TEST_URL: jdbc:mysql://127.0.0.1:13306/phase1_test
+      MYSQL_TEST_USER: phase1_test_runner
+      MYSQL_TEST_PASSWORD: mysql-test-runner-only-password
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -30,4 +32,12 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Provision restricted MySQL test user
+        env:
+          MYSQL_PWD: mysql-test-only-password
+        run: |
+          mysql --protocol=TCP --host=127.0.0.1 --port=13306 --user=root <<'SQL'
+          CREATE USER 'phase1_test_runner'@'%' IDENTIFIED BY 'mysql-test-runner-only-password';
+          GRANT ALL PRIVILEGES ON `phase1\_test\_%`.* TO 'phase1_test_runner'@'%';
+          SQL
       - run: ./mvnw -B clean verify
