@@ -31,6 +31,7 @@ public class AnuncioService {
     private final VerificacaoService verificacaoService;
     private final com.josenetoo_dev.veiculos_api.repository.PropostaRepository propostaRepository;
     private final com.josenetoo_dev.veiculos_api.repository.MensagemRepository mensagemRepository;
+    private final VendaDeclaradaService vendaDeclaradaService;
 
     // Monta o response já com a URL da foto capa (ordem 0)
     private AnuncioResponse toResponse(Anuncio anuncio) {
@@ -161,6 +162,57 @@ public class AnuncioService {
                 .map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<AnuncioResponse> buscarPublicamente(String q, String tipo, String marca, String cidade, String uf,
+            Categoria categoria, com.josenetoo_dev.veiculos_api.enums.TipoCombustivel combustivel,
+            com.josenetoo_dev.veiculos_api.enums.Cambio cambio, java.math.BigDecimal precoMin,
+            java.math.BigDecimal precoMax, Integer anoMin, String sort, int page, int size) {
+        if (page < 0 || size < 1 || precoMin != null && precoMin.signum() < 0
+                || precoMax != null && precoMax.signum() < 0
+                || precoMin != null && precoMax != null && precoMin.compareTo(precoMax) > 0
+                || anoMin != null && (anoMin < 1886 || anoMin > java.time.Year.now().getValue() + 1)) {
+            throw new IllegalArgumentException("Filtros inválidos");
+        }
+        Categoria tipoCategoria = null;
+        if (tipo != null && !tipo.isBlank()) {
+            if ("MOTO".equalsIgnoreCase(tipo)) tipoCategoria = Categoria.MOTOS;
+            else if (!"CARRO".equalsIgnoreCase(tipo)) throw new IllegalArgumentException("Tipo inválido");
+        }
+        org.springframework.data.domain.Sort sortBy = switch (sort == null ? "recentes" : sort) {
+            case "menor-preco" -> org.springframework.data.domain.Sort.by("preco").ascending();
+            case "maior-preco" -> org.springframework.data.domain.Sort.by("preco").descending();
+            case "menor-km" -> org.springframework.data.domain.Sort.by("quilometragem").ascending();
+            case "recentes" -> org.springframework.data.domain.Sort.by("criadoEm").descending();
+            default -> throw new IllegalArgumentException("Ordenação inválida");
+        };
+        var pageable = org.springframework.data.domain.PageRequest.of(page, Math.min(size, 48), sortBy);
+        final Categoria finalTipoCategoria = tipoCategoria;
+        var specification = (org.springframework.data.jpa.domain.Specification<Anuncio>) (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(cb.equal(root.get("status"), StatusAnuncio.ATIVO));
+            if (finalTipoCategoria != null) predicates.add(cb.equal(root.get("categoria"), finalTipoCategoria));
+            else if (tipo != null && "CARRO".equalsIgnoreCase(tipo)) predicates.add(cb.notEqual(root.get("categoria"), Categoria.MOTOS));
+            if (categoria != null) predicates.add(cb.equal(root.get("categoria"), categoria));
+            if (combustivel != null) predicates.add(cb.equal(root.get("combustivel"), combustivel));
+            if (cambio != null) predicates.add(cb.equal(root.get("cambio"), cambio));
+            if (precoMin != null) predicates.add(cb.greaterThanOrEqualTo(root.get("preco"), precoMin));
+            if (precoMax != null) predicates.add(cb.lessThanOrEqualTo(root.get("preco"), precoMax));
+            if (anoMin != null) predicates.add(cb.greaterThanOrEqualTo(root.get("ano"), anoMin));
+            if (marca != null && !marca.isBlank()) predicates.add(cb.like(cb.lower(root.get("marca")), "%" + marca.strip().toLowerCase(java.util.Locale.ROOT) + "%"));
+            if (cidade != null && !cidade.isBlank()) predicates.add(cb.like(cb.lower(root.get("cidade")), "%" + cidade.strip().toLowerCase(java.util.Locale.ROOT) + "%"));
+            if (uf != null && !uf.isBlank()) predicates.add(cb.equal(cb.upper(root.get("uf")), uf.strip().toUpperCase(java.util.Locale.ROOT)));
+            if (q != null && !q.isBlank()) {
+                String pattern = "%" + q.strip().toLowerCase(java.util.Locale.ROOT).replace("%", "\\%").replace("_", "\\_") + "%";
+                predicates.add(cb.or(cb.like(cb.lower(root.get("marca")), pattern, '\\'),
+                        cb.like(cb.lower(root.get("modelo")), pattern, '\\'),
+                        cb.like(cb.lower(root.get("versao")), pattern, '\\'),
+                        cb.like(cb.lower(root.get("titulo")), pattern, '\\')));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        return anuncioRepository.findAll(specification, pageable).map(this::toResponse);
+    }
+
     @Transactional
     public AnuncioResponse atualizarAnuncio(AnuncioRequest request, Long id) {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
@@ -275,7 +327,7 @@ public class AnuncioService {
      * propostas e histórico de mensagens sem reabrir novas negociações.
      */
     @Transactional
-    public AnuncioResponse marcarVendido(Long id) {
+    public AnuncioResponse marcarVendido(Long id, com.josenetoo_dev.veiculos_api.dto.comercial.DeclararVendaRequest request) {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
         Usuario dono = obterUsuarioAutenticado();
@@ -285,6 +337,7 @@ public class AnuncioService {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException(
                     "Somente anúncios publicados ou pausados podem ser marcados como vendidos");
         }
+        vendaDeclaradaService.declarar(id, request);
         atualizarStatusProprietario(anuncio, StatusAnuncio.VENDIDO, dono.getId());
         anuncio.setDestaque(false);
         return toResponse(anuncioRepository.saveAndFlush(anuncio));

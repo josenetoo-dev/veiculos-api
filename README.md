@@ -45,7 +45,20 @@ O Docker Compose cria um banco novo com credenciais geradas na sua máquina. **N
 ./mvnw -B clean verify
 ```
 
-Os testes de migração usam um MySQL 8.4 isolado na CI do GitHub Actions (variável `MYSQL_TEST_URL`). Fora do perfil local, a aplicação exige um `JWT_SECRET` válido.
+Os testes completos de migração usam um MySQL 8.4 descartável. Para habilitá-los localmente, configure `MYSQL_TEST_URL`, `MYSQL_TEST_USER` e `MYSQL_TEST_PASSWORD`. O URL deve apontar exclusivamente para `127.0.0.1`, usar uma porta diferente de `3306` e terminar em `/phase1_test`; os testes criam schemas próprios com nomes únicos. Quando as três variáveis estiverem ausentes, os testes ficam ignorados. Configuração parcial ou inválida falha explicitamente. Nunca use credenciais ou endpoints de homologação.
+
+Exemplo para um MySQL descartável publicado em loopback na porta `13306` (defina a senha em seu ambiente local sem reutilizar credenciais):
+
+```bash
+export MYSQL_TEST_URL='jdbc:mysql://127.0.0.1:13306/phase1_test'
+export MYSQL_TEST_USER='phase1_test_runner'
+read -rsp 'Senha do MySQL descartável: ' MYSQL_TEST_PASSWORD; printf '\n'; export MYSQL_TEST_PASSWORD
+./mvnw -B -Dtest=MySqlMigrationTest,MySqlSchemaValidationTest test
+```
+
+Use a dedicated MySQL account with privileges restricted to schemas matching `phase1_test_*`; do not use a shared or staging account.
+
+O workflow do GitHub Actions inicializa seu serviço MySQL isolado com senha exclusiva de CI e publica a porta `13306`. `application.yaml` exige `JWT_SECRET` válido nos perfis não locais.
 
 ## O que falta antes de ter usuários reais
 

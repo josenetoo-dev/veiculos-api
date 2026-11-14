@@ -21,6 +21,18 @@ public class UsuarioController {
 
     private final com.josenetoo_dev.veiculos_api.service.EmailChangeService emailChangeService;
     private final com.josenetoo_dev.veiculos_api.service.ContatoEmailService contatoEmailService;
+    private final com.josenetoo_dev.veiculos_api.service.PerfilVendedorService perfilVendedorService;
+
+    @GetMapping("/me/dados-vendedor")
+    public com.josenetoo_dev.veiculos_api.dto.comercial.DadosVendedorResponse meusDadosDeVendedor() {
+        return perfilVendedorService.meusDados();
+    }
+
+    @PutMapping("/me/dados-vendedor")
+    public com.josenetoo_dev.veiculos_api.dto.comercial.DadosVendedorResponse atualizarDadosDeVendedor(
+            @Valid @RequestBody com.josenetoo_dev.veiculos_api.dto.comercial.DadosVendedorRequest request) {
+        return perfilVendedorService.atualizar(request);
+    }
 
     @Operation(summary = "Enviar código ao e-mail da conta para ativar o contato")
     @PostMapping("/me/contato/email/solicitar")
