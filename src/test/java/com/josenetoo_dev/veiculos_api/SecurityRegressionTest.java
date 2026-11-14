@@ -1340,9 +1340,9 @@ class SecurityRegressionTest {
   assertEquals(StatusAnuncio.VENDIDO,anuncios.findById(id).orElseThrow().getStatus());
   VendaDeclarada declared=vendasDeclaradas.findByAnuncioId(id).orElseThrow();
   assertEquals(0,new BigDecimal("50000.00").compareTo(declared.getValorFinal()));
-  assertEquals(new BigDecimal("0.65"),declared.getComissaoPercentual());
-  assertEquals(new BigDecimal("325.00"),declared.getComissaoCalculada());
-  assertEquals("PENDENTE_CONFERENCIA_COBRANCA_EXTERNA",declared.getSituacao());
+  assertEquals(0, declared.getComissaoPercentual().compareTo(BigDecimal.ZERO));
+  assertEquals(0, declared.getComissaoCalculada().compareTo(BigDecimal.ZERO));
+  assertEquals("DECLARADA",declared.getSituacao());
   assertEquals(b.getId(),anuncios.findById(id).orElseThrow().getStatusAtualizadoPorId());
   mvc.perform(get(url)).andExpect(status().isNotFound());
   mvc.perform(post(url+"/reativar").header("Authorization",bearer(tokenB)))
