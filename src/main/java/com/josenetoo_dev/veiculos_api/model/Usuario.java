@@ -98,6 +98,13 @@ public class Usuario {
     @Column(name = "password_reset_failed_attempts", nullable = false)
     private int passwordResetFailedAttempts = 0;
 
+    @Column(name = "termos_versao", length = 40)
+    private String termosVersao;
+    @Column(name = "privacidade_versao", length = 40)
+    private String privacidadeVersao;
+    @Column(name = "aceite_termos_em")
+    private LocalDateTime aceiteTermosEm;
+
     private LocalDateTime criadoEm = LocalDateTime.now();
 
     /** Protege também criações internas que não passam pelo cadastro HTTP. */
