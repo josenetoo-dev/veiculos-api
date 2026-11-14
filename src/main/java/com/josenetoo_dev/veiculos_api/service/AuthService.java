@@ -32,6 +32,9 @@ public class AuthService {
 
         Usuario usuario = new Usuario();
 
+        usuario.setTermosVersao("2026-11-14-demo-v1");
+        usuario.setPrivacidadeVersao("2026-11-14-demo-v1");
+        usuario.setAceiteTermosEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         usuario.setNome(request.getNome());
         usuario.setEmail(normalizedEmail);
         usuario.setTelefone(request.getTelefone());

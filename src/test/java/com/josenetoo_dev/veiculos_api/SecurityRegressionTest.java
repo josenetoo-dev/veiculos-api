@@ -73,6 +73,7 @@ class SecurityRegressionTest {
  @Autowired AceiteContratoRepository aceitesContrato;
  @Autowired VendaDeclaradaRepository vendasDeclaradas;
 
+ @Autowired SolicitacaoPrivacidadeRepository privacyRequests;
  @Autowired MensagemRepository mensagens;
  @Autowired JwtUtil jwt;
  @Autowired PasswordEncoder encoder;
@@ -84,6 +85,7 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
+  privacyRequests.deleteAll();
   vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
   evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
@@ -228,7 +230,7 @@ class SecurityRegressionTest {
  @Test void commonUserCannotSearchAccounts() throws Exception {mvc.perform(get("/v1/usuario/buscar?nome=B").header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());}
  @Test void publicProfileOmitsPrivateFields() throws Exception {mvc.perform(get("/v1/usuario/"+b.getId()).header("Authorization",bearer(tokenA))).andExpect(status().isOk()).andExpect(jsonPath("$.email").doesNotExist()).andExpect(jsonPath("$.telefone").doesNotExist()).andExpect(jsonPath("$.senha").doesNotExist());}
  @Test void ownAccountKeepsContactsWithoutPassword() throws Exception {mvc.perform(get("/v1/usuario/me").header("Authorization",bearer(tokenA))).andExpect(status().isOk()).andExpect(jsonPath("$.email").value(a.getEmail())).andExpect(jsonPath("$.senha").doesNotExist());}
- @Test void cannotChangeAnotherAccount() throws Exception {mvc.perform(put("/v1/usuario/"+b.getId()).header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"nome\":\"X\",\"email\":\"x@example.com\",\"telefone\":\"38999999999\"}")).andExpect(status().isForbidden());assertEquals("B",usuarios.findById(b.getId()).orElseThrow().getNome());}
+ @Test void cannotChangeAnotherAccount() throws Exception {mvc.perform(put("/v1/usuario/"+b.getId()).header("Authorization",bearer(tokenA)).contentType("application/json").content("{\"aceiteTermos\":true,\"nome\":\"X\",\"email\":\"x@example.com\",\"telefone\":\"38999999999\"}")).andExpect(status().isForbidden());assertEquals("B",usuarios.findById(b.getId()).orElseThrow().getNome());}
  @Test void cannotDeleteAnotherListing() throws Exception {mvc.perform(delete("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());assertTrue(anuncios.existsById(anuncio.getId()));}
  @Test void strangerCannotReadNegotiationOrChat() throws Exception {for(String suffix:new String[]{"","/mensagens"}) mvc.perform(get("/v1/proposta/"+proposta.getId()+suffix).header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());}
  @Test void strangerCannotAcceptOffer() throws Exception {mvc.perform(put("/v1/proposta/"+proposta.getId()+"/aceitar").header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());assertEquals(StatusProposta.PENDENTE,propostas.findById(proposta.getId()).orElseThrow().getStatus());}
@@ -237,7 +239,7 @@ class SecurityRegressionTest {
  @Test void invalidBatchDoesNotPartiallyPersist() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("good.png","image/png")).file(new MockMultipartFile("fotos","bad.png","image/png",new byte[]{1,2,3})).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());assertEquals(0,fotos.count());}
  @Test void executableExtensionIsRejected() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.html","image/png")).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
  @Test void malformedTokenReturns401() throws Exception {mvc.perform(get("/v1/usuario/me").header("Authorization","Bearer invalid")).andExpect(status().isUnauthorized());}
- @Test void passwordValidationNeverEchoesRejectedValue() throws Exception {var r=mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"Test\",\"email\":\"t@example.com\",\"telefone\":\"38999999999\",\"senha\":\"secret\"}")).andExpect(status().isBadRequest()).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
+ @Test void passwordValidationNeverEchoesRejectedValue() throws Exception {var r=mvc.perform(post("/auth/register").contentType("application/json").content("{\"aceiteTermos\":true,\"nome\":\"Test\",\"email\":\"t@example.com\",\"telefone\":\"38999999999\",\"senha\":\"secret\"}")).andExpect(status().isBadRequest()).andReturn();assertFalse(r.getResponse().getContentAsString().contains("secret"));}
 
  @Test void validImageIsReencodedAndStored() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/png")).header("Authorization",bearer(tokenB))).andExpect(status().isCreated()).andExpect(jsonPath("$[0].tipoFoto").value("OUTRO"));assertEquals(1,fileCount());assertEquals(1,fotos.count());try(var paths=Files.list(UPLOAD)){assertNotNull(ImageIO.read(paths.findFirst().orElseThrow().toFile()));}}
  @Test void mismatchedMimeIsRejected() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("photo.png","image/jpeg")).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
@@ -263,11 +265,11 @@ class SecurityRegressionTest {
  }
  @Test void authenticationNormalizesEmailAndRejectsDuplicateDifferentCase() throws Exception {
   mvc.perform(post("/auth/register").contentType("application/json")
-      .content("{\"nome\":\"Example\",\"email\":\"MiXeD@Example.COM\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
+      .content("{\"aceiteTermos\":true,\"nome\":\"Example\",\"email\":\"MiXeD@Example.COM\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
       .andExpect(status().isCreated()).andExpect(jsonPath("$.email").value("mixed@example.com"));
   assertTrue(usuarios.existsByEmail("mixed@example.com"));
   mvc.perform(post("/auth/register").contentType("application/json")
-      .content("{\"nome\":\"Duplicate\",\"email\":\"MIXED@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
+      .content("{\"aceiteTermos\":true,\"nome\":\"Duplicate\",\"email\":\"MIXED@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\"}"))
       .andExpect(status().isConflict());
   mvc.perform(post("/auth/login").contentType("application/json")
       .content("{\"email\":\"MIXED@EXAMPLE.COM\",\"senha\":\"senhaTeste123\"}"))
@@ -302,7 +304,7 @@ class SecurityRegressionTest {
       .andExpect(status().isUnauthorized());
  }
 
- @Test void registrationCannotEscalateRoleOrState() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"D\",\"email\":\"d@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\",\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER")).andExpect(jsonPath("$.status").value("PENDING_CONTACT_VERIFICATION"));}
+ @Test void registrationCannotEscalateRoleOrState() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"aceiteTermos\":true,\"nome\":\"D\",\"email\":\"d@example.com\",\"telefone\":\"38999999999\",\"senha\":\"senhaTeste123\",\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER")).andExpect(jsonPath("$.status").value("PENDING_CONTACT_VERIFICATION"));}
  @Test void persistenceDefaultsNullRoleAndStatusToLeastPrivilegeAndPending() {
   var user = new Usuario(); user.setNome("Null defaults"); user.setEmail("null-defaults@example.com");
   user.setTelefone("38999999999"); user.setSenha(encoder.encode("senhaTeste123"));
@@ -329,7 +331,7 @@ class SecurityRegressionTest {
  }
  @Test void truncatedImageIsRejected() throws Exception {var f=image("photo.png","image/png");mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(new MockMultipartFile("fotos","photo.png","image/png",java.util.Arrays.copyOf(f.getBytes(),20))).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
  @Test void pathTraversalFilenameIsRejected() throws Exception {mvc.perform(multipart("/v1/anuncio/"+anuncio.getId()+"/fotos").file(image("../photo.png","image/png")).header("Authorization",bearer(tokenB))).andExpect(status().isBadRequest());assertEquals(0,fileCount());}
- @Test void utf8PasswordCannotExceedBcryptByteLimit() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"nome\":\"Test\",\"email\":\"utf8@example.com\",\"telefone\":\"38999999999\",\"senha\":\""+"é".repeat(37)+"\"}")).andExpect(status().isBadRequest());assertFalse(usuarios.existsByEmail("utf8@example.com"));}
+ @Test void utf8PasswordCannotExceedBcryptByteLimit() throws Exception {mvc.perform(post("/auth/register").contentType("application/json").content("{\"aceiteTermos\":true,\"nome\":\"Test\",\"email\":\"utf8@example.com\",\"telefone\":\"38999999999\",\"senha\":\""+"é".repeat(37)+"\"}")).andExpect(status().isBadRequest());assertFalse(usuarios.existsByEmail("utf8@example.com"));}
  @Test void forgedExpiredAndRevokedTokensAreRejected() throws Exception {
   var key=io.jsonwebtoken.security.Keys.hmacShaKeyFor("integration-test-key-at-least-32-bytes-long".getBytes(java.nio.charset.StandardCharsets.UTF_8));
   String expired=io.jsonwebtoken.Jwts.builder().setSubject(a.getId().toString()).claim("tv",0).setExpiration(new java.util.Date(1)).signWith(key).compact();
@@ -480,7 +482,7 @@ class SecurityRegressionTest {
  @Test void directEmailChangeWithoutVerificationIsRejected() throws Exception {
   mvc.perform(put("/v1/usuario/"+a.getId()).header("Authorization",bearer(tokenA))
    .contentType("application/json")
-   .content("{\"nome\":\"A\",\"email\":\"changed@example.com\",\"telefone\":\"38999999999\"}"))
+   .content("{\"aceiteTermos\":true,\"nome\":\"A\",\"email\":\"changed@example.com\",\"telefone\":\"38999999999\"}"))
    .andExpect(status().isBadRequest());
   assertEquals("a@example.com",usuarios.findById(a.getId()).orElseThrow().getEmail());
  }
@@ -1387,6 +1389,29 @@ class SecurityRegressionTest {
       .andExpect(status().isBadRequest());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getCidade());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getUf());
+ }
+
+
+ @Test void registrationRequiresTermsAndRecordsVersionsWithoutRetroactiveAcceptance() throws Exception {
+  String data="{\"nome\":\"Teste\",\"email\":\"receipt@example.com\",\"senha\":\"senhaTeste123\",\"telefone\":\"38999999999\"}";
+  mvc.perform(post("/auth/register").contentType("application/json").content(data)).andExpect(status().isBadRequest());
+  mvc.perform(post("/auth/register").contentType("application/json").content(data.replace("{", "{\"aceiteTermos\":true,"))).andExpect(status().isCreated());
+  var saved=usuarios.findByEmail("receipt@example.com").orElseThrow();
+  assertEquals("2026-11-14-demo-v1",saved.getTermosVersao());
+  assertNotNull(saved.getAceiteTermosEm());
+  assertNull(usuarios.findById(a.getId()).orElseThrow().getAceiteTermosEm());
+ }
+ @Test void privacyRequestsAreAuthenticatedIdempotentAndPrivate() throws Exception {
+  String path="/v1/privacidade/solicitacoes";
+  mvc.perform(post(path)).andExpect(status().isUnauthorized());
+  mvc.perform(post(path).header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
+  mvc.perform(post(path).header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
+  assertEquals(1,privacyRequests.count());
+  mvc.perform(get(path).header("Authorization",bearer(tokenA))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(get(path).header("Authorization",bearer(tokenB))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+  mvc.perform(get(path+"/admin").header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
+  c.setRole(Role.ADMIN);c.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(c);
+  mvc.perform(get(path+"/admin").header("Authorization",bearer(tokenC))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
  }
 
 

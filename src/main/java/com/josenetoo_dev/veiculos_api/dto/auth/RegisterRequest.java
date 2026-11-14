@@ -14,6 +14,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RegisterRequest {
 
+    @NotNull
+    @AssertTrue(message = "É necessário aceitar os termos de uso")
+    private Boolean aceiteTermos;
+
     @NotBlank
     @Size(max = 120)
     private String nome;

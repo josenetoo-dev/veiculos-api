@@ -86,7 +86,8 @@ public class BiometriaService {
     private void requireConfigured() {
         if(!enabled) throw new BiometriaIndisponivelException();
         if (!storage.available()) throw new BiometriaIndisponivelException();
-        if(livenessThreshold<1 || livenessThreshold>100
+        if(!Float.isFinite(livenessThreshold) || !Float.isFinite(faceThreshold)
+                || livenessThreshold<1 || livenessThreshold>100
                 || faceThreshold<1 || faceThreshold>100
                 || policyVersion==null || policyVersion.isBlank() || policyVersion.length()>60) {
             throw new BiometriaIndisponivelException();
