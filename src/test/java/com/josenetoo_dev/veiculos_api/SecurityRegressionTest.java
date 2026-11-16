@@ -1422,9 +1422,11 @@ class SecurityRegressionTest {
 
 
  private static String contactMailText(jakarta.mail.internet.MimeMessage mail) throws Exception {
-  var mixed = (jakarta.mail.Multipart) mail.getContent();
-  var alternative = (jakarta.mail.Multipart) mixed.getBodyPart(0).getContent();
-  return (String) alternative.getBodyPart(0).getContent();
+  Object content = mail.getContent();
+  while (content instanceof jakarta.mail.Multipart multipart) {
+   content = multipart.getBodyPart(0).getContent();
+  }
+  return (String) content;
  }
 
  @Test void wrongContactCodesArePersistedAndInvalidateAfterFiveAttempts() throws Exception {
