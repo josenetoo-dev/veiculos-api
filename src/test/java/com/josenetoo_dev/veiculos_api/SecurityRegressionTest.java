@@ -1491,6 +1491,7 @@ class SecurityRegressionTest {
  }
 
  @Test void unpaidOfferIntentIsIdempotentAndUsesBackendPrice() throws Exception {
+  b.setStatus(StatusUsuario.ACTIVE);
   b.setCpfCiphertext("fictitious-encrypted-cpf");usuarios.saveAndFlush(b);
   PlanoComercial offer=new PlanoComercial();
   offer.setCodigo("AVULSO");offer.setNome("Anúncio avulso");
