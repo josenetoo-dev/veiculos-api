@@ -1489,4 +1489,36 @@ class SecurityRegressionTest {
   assertEquals("novo-cadastro@example.com",captor.getValue().getAllRecipients()[0].toString());
   assertNotNull(usuarios.findByEmailIgnoreCase("novo-cadastro@example.com").orElseThrow().getContactEmailTokenHash());
  }
+
+ @Test void unpaidOfferIntentIsIdempotentAndUsesBackendPrice() throws Exception {
+  b.setCpfCiphertext("fictitious-encrypted-cpf");usuarios.saveAndFlush(b);
+  PlanoComercial offer=new PlanoComercial();
+  offer.setCodigo("AVULSO");offer.setNome("Anúncio avulso");
+  offer.setMensalidade(new BigDecimal("79.90"));offer.setComissaoPercentual(BigDecimal.ZERO);
+  offer.setPeriodicidade("UNICO");offer.setLimiteAnuncios(1);offer.setVigenciaDias(30);
+  planos.saveAndFlush(offer);
+  org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+      new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+          b.getId().toString(),null,java.util.List.of()));
+  try {
+   var first=planoService.registrarIntencao(new com.josenetoo_dev.veiculos_api.dto.comercial.IntencaoAssinaturaRequest("AVULSO"));
+   var second=planoService.registrarIntencao(new com.josenetoo_dev.veiculos_api.dto.comercial.IntencaoAssinaturaRequest("AVULSO"));
+   assertEquals(first.id(),second.id());
+   assertEquals("UNICO",first.periodicidade());
+   assertEquals(0,new BigDecimal("79.90").compareTo(first.mensalidade()));
+   assertEquals("INTENCAO",first.status());
+   assertNull(first.inicioVigencia());
+  } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+ }
+
+ @Autowired com.josenetoo_dev.veiculos_api.service.ExpiracaoComercialService expiracao;
+ @Test void expiredPaidPeriodPausesItsPublishedListing() {
+  var subscription=assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(b.getId(),StatusAssinatura.ATIVA).orElseThrow();
+  subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1));
+  assinaturas.saveAndFlush(subscription);
+  anuncio.setAssinaturaPublicacaoId(subscription.getId());anuncios.saveAndFlush(anuncio);
+  expiracao.expirar();
+  assertEquals(StatusAssinatura.EXPIRADA,assinaturas.findById(subscription.getId()).orElseThrow().getStatus());
+  assertEquals(StatusAnuncio.PAUSADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+ }
 }
