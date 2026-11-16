@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 public class Anuncio {
+    @jakarta.persistence.Column(name = "assinatura_publicacao_id")
+    private Long assinaturaPublicacaoId;
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

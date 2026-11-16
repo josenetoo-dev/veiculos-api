@@ -86,6 +86,11 @@ public class ModeracaoService {
         }
         usuarios.findByIdForUpdate(anuncio.getUsuario().getId()).orElseThrow();
         var assinatura = planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        if ("UNICO".equals(assinatura.getPeriodicidadeSnapshot())
+                && anuncios.countByAssinaturaPublicacaoId(assinatura.getId()) > 0
+                && !assinatura.getId().equals(anuncio.getAssinaturaPublicacaoId())) {
+            throw new AnuncioIndisponivelException("Este anúncio avulso já foi utilizado em outro veículo. Registre uma nova contratação.");
+        }
         if (anuncios.countByUsuarioIdAndStatus(anuncio.getUsuario().getId(), StatusAnuncio.ATIVO)
                 >= assinatura.getLimiteAnunciosSnapshot()) {
             throw new AnuncioIndisponivelException("O limite de anúncios ativos do plano foi atingido. Pause um anúncio ou aguarde nova vigência.");
@@ -94,6 +99,7 @@ public class ModeracaoService {
             throw new AnuncioIndisponivelException("É necessário aceitar a versão comercial vigente do contrato");
         }
 
+        anuncio.setAssinaturaPublicacaoId(assinatura.getId());
         anuncio.setStatus(StatusAnuncio.ATIVO);
         anuncio.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
         anuncio.setRevisadoPorId(revisorId);

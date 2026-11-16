@@ -66,6 +66,7 @@ class SecurityRegressionTest {
  @Autowired VerificacaoRepository verificacoes;
  @Autowired EvidenciaVerificacaoRepository evidencias;
  @Autowired EventoVerificacaoRepository eventosVerificacao;
+ @Autowired com.josenetoo_dev.veiculos_api.service.PlanoComercialService planoService;
  @Autowired PlanoComercialRepository planos;
  @Autowired AssinaturaVendedorRepository assinaturas;
  @Autowired EventoAssinaturaRepository eventosAssinatura;
@@ -89,6 +90,7 @@ class SecurityRegressionTest {
       new jakarta.mail.internet.MimeMessage(jakarta.mail.Session.getInstance(new java.util.Properties())));
 
   privacyRequests.deleteAll();
+  anuncios.findAll().forEach(ad -> { ad.setAssinaturaPublicacaoId(null); anuncios.save(ad); });
   vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
   evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
@@ -1423,5 +1425,46 @@ class SecurityRegressionTest {
   var mixed = (jakarta.mail.Multipart) mail.getContent();
   var alternative = (jakarta.mail.Multipart) mixed.getBodyPart(0).getContent();
   return (String) alternative.getBodyPart(0).getContent();
+ }
+
+ @Test void wrongContactCodesArePersistedAndInvalidateAfterFiveAttempts() throws Exception {
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isAccepted());
+  for (int attempt=0; attempt<5; attempt++) {
+   mvc.perform(post("/v1/usuario/me/contato/email/confirmar").header("Authorization",bearer(tokenA))
+       .contentType("application/json").content("{\"token\":\"incorrect-but-long-enough-token\"}"))
+       .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("EMAIL_CODE_INVALID"))
+       .andExpect(jsonPath("$.traceId").isNotEmpty()).andExpect(jsonPath("$.timestamp").isNotEmpty());
+  }
+  Usuario actual = usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(5, actual.getContactEmailFailedAttempts());
+  assertNull(actual.getContactEmailTokenHash());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,actual.getStatus());
+ }
+
+ @Test void cancellationPreservesPaidAccessAndIsIdempotent() throws Exception {
+  Usuario seller = user("Loja", "cancel-test@example.com");
+  seller.setStatus(StatusUsuario.ACTIVE);
+  seller=usuarios.saveAndFlush(seller);
+  AssinaturaVendedor subscription=new AssinaturaVendedor();
+  subscription.setVendedor(seller);
+  subscription.snapshot(planos.findByCodigoAndAtivoTrue("BASIC").orElseThrow());
+  subscription.setStatus(StatusAssinatura.ATIVA);
+  subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(10));
+  subscription=assinaturas.saveAndFlush(subscription);
+  String token=jwt.gerarToken(seller.getId().toString());
+  // Service is invoked with the same authentication used by the protected endpoint.
+  org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+      new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+          seller.getId().toString(),null,java.util.List.of()));
+  try {
+   var first=planoService.cancelar(subscription.getId());
+   var second=planoService.cancelar(subscription.getId());
+   assertEquals("ATIVA",first.status());
+   assertTrue(second.renovacaoCancelada());
+   assertEquals(first.vencimentoEm(),second.vencimentoEm());
+  } finally {
+   org.springframework.security.core.context.SecurityContextHolder.clearContext();
+  }
  }
 }

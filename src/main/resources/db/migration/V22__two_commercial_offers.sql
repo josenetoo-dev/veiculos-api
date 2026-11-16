@@ -13,3 +13,7 @@ INSERT INTO plano_comercial (codigo,nome,mensalidade,comissao_percentual,benefic
 VALUES
  ('AVULSO','Anúncio avulso',79.90,0,'["Um anúncio ativo","Vigência de 30 dias","Fotos e edição do anúncio","Propostas e mensagens","Renovação por nova contratação"]',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),'UNICO',1,30),
  ('RECORRENTE','Assinatura mensal',69.90,0,'["Até três anúncios ativos simultaneamente","Vigência mensal","Gerenciamento de anúncios","Propostas e mensagens","Cancelamento da renovação preserva o período pago"]',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),'MENSAL',3,30);
+
+ALTER TABLE anuncio ADD COLUMN assinatura_publicacao_id BIGINT NULL,
+ ADD CONSTRAINT fk_anuncio_assinatura_publicacao FOREIGN KEY (assinatura_publicacao_id) REFERENCES assinatura_vendedor(id);
+CREATE INDEX ix_anuncio_assinatura_publicacao ON anuncio (assinatura_publicacao_id);
