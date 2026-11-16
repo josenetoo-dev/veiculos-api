@@ -629,13 +629,12 @@ class SecurityRegressionTest {
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
   assertEquals(1,eventos.count());
  }
- @Test void reviewerCannotPublishSellerWithoutActivePlanEvenAfterDocumentReview() throws Exception {
+ @Test void publicationIsFreeWithoutSubscriptionOrCommercialContract() throws Exception {
   makeReviewerActiveSellerAndPendingListing();
-  var subscription=assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(b.getId(),StatusAssinatura.ATIVA).orElseThrow();
-  subscription.setStatus(StatusAssinatura.CANCELADA);assinaturas.saveAndFlush(subscription);
+  eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").header("Authorization",bearer(tokenA)))
-    .andExpect(status().isConflict());
-  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
+  assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getAssinaturaPublicacaoId());
  }
  @Test void pendingSellerCannotReceivePublicationApproval() throws Exception {
   a.setRole(Role.REVIEWER); a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
@@ -1513,13 +1512,52 @@ class SecurityRegressionTest {
  }
 
  @Autowired com.josenetoo_dev.veiculos_api.service.ExpiracaoComercialService expiracao;
- @Test void expiredPaidPeriodPausesItsPublishedListing() {
+ @Test void expiredOptionalPlanDoesNotUnpublishFreeListing() {
   var subscription=assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(b.getId(),StatusAssinatura.ATIVA).orElseThrow();
   subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1));
   assinaturas.saveAndFlush(subscription);
   anuncio.setAssinaturaPublicacaoId(subscription.getId());anuncios.saveAndFlush(anuncio);
   expiracao.expirar();
   assertEquals(StatusAssinatura.EXPIRADA,assinaturas.findById(subscription.getId()).orElseThrow().getStatus());
-  assertEquals(StatusAnuncio.PAUSADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  assertEquals(StatusAnuncio.ATIVO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+ }
+
+ @Test void identityAndVehicleCanBeSubmittedTogetherWithoutWeakeningApproval() throws Exception {
+  a.setRole(Role.REVIEWER);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  b.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(b);
+  long identity=beginIdentity(tokenB);
+  uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
+  uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_VERSO);
+  long vehicle=idFromJson(mvc.perform(post("/v1/verificacoes/veiculos/"+anuncio.getVeiculo().getId())
+      .header("Authorization",bearer(tokenB))).andExpect(status().isCreated()).andReturn());
+  uploadDoc(tokenB,vehicle,TipoEvidencia.DOCUMENTO_VEICULO);
+  for(long id:new long[]{identity,vehicle}) {
+   mvc.perform(post("/v1/verificacoes/"+id+"/enviar").header("Authorization",bearer(tokenB)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EM_ANALISE"));
+  }
+  mvc.perform(get("/v1/moderacao/anuncios/"+anuncio.getId()+"/documentos").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+  mvc.perform(get("/v1/moderacao/anuncios/"+anuncio.getId()+"/documentos").header("Authorization",bearer(tokenC)))
+      .andExpect(status().isForbidden());
+  mvc.perform(post("/v1/verificacoes/revisao/"+vehicle+"/aprovar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isConflict());
+  for(long id:new long[]{identity,vehicle}) {
+   mvc.perform(post("/v1/verificacoes/revisao/"+id+"/aprovar").header("Authorization",bearer(tokenA)))
+       .andExpect(status().isOk());
+  }
+  anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("ATIVO"));
+ }
+
+ @Test void replacingDraftEvidenceKeepsOnePrivateFile() throws Exception {
+  long identity=beginIdentity(tokenB);
+  long first=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
+  long second=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
+  assertEquals(first,second);
+  assertEquals(1,evidencias.count());
+  try(var files=Files.list(PRIVATE)){assertEquals(1,files.count());}
  }
 }
