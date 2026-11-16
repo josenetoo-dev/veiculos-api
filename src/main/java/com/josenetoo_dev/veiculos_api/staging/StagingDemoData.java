@@ -53,6 +53,12 @@ public class StagingDemoData implements ApplicationRunner {
         }
         Usuario admin = createIfMissing(ADMIN_EMAIL, "Administração — Teste",
                 adminPassword, Role.ADMIN);
+        // Em homologação, a variável de ambiente é a fonte da senha do admin demo.
+        // Sincronizar somente esta conta sintética, sem afetar usuários reais.
+        if (!encoder.matches(adminPassword, admin.getSenha())) {
+            admin.setSenha(encoder.encode(adminPassword));
+            users.saveAndFlush(admin);
+        }
         Usuario seller = createIfMissing(SELLER_EMAIL, "Vendedor de demonstração",
                 sellerPassword, Role.USER);
         createIfMissing(BUYER_EMAIL, "Comprador de teste",
