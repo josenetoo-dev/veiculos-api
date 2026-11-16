@@ -608,6 +608,21 @@ class SecurityRegressionTest {
        .andExpect(jsonPath("$.totalElements").value(1));
   assertEquals(0, eventos.count());
  }
+ @Test void publicationRequiresPhotoAndExplicitReview() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  String url="/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar";
+  mvc.perform(post(url).header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
+  b.setFotoPerfilChave(null);
+  usuarios.saveAndFlush(b);
+  mvc.perform(post(url).header("Authorization",bearer(tokenA)).contentType("application/json")
+      .content("{\"requisitosConferidos\":true}")).andExpect(status().isConflict());
+  assertEquals(0,eventos.count());
+ }
+
+ @Test void missingProfileReturnsNotFoundWithoutLogin() throws Exception {
+  mvc.perform(get("/v1/perfis/987654321")).andExpect(status().isNotFound());
+ }
+
  @Test void reviewerCanApproveAndPublishesWithAuditAndNoDuplicateApproval() throws Exception {
   makeReviewerActiveSellerAndPendingListing();
   mvc.perform(get("/v1/moderacao/anuncios")).andExpect(status().isUnauthorized());

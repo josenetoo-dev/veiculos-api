@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @ToString(onlyExplicitlyIncluded = true)
 public class Mensagem {
 
+    @Column(name = "acompanhar_leitura", nullable = false)
+    private boolean acompanharLeitura = true;
+
     @Column(name = "lida_em")
     private LocalDateTime lidaEm;
 

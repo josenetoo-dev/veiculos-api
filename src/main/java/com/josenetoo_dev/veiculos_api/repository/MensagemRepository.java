@@ -19,7 +19,7 @@ public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
 
     @Query("""
         select m.proposta.id as propostaId, count(m) as quantidade from Mensagem m
-        where m.excluidaEm is null and m.lidaEm is null and m.remetente.id <> :usuario
+        where m.acompanharLeitura = true and m.excluidaEm is null and m.lidaEm is null and m.remetente.id <> :usuario
         and (m.proposta.comprador.id = :usuario or m.proposta.anuncio.usuario.id = :usuario)
         group by m.proposta.id
         """)

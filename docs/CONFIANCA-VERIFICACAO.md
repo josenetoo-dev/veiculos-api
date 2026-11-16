@@ -31,11 +31,11 @@ Este documento separa a fundação documental existente dos quatro níveis compl
 
 | Requisito | Estado real / próximo passo |
 |---|---|
-| Nível 1 completo | **Não disponível.** A aprovação documental atual não equivale a todos os critérios do novo nível 1. |
+| Nível 1 da demonstração | Foto pública, conta ativa, identidade e documento do veículo aprovados e conferência expressa de CPF, maioridade e vínculo por outro moderador. Anúncios anteriores não recebem esse nível retroativamente. |
 | Telefone confirmado | Falta provedor e fluxo de desafio real; telefone cadastrado não significa confirmado. |
 | CPF/titularidade/maioridade | Falta procedimento verificável, atestações específicas e, quando necessário, integração autorizada. Não inferir pelo formato do CPF nem por um checkbox do usuário. |
 | Autenticidade e autorização de venda | A revisão manual atual precisa de roteiro, critérios de suficiência e registro específico do vínculo/mandato. Não chamar de consulta oficial. |
-| Publicação obrigatoriamente vinculada ao novo nível 1 | A política atual exige e-mail, identidade, veículo e moderação. Falta integrar TODOS os novos critérios ao gate de publicação; este incremento não declara esse aceite concluído. |
+| Publicação básica | Gratuita. A API exige a foto e as duas decisões documentais, além da conferência final. A fila de rejeição aceita justificativa antes da análise documental. |
 | Validade e retenção | A revalidação deste incremento é manual. Falta definir prazos por evidência, expiração automática, retenção/descarte, contestação e exceções de preservação. Não confundir validade da análise com retenção do arquivo. |
 | Nível 2 | Indisponível até prova de vida operacional, desafio temporário do veículo e controles contra reuso entre solicitações. Troca de arquivo protegida não resolve sozinha replay de vídeo. |
 | Nível 3 | Indisponível sem parceiros, laudos e consultas autorizadas reais. |
@@ -60,7 +60,7 @@ Fontes primárias consultadas: [orientação ANPD sobre RIPD](https://www.gov.br
 ## Próximos incrementos
 
 1. Validar esta fundação com regressões de autorização, substituição de arquivo, correção parcial, histórico, inconclusão, revalidação e visibilidade pública.
-2. Definir e integrar confirmação de telefone, roteiro de identidade/CPF/maioridade/vínculo e política de validade. Só então conceder nível 1 e torná-lo obrigatório na publicação.
+2. Para uma operação comercial futura, definir a política de validade e confirmação do telefone. Na demonstração a confirmação por SMS está dispensada e o telefone não recebe selo de verificado.
 3. Implementar nível 2 com provedor real e desafios temporários, sem aprovação automática por vídeo.
 4. Habilitar nível 3 somente com parceiros/procedimentos operacionais aprovados.
 5. Implementar comprovação de venda independente, política de risco e janela móvel de seis meses para nível 4. Manter venda declarada, venda comprovada e avaliação como conceitos separados.

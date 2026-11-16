@@ -11,7 +11,7 @@ import org.springframework.http.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
+import com.josenetoo_dev.veiculos_api.exception.ex.UsuarioNaoEncontradoException;
 import java.security.Principal;
 import java.util.List;
 
@@ -29,7 +29,7 @@ public class PerfilPublicoController {
 
     private Usuario visivel(Long id) {
         return usuarios.findById(id).filter(u -> u.getStatus().podeAutenticar())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new UsuarioNaoEncontradoException("Perfil não encontrado"));
     }
 
     @GetMapping("/v1/perfis/{id}")
