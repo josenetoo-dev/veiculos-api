@@ -61,7 +61,15 @@ class BrevoMailSenderTest {
         helper.setSubject("Confirmação");
         helper.setText("Código fictício", "<html><body>Código fictício</body></html>");
         sender.send(message);
-        verify(client, times(1)).send(any(), any());
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(client, times(1)).send(captor.capture(), any());
+        var subscriber = HttpResponse.BodySubscribers.ofString(java.nio.charset.StandardCharsets.UTF_8);
+        captor.getValue().bodyPublisher().orElseThrow().subscribe(subscriber);
+        var payload = new ObjectMapper().readTree(subscriber.getBody().toCompletableFuture().get());
+        assertEquals("sender@example.com", payload.get("sender").get("email").asText());
+        assertEquals("test@example.com", payload.get("to").get(0).get("email").asText());
+        assertEquals("Código fictício", payload.get("textContent").asText());
+        assertTrue(payload.get("htmlContent").asText().contains("Código fictício"));
     }
 
     @Test

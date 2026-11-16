@@ -23,6 +23,7 @@ import java.util.Map;
 
 /** Preserves existing JavaMailSender callers while transporting messages over HTTPS. */
 public class BrevoMailSender extends JavaMailSenderImpl {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BrevoMailSender.class);
     private static final URI ENDPOINT = URI.create("https://api.brevo.com/v3/smtp/email");
     private final HttpClient client;
     private final ObjectMapper json;
@@ -95,7 +96,11 @@ public class BrevoMailSender extends JavaMailSenderImpl {
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(payload))).build();
             // No automatic retry: an ambiguous timeout may already have sent the message.
             var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 201 || !json.readTree(response.body()).hasNonNull("messageId")) throw unavailable();
+            if (response.statusCode() != 201) {
+                log.warn("Brevo rejeitou envio transacional: HTTP {}", response.statusCode());
+                throw unavailable();
+            }
+            if (!json.readTree(response.body()).hasNonNull("messageId")) throw unavailable();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw unavailable();
