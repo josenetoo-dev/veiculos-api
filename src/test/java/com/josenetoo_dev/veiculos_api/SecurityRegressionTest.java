@@ -1545,6 +1545,11 @@ class SecurityRegressionTest {
    mvc.perform(post("/v1/verificacoes/revisao/"+id+"/aprovar").header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk());
   }
+  anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+      .header("Authorization",bearer(tokenA))).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("ATIVO"));
  }
 
  @Test void replacingDraftEvidenceKeepsOnePrivateFile() throws Exception {
