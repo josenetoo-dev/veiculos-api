@@ -100,6 +100,8 @@ class SecurityRegressionTest {
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");
   seedCommercialCatalog();
   enableCommercialSeller(b);
+  b.setFotoPerfilChave(java.util.UUID.randomUUID().toString());
+  usuarios.saveAndFlush(b);
   tokenA=jwt.gerarToken(a.getId().toString()); tokenB=jwt.gerarToken(b.getId().toString()); tokenC=jwt.gerarToken(c.getId().toString());
   anuncio=new Anuncio(); anuncio.setUsuario(b); anuncio.setVersao("LT"); anuncio.setDocumentacao("Regular"); anuncio.setGarantia("Nenhuma");
   anuncio.setTitulo("Onix"); anuncio.setDescricao("Carro"); anuncio.setPreco(new BigDecimal("50000")); anuncio.setMarca("Chevrolet"); anuncio.setModelo("Onix"); anuncio.setAno(2022); anuncio.setCor("Branco");
@@ -613,7 +615,7 @@ class SecurityRegressionTest {
        .andExpect(status().isForbidden());
   mvc.perform(get("/v1/moderacao/anuncios").header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
   var persisted=anuncios.findById(anuncio.getId()).orElseThrow();
@@ -625,21 +627,21 @@ class SecurityRegressionTest {
   assertEquals(StatusAnuncio.PENDENTE,audit.getStatusAnterior());
   assertEquals(StatusAnuncio.ATIVO,audit.getStatusNovo());
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isOk());
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
   assertEquals(1,eventos.count());
  }
  @Test void publicationIsFreeWithoutSubscriptionOrCommercialContract() throws Exception {
   makeReviewerActiveSellerAndPendingListing();
   eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").header("Authorization",bearer(tokenA)))
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}").header("Authorization",bearer(tokenA)))
       .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getAssinaturaPublicacaoId());
  }
  @Test void pendingSellerCannotReceivePublicationApproval() throws Exception {
   a.setRole(Role.REVIEWER); a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
   anuncio.setStatus(StatusAnuncio.PENDENTE); anuncios.saveAndFlush(anuncio);
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
   assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
   assertEquals(0,eventos.count());
@@ -648,7 +650,7 @@ class SecurityRegressionTest {
   a.setRole(Role.REVIEWER); usuarios.saveAndFlush(a);
   anuncio.setUsuario(a); anuncio.setStatus(StatusAnuncio.PENDENTE);
   anuncios.saveAndFlush(anuncio);
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
   assertEquals(0,eventos.count());
  }
@@ -672,7 +674,7 @@ class SecurityRegressionTest {
        .andExpect(jsonPath("$.motivoRejeicao").doesNotExist());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getRevisadoPorId());
   assertNull(anuncios.findById(anuncio.getId()).orElseThrow().getMotivoRejeicao());
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isOk());
   assertEquals(2,eventos.count());
  }
@@ -684,7 +686,7 @@ class SecurityRegressionTest {
  }
  @Test void normalUserCannotModerateAndBlankReasonIsRejected() throws Exception {
   makeReviewerActiveSellerAndPendingListing();
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenC))).andExpect(status().isForbidden());
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/rejeitar")
        .header("Authorization",bearer(tokenA)).contentType("application/json")
@@ -700,7 +702,7 @@ class SecurityRegressionTest {
   anuncio.setStatus(StatusAnuncio.PENDENTE); anuncios.saveAndFlush(anuncio);
   mvc.perform(get("/v1/moderacao/anuncios").header("Authorization",bearer(tokenA)))
        .andExpect(status().isForbidden());
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isForbidden());
   assertEquals(0,eventos.count());
  }
@@ -850,7 +852,7 @@ class SecurityRegressionTest {
   a.setRole(Role.REVIEWER);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
   b.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(b);
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
   assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
  }
@@ -869,7 +871,7 @@ class SecurityRegressionTest {
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APROVADA"));
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
   assertEquals(2,eventosVerificacao.count());
@@ -892,7 +894,7 @@ class SecurityRegressionTest {
   assertEquals(2,evidencias.count());
   // Permanecem as duas evidências da identidade, mas a evidência antiga do veículo foi apagada.
   try(var files=Files.list(PRIVATE)){assertEquals(2,files.count());}
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA))).andExpect(status().isConflict());
  }
  @Test void privateStorageFailsClosedWithoutKey() throws Exception {
@@ -1547,7 +1549,7 @@ class SecurityRegressionTest {
   }
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
   eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar")
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
       .header("Authorization",bearer(tokenA))).andExpect(status().isOk())
       .andExpect(jsonPath("$.status").value("ATIVO"));
  }
@@ -1610,7 +1612,7 @@ class SecurityRegressionTest {
   assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
   assertEquals(StatusVerificacao.APROVADA,verificacoes.findByUsuarioIdentidadeId(b.getId()).orElseThrow().getStatus());
   mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
-  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").header("Authorization",bearer(tokenA)))
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}").header("Authorization",bearer(tokenA)))
       .andExpect(status().isConflict());
   assertEquals(1,eventos.count());assertEquals(1,eventosVerificacao.count());
  }

@@ -35,9 +35,11 @@ public class ModeracaoAnuncioController {
     }
 
     @PostMapping("/{id}/aprovar")
-    public ResponseEntity<AnuncioResponse> aprovar(@PathVariable Long id) {
-        return ResponseEntity.ok(moderacao.aprovar(id));
+    public ResponseEntity<AnuncioResponse> aprovar(@PathVariable Long id, @RequestBody(required = false) Conferencia conferencia) {
+        return ResponseEntity.ok(moderacao.aprovar(id, conferencia != null && conferencia.requisitosConferidos()));
     }
+
+    public record Conferencia(boolean requisitosConferidos) {}
 
     @PostMapping("/{id}/rejeitar")
     public ResponseEntity<AnuncioResponse> rejeitar(

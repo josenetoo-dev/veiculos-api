@@ -78,13 +78,13 @@ public class ModeracaoService {
             throw new AnuncioIndisponivelException("Anúncio não está pendente de revisão");
         }
         if (anuncio.getUsuario().getId().equals(revisorId)) {
-            throw new AcessoNegadoException("Um revisor não pode aprovar o próprio anúncio");
+            throw new AcessoNegadoException("Outro moderador precisa revisar este anúncio porque você é o anunciante");
         }
         return anuncio;
     }
 
     @Transactional
-    public AnuncioResponse aprovar(Long id) {
+    public AnuncioResponse aprovar(Long id, boolean requisitosConferidos) {
         Long revisorId = revisorId();
         Anuncio anuncio = obterPendenteParaRevisao(id, revisorId);
         if (anuncio.getUsuario().getStatus() != StatusUsuario.ACTIVE) {
@@ -101,6 +101,11 @@ public class ModeracaoService {
                     anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
             throw new AnuncioIndisponivelException("O veículo precisa de aprovação documental");
         }
+        if (anuncio.getUsuario().getFotoPerfilChave() == null)
+            throw new AnuncioIndisponivelException("O vendedor precisa adicionar uma foto pública em Minha conta");
+        if (!requisitosConferidos)
+            throw new AnuncioIndisponivelException("Confira identidade, CPF, maioridade e vínculo com o veículo antes de publicar");
+        anuncio.setNivelUmRevisado(true);
         // Publicação básica é gratuita. Planos opcionais não bloqueiam a moderação.
         anuncio.setAssinaturaPublicacaoId(null);
         anuncio.setStatus(StatusAnuncio.ATIVO);

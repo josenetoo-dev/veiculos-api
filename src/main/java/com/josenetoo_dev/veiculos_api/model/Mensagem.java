@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @ToString(onlyExplicitlyIncluded = true)
 public class Mensagem {
 
+    @Column(name = "lida_em")
+    private LocalDateTime lidaEm;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

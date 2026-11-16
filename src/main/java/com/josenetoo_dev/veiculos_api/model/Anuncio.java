@@ -22,6 +22,9 @@ public class Anuncio {
     private Long assinaturaPublicacaoId;
 
 
+    @Column(name = "nivel_um_revisado", nullable = false)
+    private boolean nivelUmRevisado;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -108,6 +108,14 @@ public class Usuario {
     @Column(name = "aceite_termos_em")
     private LocalDateTime aceiteTermosEm;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "foto_perfil_chave", length = 36)
+    private String fotoPerfilChave;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "foto_perfil_tipo", length = 20)
+    private String fotoPerfilTipo;
+
     private LocalDateTime criadoEm = LocalDateTime.now();
 
     /** Protege também criações internas que não passam pelo cadastro HTTP. */
