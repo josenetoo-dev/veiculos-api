@@ -25,8 +25,6 @@ public class ModeracaoService {
     private final UsuarioRepository usuarios;
     private final ModeracaoEventoRepository eventos;
     private final VerificacaoRepository verificacoes;
-    private final PlanoComercialService planos;
-    private final ContratoComercialService contratos;
 
     private Long revisorId() {
         Long id;
@@ -55,6 +53,22 @@ public class ModeracaoService {
         Anuncio anuncio = anuncios.findById(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anúncio não encontrado"));
         return new AnuncioResponse(anuncio);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<com.josenetoo_dev.veiculos_api.dto.verificacao.VerificacaoResponse> documentos(Long id) {
+        revisorId();
+        var anuncio = anuncios.findById(id).orElseThrow(() -> new AnuncioNaoEncontradoException("Anúncio não encontrado"));
+        var result = new java.util.ArrayList<com.josenetoo_dev.veiculos_api.dto.verificacao.VerificacaoResponse>();
+        verificacoes.findByUsuarioIdentidadeId(anuncio.getUsuario().getId())
+                .filter(v -> v.getStatus() != com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.RASCUNHO)
+                .ifPresent(v -> result.add(com.josenetoo_dev.veiculos_api.dto.verificacao.VerificacaoResponse.from(v)));
+        if (anuncio.getVeiculo() != null) {
+            verificacoes.findByVeiculoId(anuncio.getVeiculo().getId())
+                    .filter(v -> v.getStatus() != com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.RASCUNHO)
+                    .ifPresent(v -> result.add(com.josenetoo_dev.veiculos_api.dto.verificacao.VerificacaoResponse.from(v)));
+        }
+        return result;
     }
 
     private Anuncio obterPendenteParaRevisao(Long id, Long revisorId) {
@@ -87,22 +101,8 @@ public class ModeracaoService {
                     anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
             throw new AnuncioIndisponivelException("O veículo precisa de aprovação documental");
         }
-        usuarios.findByIdForUpdate(anuncio.getUsuario().getId()).orElseThrow();
-        var assinatura = planos.assinaturaAtiva(anuncio.getUsuario().getId());
-        if ("UNICO".equals(assinatura.getPeriodicidadeSnapshot())
-                && anuncios.countByAssinaturaPublicacaoId(assinatura.getId()) > 0
-                && !assinatura.getId().equals(anuncio.getAssinaturaPublicacaoId())) {
-            throw new AnuncioIndisponivelException("Este anúncio avulso já foi utilizado em outro veículo. Registre uma nova contratação.");
-        }
-        if (anuncios.countByUsuarioIdAndStatus(anuncio.getUsuario().getId(), StatusAnuncio.ATIVO)
-                >= assinatura.getLimiteAnunciosSnapshot()) {
-            throw new AnuncioIndisponivelException("O limite de anúncios ativos do plano foi atingido. Pause um anúncio ou aguarde nova vigência.");
-        }
-        if (!contratos.temAceitePublicado(anuncio.getUsuario().getId())) {
-            throw new AnuncioIndisponivelException("É necessário aceitar a versão comercial vigente do contrato");
-        }
-
-        anuncio.setAssinaturaPublicacaoId(assinatura.getId());
+        // Publicação básica é gratuita. Planos opcionais não bloqueiam a moderação.
+        anuncio.setAssinaturaPublicacaoId(null);
         anuncio.setStatus(StatusAnuncio.ATIVO);
         anuncio.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
         anuncio.setRevisadoPorId(revisorId);

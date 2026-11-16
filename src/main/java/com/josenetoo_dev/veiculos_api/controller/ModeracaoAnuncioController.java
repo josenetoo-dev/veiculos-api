@@ -29,6 +29,11 @@ public class ModeracaoAnuncioController {
         return ResponseEntity.ok(moderacao.consultar(id));
     }
 
+    @GetMapping("/{id}/documentos")
+    public java.util.List<com.josenetoo_dev.veiculos_api.dto.verificacao.VerificacaoResponse> documentos(@PathVariable Long id) {
+        return moderacao.documentos(id);
+    }
+
     @PostMapping("/{id}/aprovar")
     public ResponseEntity<AnuncioResponse> aprovar(@PathVariable Long id) {
         return ResponseEntity.ok(moderacao.aprovar(id));

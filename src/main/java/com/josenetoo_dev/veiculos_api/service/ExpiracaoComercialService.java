@@ -15,7 +15,6 @@ import java.time.ZoneOffset;
 @RequiredArgsConstructor
 public class ExpiracaoComercialService {
     private final AssinaturaVendedorRepository assinaturas;
-    private final AnuncioRepository anuncios;
 
     @Scheduled(fixedDelayString = "${app.commercial.expiration-interval-ms:60000}")
     @Transactional
@@ -25,10 +24,7 @@ public class ExpiracaoComercialService {
             var subscription = assinaturas.findByIdForUpdate(candidate.getId()).orElseThrow();
             if (subscription.getStatus() != StatusAssinatura.ATIVA || !subscription.getVencimentoEm().isBefore(now)) continue;
             subscription.setStatus(StatusAssinatura.EXPIRADA);
-            for (var ad : anuncios.findByAssinaturaPublicacaoIdAndStatus(subscription.getId(), StatusAnuncio.ATIVO)) {
-                ad.setStatus(StatusAnuncio.PAUSADO);
-                ad.setStatusAtualizadoEm(now);
-            }
+
         }
     }
 }

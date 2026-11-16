@@ -22,8 +22,8 @@ public class VendaDeclarada {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "vendedor_id", nullable = false)
     private Usuario vendedor;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "assinatura_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assinatura_id")
     private AssinaturaVendedor assinatura;
     @Column(name = "plano_codigo_snapshot", nullable = false, length = 30)
     private String planoCodigoSnapshot;

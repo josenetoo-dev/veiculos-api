@@ -24,8 +24,6 @@ public class VendaDeclaradaService {
     private final AnuncioRepository anuncios;
     private final VendaDeclaradaRepository vendas;
     private final CurrentUserService currentUser;
-    private final PlanoComercialService subscriptions;
-    private final ContratoComercialService contracts;
 
     @Transactional
     public VendaDeclaradaResponse declarar(Long anuncioId, DeclararVendaRequest request) {
@@ -41,16 +39,12 @@ public class VendaDeclaradaService {
         if (vendas.findByAnuncioId(anuncioId).isPresent()) {
             throw new AnuncioIndisponivelException("A venda deste anúncio já foi declarada");
         }
-        AssinaturaVendedor subscription = subscriptions.assinaturaAtiva(seller.getId());
-        if (!contracts.temAceitePublicado(seller.getId())) {
-            throw new AnuncioIndisponivelException("Aceite a versão comercial vigente do contrato antes de declarar a venda");
-        }
         VendaDeclarada sale = new VendaDeclarada();
         sale.setAnuncio(ad);
         sale.setVendedor(seller);
-        sale.setAssinatura(subscription);
-        sale.setPlanoCodigoSnapshot(subscription.getPlanoCodigoSnapshot());
-        sale.setPlanoNomeSnapshot(subscription.getPlanoNomeSnapshot());
+
+        sale.setPlanoCodigoSnapshot("GRATUITO");
+        sale.setPlanoNomeSnapshot("Publicação gratuita");
         sale.setValorFinal(request.valorFinal());
         sale.setComissaoPercentual(BigDecimal.ZERO);
         sale.setComissaoCalculada(BigDecimal.ZERO);

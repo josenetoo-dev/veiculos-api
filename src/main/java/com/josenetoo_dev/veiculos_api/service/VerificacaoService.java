@@ -145,18 +145,19 @@ public class VerificacaoService {
                 || (v.getTipo() == TipoVerificacao.VEICULO && kind != TipoEvidencia.DOCUMENTO_VEICULO)) {
             throw new IllegalArgumentException("Tipo de documento incompatível com a solicitação");
         }
-        if (evidencias.existsByVerificacaoIdAndTipo(id, kind)) {
-            throw new VerificacaoIndisponivelException("Documento já enviado; exclua-o antes de substituir");
-        }
         if (!storage.available()) throw new ArmazenamentoPrivadoIndisponivelException();
         ImageValidator.ValidatedImage validated = validator.validate(image);
-        EvidenciaVerificacao evidence = new EvidenciaVerificacao();
+        EvidenciaVerificacao evidence = evidencias.findByVerificacaoId(id).stream()
+                .filter(existing -> existing.getTipo() == kind).findFirst().orElseGet(EvidenciaVerificacao::new);
+        String previousKey = evidence.getArquivoChave();
         evidence.setVerificacao(v);
         evidence.setTipo(kind);
         evidence.setArquivoChave(storage.store(validated));
         evidence.setTipoMidia("jpg".equals(validated.extension()) ? "image/jpeg" : "image/png");
         evidence.setTamanho((long) validated.bytes().length);
-        return EvidenciaResponse.from(evidencias.saveAndFlush(evidence));
+        var response = EvidenciaResponse.from(evidencias.saveAndFlush(evidence));
+        if (previousKey != null) storage.removeAfterCommit(previousKey);
+        return response;
     }
 
     @Transactional
@@ -193,14 +194,10 @@ public class VerificacaoService {
     public VerificacaoResponse enviar(Long id) {
         Usuario user = actor();
         Verificacao v = ownedCaseLocked(id, user);
+        if (v.getStatus() == StatusVerificacao.EM_ANALISE) return VerificacaoResponse.from(v);
         editable(v);
         requireEvidence(v);
         biometriaService.exigirBiometriaParaEnvio(v);
-        if (v.getTipo() == TipoVerificacao.VEICULO
-                && !verificacoes.existsByUsuarioIdentidadeIdAndStatus(
-                    user.getId(), StatusVerificacao.APROVADA)) {
-            throw new VerificacaoIndisponivelException("Identidade deve ser aprovada antes da análise do veículo");
-        }
         v.setStatus(StatusVerificacao.EM_ANALISE);
         v.setEnviadoEm(LocalDateTime.now(ZoneOffset.UTC));
         v.setMotivoRejeicao(null);
