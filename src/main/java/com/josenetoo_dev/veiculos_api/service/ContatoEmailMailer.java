@@ -27,7 +27,7 @@ public class ContatoEmailMailer {
     }
 
     public boolean available() {
-        return enabled && !from.isBlank() && !host.isBlank() && senders.getIfAvailable() != null;
+        return enabled && !from.isBlank() && (senders.getIfAvailable() instanceof com.josenetoo_dev.veiculos_api.mail.BrevoMailSender || !host.isBlank()) && senders.getIfAvailable() != null;
     }
 
     public void send(String email, String token) {
