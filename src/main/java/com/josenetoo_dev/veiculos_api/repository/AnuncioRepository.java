@@ -14,6 +14,8 @@ public interface AnuncioRepository extends JpaRepository<Anuncio, Long>, org.spr
     @org.springframework.data.jpa.repository.Query("select a from Anuncio a where a.id = :id")
     Optional<Anuncio> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 
+    long countByUsuarioIdAndStatus(Long usuarioId, StatusAnuncio status);
+
     boolean existsByCodigo(String codigo);
 
     Optional<Anuncio> findByCodigo(String codigo);

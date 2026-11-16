@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
  "logging.level.org.springframework.security=INFO",
  "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost",
- "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
+ "app.commercial.manual-payment.enabled=true", "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
  "app.password-reset.enabled=true", "app.password-reset.from=no-reply@example.com",
  "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
  ,"seller.pii.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -85,6 +85,9 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
+  org.mockito.Mockito.lenient().when(emailSender.createMimeMessage()).thenAnswer(invocation ->
+      new jakarta.mail.internet.MimeMessage(jakarta.mail.Session.getInstance(new java.util.Properties())));
+
   privacyRequests.deleteAll();
   vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
@@ -177,6 +180,7 @@ class SecurityRegressionTest {
     .andExpect(header().string("Cache-Control","no-store, private"));
  }
  @Test void planSelectionOnlyCreatesUnpaidIntentAndRequiresAuthentication() throws Exception {
+  a.setStatus(StatusUsuario.ACTIVE); a=usuarios.saveAndFlush(a);
   mvc.perform(post("/v1/assinaturas/intencoes").contentType("application/json").content("{\"codigoPlano\":\"BASIC\"}"))
     .andExpect(status().isUnauthorized());
   mvc.perform(post("/v1/assinaturas/intencoes").header("Authorization",bearer(tokenA)).contentType("application/json")
@@ -906,10 +910,10 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isAccepted()).andExpect(content().string(""));
-  var captor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  var captor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(captor.capture());
-  assertArrayEquals(new String[]{"a@example.com"},captor.getValue().getTo());
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(captor.getValue().getText());
+  assertArrayEquals(new String[]{"a@example.com"},java.util.Arrays.stream(captor.getValue().getAllRecipients()).map(Object::toString).toArray(String[]::new));
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(captor.getValue()));
   assertTrue(matcher.find());
   String code=matcher.group(1);
   mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
@@ -955,14 +959,14 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
       .header("Authorization",bearer(tokenA))).andExpect(status().isTooManyRequests());
   org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
-      .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+      .send(org.mockito.ArgumentMatchers.any(jakarta.mail.internet.MimeMessage.class));
  }
  @Test void expiredContactTokenDoesNotActivateAccount() throws Exception {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
       .header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
-  var mailCaptor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  var mailCaptor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(mailCaptor.capture());
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(mailCaptor.getValue().getText());
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(mailCaptor.getValue()));
   assertTrue(matcher.find());
   a=usuarios.findById(a.getId()).orElseThrow();
   a.setContactEmailExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
@@ -1415,4 +1419,9 @@ class SecurityRegressionTest {
  }
 
 
+ private static String contactMailText(jakarta.mail.internet.MimeMessage mail) throws Exception {
+  var mixed = (jakarta.mail.Multipart) mail.getContent();
+  var alternative = (jakarta.mail.Multipart) mixed.getBodyPart(0).getContent();
+  return (String) alternative.getBodyPart(0).getContent();
+ }
 }

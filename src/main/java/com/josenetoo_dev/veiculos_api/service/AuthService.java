@@ -22,6 +22,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @Transactional
     public UsuarioResponse register(RegisterRequest request) {
@@ -43,7 +44,9 @@ public class AuthService {
         usuario.setRole(com.josenetoo_dev.veiculos_api.enums.Role.USER);
         usuario.setStatus(com.josenetoo_dev.veiculos_api.enums.StatusUsuario.PENDING_CONTACT_VERIFICATION);
 
-        return new UsuarioResponse(usuarioRepository.save(usuario));
+        usuario = usuarioRepository.saveAndFlush(usuario);
+        events.publishEvent(new ContaCriada(usuario.getId()));
+        return new UsuarioResponse(usuario);
     }
 
     @Transactional(readOnly = true)

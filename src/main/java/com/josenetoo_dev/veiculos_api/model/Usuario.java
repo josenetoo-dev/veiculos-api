@@ -85,6 +85,9 @@ public class Usuario {
     @Column(name = "contact_email_verified_at")
     private LocalDateTime contactEmailVerifiedAt;
 
+    @Column(name = "contact_email_failed_attempts", nullable = false)
+    private int contactEmailFailedAttempts = 0;
+
     // Token de recuperação: somente hash no banco, desafio de uso único.
     @Column(name = "password_reset_token_hash", length = 64)
     private String passwordResetTokenHash;

@@ -49,7 +49,16 @@ public class ContatoEmailService {
     public void solicitar() {
         // Sem SMTP autorizado e configurado, o fluxo fica indisponível.
         if (!mailer.available()) throw new EmailChangeUnavailableException();
-        Usuario usuario = userLocked();
+        solicitarPara(userLocked());
+    }
+
+    @Transactional
+    public void solicitarCadastro(Long id) {
+        if (!mailer.available()) return;
+        solicitarPara(usuarios.findByIdForUpdate(id).orElseThrow());
+    }
+
+    private void solicitarPara(Usuario usuario) {
         if (usuario.getStatus() != StatusUsuario.PENDING_CONTACT_VERIFICATION) {
             throw new VerificacaoIndisponivelException("Confirmação de contato não disponível neste estado");
         }
@@ -61,6 +70,7 @@ public class ContatoEmailService {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        usuario.setContactEmailFailedAttempts(0);
         usuario.setContactEmailTokenHash(hash(token));
         usuario.setContactEmailExpiresAt(now.plusMinutes(15));
         usuario.setContactEmailRequestedAt(now);
@@ -69,18 +79,24 @@ public class ContatoEmailService {
         mailer.send(usuario.getEmail(), token);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = EmailVerificationCodeException.class)
     public String confirmar(ConfirmarContatoEmailRequest request) {
         Usuario usuario = userLocked();
         if (usuario.getStatus() != StatusUsuario.PENDING_CONTACT_VERIFICATION
                 || usuario.getContactEmailTokenHash() == null || usuario.getContactEmailExpiresAt() == null
                 || !usuario.getContactEmailExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
-            throw new IllegalArgumentException("Código inválido ou expirado");
+            throw new EmailVerificationCodeException();
         }
         byte[] expected = usuario.getContactEmailTokenHash().getBytes(StandardCharsets.US_ASCII);
         byte[] actual = hash(request.token()).getBytes(StandardCharsets.US_ASCII);
         if (!MessageDigest.isEqual(expected, actual)) {
-            throw new IllegalArgumentException("Código inválido ou expirado");
+            usuario.setContactEmailFailedAttempts(usuario.getContactEmailFailedAttempts() + 1);
+            if (usuario.getContactEmailFailedAttempts() >= 5) {
+                usuario.setContactEmailTokenHash(null);
+                usuario.setContactEmailExpiresAt(null);
+            }
+            usuarios.saveAndFlush(usuario);
+            throw new EmailVerificationCodeException();
         }
         usuario.setStatus(StatusUsuario.ACTIVE);
         usuario.setContactEmailVerifiedAt(LocalDateTime.now(ZoneOffset.UTC));

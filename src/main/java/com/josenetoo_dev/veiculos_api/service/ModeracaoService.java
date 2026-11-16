@@ -84,7 +84,12 @@ public class ModeracaoService {
                     anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
             throw new AnuncioIndisponivelException("Identidade e veículo precisam de aprovação documental");
         }
-        planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        usuarios.findByIdForUpdate(anuncio.getUsuario().getId()).orElseThrow();
+        var assinatura = planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        if (anuncios.countByUsuarioIdAndStatus(anuncio.getUsuario().getId(), StatusAnuncio.ATIVO)
+                >= assinatura.getLimiteAnunciosSnapshot()) {
+            throw new AnuncioIndisponivelException("O limite de anúncios ativos do plano foi atingido. Pause um anúncio ou aguarde nova vigência.");
+        }
         if (!contratos.temAceitePublicado(anuncio.getUsuario().getId())) {
             throw new AnuncioIndisponivelException("É necessário aceitar a versão comercial vigente do contrato");
         }
