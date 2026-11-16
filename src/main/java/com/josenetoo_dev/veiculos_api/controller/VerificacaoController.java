@@ -42,6 +42,11 @@ public class VerificacaoController {
         return service.consultar(id);
     }
 
+    @PostMapping("/{id}/analise-manual")
+    public VerificacaoResponse solicitarAnaliseManual(@PathVariable Long id) {
+        return service.solicitarAnaliseManual(id);
+    }
+
     @PostMapping("/{id}/enviar")
     public VerificacaoResponse enviar(@PathVariable Long id) {
         return service.enviar(id);
@@ -78,8 +83,33 @@ public class VerificacaoController {
 
     @PreAuthorize("hasAnyRole('ADMIN','REVIEWER')")
     @GetMapping("/revisao/pendentes")
-    public Page<VerificacaoResponse> pendentes(@PageableDefault(size = 10) Pageable pageable) {
-        return service.pendentes(pageable);
+    public Page<VerificacaoResponse> pendentes(@PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) com.josenetoo_dev.veiculos_api.enums.StatusVerificacao status) {
+        return service.pendentes(pageable, status);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN','REVIEWER')")
+    @GetMapping("/revisao/{id}/historico")
+    public Page<EventoVerificacaoResponse> historico(@PathVariable Long id, @PageableDefault(size = 20) Pageable pageable) {
+        return service.historico(id, pageable);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/revisao/{id}/corrigir")
+    public VerificacaoResponse corrigir(@PathVariable Long id, @Valid @RequestBody ReavaliarVerificacaoRequest request) {
+        return service.reavaliar(id, com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.CORRECAO_NECESSARIA, request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/revisao/{id}/inconclusiva")
+    public VerificacaoResponse inconclusiva(@PathVariable Long id, @Valid @RequestBody ReavaliarVerificacaoRequest request) {
+        return service.reavaliar(id, com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.INCONCLUSIVA, request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/revisao/{id}/expirar")
+    public VerificacaoResponse expirar(@PathVariable Long id, @Valid @RequestBody ReavaliarVerificacaoRequest request) {
+        return service.reavaliar(id, com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.EXPIRADA, request);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN','REVIEWER')")
@@ -92,6 +122,6 @@ public class VerificacaoController {
     @PostMapping("/revisao/{id}/rejeitar")
     public VerificacaoResponse rejeitar(@PathVariable Long id,
             @Valid @RequestBody RejeitarVerificacaoRequest request) {
-        return service.decidir(id, false, request.motivo());
+        return service.decidir(id, false, request.motivo(), request.categoria());
     }
 }

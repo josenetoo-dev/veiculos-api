@@ -18,6 +18,8 @@ public interface AnuncioRepository extends JpaRepository<Anuncio, Long>, org.spr
     java.util.List<Anuncio> findByAssinaturaPublicacaoIdAndStatus(Long assinaturaId, StatusAnuncio status);
 
     long countByUsuarioIdAndStatus(Long usuarioId, StatusAnuncio status);
+    java.util.List<Anuncio> findByUsuarioIdAndStatus(Long usuarioId, StatusAnuncio status);
+    java.util.List<Anuncio> findByVeiculoIdAndStatus(Long veiculoId, StatusAnuncio status);
 
     boolean existsByCodigo(String codigo);
 
