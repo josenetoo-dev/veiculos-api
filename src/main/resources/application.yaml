@@ -48,7 +48,11 @@ upload:
 seller:
   pii:
     encryption-key: ${SELLER_PII_KEY:}
+brevo:
+  api-key: ${BREVO_API_KEY:}
 app:
+  mail:
+    provider: ${MAIL_PROVIDER:smtp}
   staging:
     demo:
       enabled: ${STAGING_DEMO_ENABLED:false}
