@@ -1434,7 +1434,7 @@ class SecurityRegressionTest {
       .andExpect(status().isAccepted());
   for (int attempt=0; attempt<5; attempt++) {
    mvc.perform(post("/v1/usuario/me/contato/email/confirmar").header("Authorization",bearer(tokenA))
-       .contentType("application/json").content("{\"token\":\"incorrect-but-long-enough-token\"}"))
+       .contentType("application/json").content("{\"token\":\"incorrect-but-long-enough-token-123456\"}"))
        .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("EMAIL_CODE_INVALID"))
        .andExpect(jsonPath("$.traceId").isNotEmpty()).andExpect(jsonPath("$.timestamp").isNotEmpty());
   }
@@ -1468,5 +1468,25 @@ class SecurityRegressionTest {
   } finally {
    org.springframework.security.core.context.SecurityContextHolder.clearContext();
   }
+ }
+
+ @Test void proposalsRequireVerifiedEmail() throws Exception {
+  String offer="{\"anuncioId\":"+anuncio.getId()+",\"valor\":45000,\"descricao\":\"Oferta fictícia\"}";
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(offer)).andExpect(status().isConflict())
+      .andExpect(jsonPath("$.detail").value("Confirme seu e-mail antes de enviar uma proposta"));
+  a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(offer)).andExpect(status().isCreated());
+ }
+
+ @Test void registeringAccountSendsVerificationAfterCommit() throws Exception {
+  mvc.perform(post("/auth/register").contentType("application/json").content(
+      "{\"nome\":\"Cadastro teste\",\"email\":\"novo-cadastro@example.com\",\"senha\":\"SenhaTeste123!\",\"telefone\":\"38000000000\",\"aceiteTermos\":true}"))
+      .andExpect(status().isCreated());
+  var captor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(captor.capture());
+  assertEquals("novo-cadastro@example.com",captor.getValue().getAllRecipients()[0].toString());
+  assertNotNull(usuarios.findByEmailIgnoreCase("novo-cadastro@example.com").orElseThrow().getContactEmailTokenHash());
  }
 }

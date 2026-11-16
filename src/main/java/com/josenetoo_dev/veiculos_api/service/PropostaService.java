@@ -38,6 +38,10 @@ public class PropostaService {
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
 
         Usuario usuario = obterUsuarioAutenticado();
+        if (usuario.getStatus() != com.josenetoo_dev.veiculos_api.enums.StatusUsuario.ACTIVE) {
+            throw new AnuncioIndisponivelException("Confirme seu e-mail antes de enviar uma proposta");
+        }
+
 
         if (anuncio.getUsuario().getId().equals(usuario.getId())) {
             throw new AcessoNegadoException("Você não pode fazer uma proposta no seu próprio anúncio");
