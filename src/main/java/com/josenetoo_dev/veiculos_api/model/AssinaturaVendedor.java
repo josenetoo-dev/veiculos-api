@@ -48,7 +48,19 @@ public class AssinaturaVendedor {
     @Column(name = "referencia_pagamento_externo", length = 160)
     private String referenciaPagamentoExterno;
 
+    @Column(name = "periodicidade_snapshot", nullable = false, length = 10)
+    private String periodicidadeSnapshot = "MENSAL";
+    @Column(name = "limite_anuncios_snapshot", nullable = false)
+    private int limiteAnunciosSnapshot = Integer.MAX_VALUE;
+    @Column(name = "vigencia_dias_snapshot", nullable = false)
+    private int vigenciaDiasSnapshot = 30;
+    @Column(name = "renovacao_cancelada", nullable = false)
+    private boolean renovacaoCancelada = false;
+
     public void snapshot(PlanoComercial selected) {
+        periodicidadeSnapshot = selected.getPeriodicidade();
+        limiteAnunciosSnapshot = selected.getLimiteAnuncios();
+        vigenciaDiasSnapshot = selected.getVigenciaDias();
         plano = selected;
         planoCodigoSnapshot = selected.getCodigo();
         planoNomeSnapshot = selected.getNome();

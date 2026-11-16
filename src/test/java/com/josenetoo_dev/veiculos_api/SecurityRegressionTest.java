@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  "spring.flyway.enabled=false", "jwt.secret=integration-test-key-at-least-32-bytes-long",
  "logging.level.org.springframework.security=INFO",
  "app.email-change.enabled=true", "app.email-change.from=no-reply@example.com", "spring.mail.host=localhost",
- "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
+ "app.commercial.manual-payment.enabled=true", "app.contact-email.enabled=true", "app.contact-email.from=no-reply@example.com",
  "app.password-reset.enabled=true", "app.password-reset.from=no-reply@example.com",
  "verification.storage.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
  ,"seller.pii.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -66,6 +66,7 @@ class SecurityRegressionTest {
  @Autowired VerificacaoRepository verificacoes;
  @Autowired EvidenciaVerificacaoRepository evidencias;
  @Autowired EventoVerificacaoRepository eventosVerificacao;
+ @Autowired com.josenetoo_dev.veiculos_api.service.PlanoComercialService planoService;
  @Autowired PlanoComercialRepository planos;
  @Autowired AssinaturaVendedorRepository assinaturas;
  @Autowired EventoAssinaturaRepository eventosAssinatura;
@@ -85,7 +86,11 @@ class SecurityRegressionTest {
  Proposta proposta;
  String tokenA, tokenB, tokenC;
  @BeforeEach void setup() throws Exception {
+  org.mockito.Mockito.lenient().when(emailSender.createMimeMessage()).thenAnswer(invocation ->
+      new jakarta.mail.internet.MimeMessage(jakarta.mail.Session.getInstance(new java.util.Properties())));
+
   privacyRequests.deleteAll();
+  anuncios.findAll().forEach(ad -> { ad.setAssinaturaPublicacaoId(null); anuncios.save(ad); });
   vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
   evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
@@ -177,6 +182,7 @@ class SecurityRegressionTest {
     .andExpect(header().string("Cache-Control","no-store, private"));
  }
  @Test void planSelectionOnlyCreatesUnpaidIntentAndRequiresAuthentication() throws Exception {
+  a.setStatus(StatusUsuario.ACTIVE); a=usuarios.saveAndFlush(a);
   mvc.perform(post("/v1/assinaturas/intencoes").contentType("application/json").content("{\"codigoPlano\":\"BASIC\"}"))
     .andExpect(status().isUnauthorized());
   mvc.perform(post("/v1/assinaturas/intencoes").header("Authorization",bearer(tokenA)).contentType("application/json")
@@ -906,10 +912,10 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isAccepted()).andExpect(content().string(""));
-  var captor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  var captor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(captor.capture());
-  assertArrayEquals(new String[]{"a@example.com"},captor.getValue().getTo());
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(captor.getValue().getText());
+  assertArrayEquals(new String[]{"a@example.com"},java.util.Arrays.stream(captor.getValue().getAllRecipients()).map(Object::toString).toArray(String[]::new));
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(captor.getValue()));
   assertTrue(matcher.find());
   String code=matcher.group(1);
   mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
@@ -955,14 +961,14 @@ class SecurityRegressionTest {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
       .header("Authorization",bearer(tokenA))).andExpect(status().isTooManyRequests());
   org.mockito.Mockito.verify(emailSender,org.mockito.Mockito.times(1))
-      .send(org.mockito.ArgumentMatchers.any(org.springframework.mail.SimpleMailMessage.class));
+      .send(org.mockito.ArgumentMatchers.any(jakarta.mail.internet.MimeMessage.class));
  }
  @Test void expiredContactTokenDoesNotActivateAccount() throws Exception {
   mvc.perform(post("/v1/usuario/me/contato/email/solicitar")
       .header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
-  var mailCaptor=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+  var mailCaptor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(mailCaptor.capture());
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(mailCaptor.getValue().getText());
+  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(mailCaptor.getValue()));
   assertTrue(matcher.find());
   a=usuarios.findById(a.getId()).orElseThrow();
   a.setContactEmailExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
@@ -1415,4 +1421,105 @@ class SecurityRegressionTest {
  }
 
 
+ private static String contactMailText(jakarta.mail.internet.MimeMessage mail) throws Exception {
+  Object content = mail.getContent();
+  while (content instanceof jakarta.mail.Multipart multipart) {
+   content = multipart.getBodyPart(0).getContent();
+  }
+  return (String) content;
+ }
+
+ @Test void wrongContactCodesArePersistedAndInvalidateAfterFiveAttempts() throws Exception {
+  mvc.perform(post("/v1/usuario/me/contato/email/solicitar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isAccepted());
+  for (int attempt=0; attempt<5; attempt++) {
+   mvc.perform(post("/v1/usuario/me/contato/email/confirmar").header("Authorization",bearer(tokenA))
+       .contentType("application/json").content("{\"token\":\"incorrect-but-long-enough-token-123456\"}"))
+       .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("EMAIL_CODE_INVALID"))
+       .andExpect(jsonPath("$.traceId").isNotEmpty()).andExpect(jsonPath("$.timestamp").isNotEmpty());
+  }
+  Usuario actual = usuarios.findById(a.getId()).orElseThrow();
+  assertEquals(5, actual.getContactEmailFailedAttempts());
+  assertNull(actual.getContactEmailTokenHash());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,actual.getStatus());
+ }
+
+ @Test void cancellationPreservesPaidAccessAndIsIdempotent() throws Exception {
+  Usuario seller = user("Loja", "cancel-test@example.com");
+  seller.setStatus(StatusUsuario.ACTIVE);
+  seller=usuarios.saveAndFlush(seller);
+  AssinaturaVendedor subscription=new AssinaturaVendedor();
+  subscription.setVendedor(seller);
+  subscription.snapshot(planos.findByCodigoAndAtivoTrue("BASIC").orElseThrow());
+  subscription.setStatus(StatusAssinatura.ATIVA);
+  subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(10));
+  subscription=assinaturas.saveAndFlush(subscription);
+  String token=jwt.gerarToken(seller.getId().toString());
+  // Service is invoked with the same authentication used by the protected endpoint.
+  org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+      new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+          seller.getId().toString(),null,java.util.List.of()));
+  try {
+   var first=planoService.cancelar(subscription.getId());
+   var second=planoService.cancelar(subscription.getId());
+   assertEquals("ATIVA",first.status());
+   assertTrue(second.renovacaoCancelada());
+   assertEquals(first.vencimentoEm(),second.vencimentoEm());
+  } finally {
+   org.springframework.security.core.context.SecurityContextHolder.clearContext();
+  }
+ }
+
+ @Test void proposalsRequireVerifiedEmail() throws Exception {
+  String offer="{\"anuncioId\":"+anuncio.getId()+",\"valor\":45000,\"descricao\":\"Oferta fictícia\"}";
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(offer)).andExpect(status().isConflict())
+      .andExpect(jsonPath("$.detail").value("Confirme seu e-mail antes de enviar uma proposta"));
+  a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(offer)).andExpect(status().isCreated());
+ }
+
+ @Test void registeringAccountSendsVerificationAfterCommit() throws Exception {
+  mvc.perform(post("/auth/register").contentType("application/json").content(
+      "{\"nome\":\"Cadastro teste\",\"email\":\"novo-cadastro@example.com\",\"senha\":\"SenhaTeste123!\",\"telefone\":\"38000000000\",\"aceiteTermos\":true}"))
+      .andExpect(status().isCreated());
+  var captor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
+  org.mockito.Mockito.verify(emailSender).send(captor.capture());
+  assertEquals("novo-cadastro@example.com",captor.getValue().getAllRecipients()[0].toString());
+  assertNotNull(usuarios.findByEmailIgnoreCase("novo-cadastro@example.com").orElseThrow().getContactEmailTokenHash());
+ }
+
+ @Test void unpaidOfferIntentIsIdempotentAndUsesBackendPrice() throws Exception {
+  b.setStatus(StatusUsuario.ACTIVE);
+  b.setCpfCiphertext("fictitious-encrypted-cpf");usuarios.saveAndFlush(b);
+  PlanoComercial offer=new PlanoComercial();
+  offer.setCodigo("AVULSO");offer.setNome("Anúncio avulso");
+  offer.setMensalidade(new BigDecimal("79.90"));offer.setComissaoPercentual(BigDecimal.ZERO);
+  offer.setPeriodicidade("UNICO");offer.setLimiteAnuncios(1);offer.setVigenciaDias(30);
+  planos.saveAndFlush(offer);
+  org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+      new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+          b.getId().toString(),null,java.util.List.of()));
+  try {
+   var first=planoService.registrarIntencao(new com.josenetoo_dev.veiculos_api.dto.comercial.IntencaoAssinaturaRequest("AVULSO"));
+   var second=planoService.registrarIntencao(new com.josenetoo_dev.veiculos_api.dto.comercial.IntencaoAssinaturaRequest("AVULSO"));
+   assertEquals(first.id(),second.id());
+   assertEquals("UNICO",first.periodicidade());
+   assertEquals(0,new BigDecimal("79.90").compareTo(first.mensalidade()));
+   assertEquals("INTENCAO",first.status());
+   assertNull(first.inicioVigencia());
+  } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+ }
+
+ @Autowired com.josenetoo_dev.veiculos_api.service.ExpiracaoComercialService expiracao;
+ @Test void expiredPaidPeriodPausesItsPublishedListing() {
+  var subscription=assinaturas.findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(b.getId(),StatusAssinatura.ATIVA).orElseThrow();
+  subscription.setVencimentoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1));
+  assinaturas.saveAndFlush(subscription);
+  anuncio.setAssinaturaPublicacaoId(subscription.getId());anuncios.saveAndFlush(anuncio);
+  expiracao.expirar();
+  assertEquals(StatusAssinatura.EXPIRADA,assinaturas.findById(subscription.getId()).orElseThrow().getStatus());
+  assertEquals(StatusAnuncio.PAUSADO,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+ }
 }

@@ -9,6 +9,7 @@ public final class SecurityErrors {
         response.setCharacterEncoding("UTF-8");
         // Todos os argumentos são constantes internas; nenhum dado de requisição ou exceção entra no JSON.
         response.getWriter().write("{\"type\":\"about:blank\",\"title\":\"" + title + "\",\"status\":" + status
-                + ",\"detail\":\"" + title + "\",\"code\":\"" + code + "\"}");
+                + ",\"detail\":\"" + title + "\",\"code\":\"" + code + "\",\"traceId\":\"" + RequestTraceFilter.traceId()
+                + "\",\"timestamp\":\"" + java.time.Instant.now() + "\"}");
     }
 }

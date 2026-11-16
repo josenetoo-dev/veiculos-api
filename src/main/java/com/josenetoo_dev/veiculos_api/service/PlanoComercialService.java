@@ -22,6 +22,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class PlanoComercialService {
+    private final UsuarioRepository usuarios;
+    @org.springframework.beans.factory.annotation.Value("${app.commercial.manual-payment.enabled:false}")
+    private boolean manualPaymentEnabled;
     private final PlanoComercialRepository planos;
     private final AssinaturaVendedorRepository assinaturas;
     private final EventoAssinaturaRepository eventos;
@@ -52,9 +55,16 @@ public class PlanoComercialService {
     @Transactional
     public AssinaturaResponse registrarIntencao(IntencaoAssinaturaRequest request) {
         Usuario user = currentUser.current();
+        user = usuarios.findByIdForUpdate(user.getId()).orElseThrow();
+        if (user.getStatus() != com.josenetoo_dev.veiculos_api.enums.StatusUsuario.ACTIVE) {
+            throw new AnuncioIndisponivelException("Confirme seu e-mail antes de contratar um plano");
+        }
         exigirIdentificacao(user);
         PlanoComercial plan = planos.findByCodigoAndAtivoTrue(request.codigoPlano().trim().toUpperCase())
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Plano não encontrado"));
+        for (AssinaturaVendedor existing : assinaturas.findByVendedorIdAndStatusOrderByCriadoEmDesc(user.getId(), StatusAssinatura.INTENCAO)) {
+            if (existing.getPlanoCodigoSnapshot().equals(plan.getCodigo())) return new AssinaturaResponse(existing);
+        }
         AssinaturaVendedor subscription = new AssinaturaVendedor();
         subscription.setVendedor(user);
         subscription.snapshot(plan);
@@ -93,10 +103,12 @@ public class PlanoComercialService {
         if (!subscription.getVendedor().getId().equals(user.getId())) {
             throw new com.josenetoo_dev.veiculos_api.exception.ex.AcessoNegadoException("Assinatura de outro vendedor");
         }
+        if (subscription.isRenovacaoCancelada()) return new AssinaturaResponse(subscription);
         if (subscription.getStatus() == StatusAssinatura.CANCELADA || subscription.getStatus() == StatusAssinatura.EXPIRADA) {
             throw new AnuncioIndisponivelException("Assinatura já encerrada");
         }
-        subscription.setStatus(StatusAssinatura.CANCELADA);
+        subscription.setRenovacaoCancelada(true);
+        if (subscription.getStatus() != StatusAssinatura.ATIVA) subscription.setStatus(StatusAssinatura.CANCELADA);
         subscription.setCanceladaEm(LocalDateTime.now(ZoneOffset.UTC));
         subscription = assinaturas.saveAndFlush(subscription);
         eventos.save(new EventoAssinatura(subscription, user, "CANCELADA", "Cancelamento registrado pelo vendedor"));
@@ -119,8 +131,13 @@ public class PlanoComercialService {
     @Transactional
     public AssinaturaResponse confirmarPagamentoExterno(Long id, ConfirmarPagamentoRequest request) {
         Usuario admin = currentUser.admin();
+        if (!manualPaymentEnabled) throw new AnuncioIndisponivelException("Pagamento indisponível. Nenhum provedor foi configurado.");
         AssinaturaVendedor subscription = assinaturas.findByIdForUpdate(id)
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Assinatura não encontrada"));
+        if (subscription.getStatus() == StatusAssinatura.ATIVA
+                && request.referenciaExterna().strip().equals(subscription.getReferenciaPagamentoExterno())) {
+            return new AssinaturaResponse(subscription);
+        }
         if (subscription.getStatus() != StatusAssinatura.INTENCAO
                 && subscription.getStatus() != StatusAssinatura.PENDENTE_PAGAMENTO_EXTERNO) {
             throw new AnuncioIndisponivelException("A assinatura não aguarda confirmação externa");
@@ -140,7 +157,8 @@ public class PlanoComercialService {
         subscription.setStatus(StatusAssinatura.ATIVA);
         subscription.setSituacaoFinanceira("CONFIRMADO_EXTERNAMENTE");
         subscription.setInicioVigencia(now);
-        subscription.setVencimentoEm(now.plusMonths(1));
+        subscription.setVencimentoEm("UNICO".equals(subscription.getPeriodicidadeSnapshot())
+                ? now.plusDays(subscription.getVigenciaDiasSnapshot()) : now.plusMonths(1));
         subscription.setConfirmadaPor(admin);
         subscription.setReferenciaPagamentoExterno(reference);
         subscription = assinaturas.saveAndFlush(subscription);

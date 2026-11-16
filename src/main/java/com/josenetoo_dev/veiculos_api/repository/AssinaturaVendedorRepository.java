@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.List;
 
 public interface AssinaturaVendedorRepository extends JpaRepository<AssinaturaVendedor, Long> {
+    List<AssinaturaVendedor> findTop100ByStatusAndVencimentoEmBefore(StatusAssinatura status, java.time.LocalDateTime now);
     Page<AssinaturaVendedor> findByVendedorIdOrderByCriadoEmDesc(Long vendedorId, Pageable pageable);
     Optional<AssinaturaVendedor> findFirstByVendedorIdAndStatusOrderByCriadoEmDesc(Long vendedorId, StatusAssinatura status);
     List<AssinaturaVendedor> findByVendedorIdAndStatusOrderByCriadoEmDesc(Long vendedorId, StatusAssinatura status);

@@ -29,6 +29,12 @@ public class PlanoComercial {
     @JdbcTypeCode(Types.LONGVARCHAR)
     @Column(name = "beneficios_json", columnDefinition = "LONGTEXT", nullable = false)
     private String beneficiosJson = "[]";
+    @Column(nullable = false, length = 10)
+    private String periodicidade = "MENSAL";
+    @Column(name = "limite_anuncios", nullable = false)
+    private int limiteAnuncios = Integer.MAX_VALUE;
+    @Column(name = "vigencia_dias", nullable = false)
+    private int vigenciaDias = 30;
     @Column(nullable = false)
     private boolean ativo = true;
     @Column(name = "criado_em", nullable = false)

@@ -74,21 +74,35 @@ public class ModeracaoService {
         Long revisorId = revisorId();
         Anuncio anuncio = obterPendenteParaRevisao(id, revisorId);
         if (anuncio.getUsuario().getStatus() != StatusUsuario.ACTIVE) {
-            throw new AnuncioIndisponivelException("Conta do vendedor ainda não está ativa");
+            throw new AnuncioIndisponivelException("O vendedor precisa confirmar o e-mail antes da publicação");
         }
         // Revisão documental humana é obrigatória. Nunca publicar sem ambas as decisões.
         if (!verificacoes.existsByUsuarioIdentidadeIdAndStatus(
                 anuncio.getUsuario().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)
-                || anuncio.getVeiculo() == null
+                ) {
+            throw new AnuncioIndisponivelException("A identidade do vendedor precisa de aprovação documental");
+        }
+        if (anuncio.getVeiculo() == null
                 || !verificacoes.existsByVeiculoIdAndStatus(
                     anuncio.getVeiculo().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)) {
-            throw new AnuncioIndisponivelException("Identidade e veículo precisam de aprovação documental");
+            throw new AnuncioIndisponivelException("O veículo precisa de aprovação documental");
         }
-        planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        usuarios.findByIdForUpdate(anuncio.getUsuario().getId()).orElseThrow();
+        var assinatura = planos.assinaturaAtiva(anuncio.getUsuario().getId());
+        if ("UNICO".equals(assinatura.getPeriodicidadeSnapshot())
+                && anuncios.countByAssinaturaPublicacaoId(assinatura.getId()) > 0
+                && !assinatura.getId().equals(anuncio.getAssinaturaPublicacaoId())) {
+            throw new AnuncioIndisponivelException("Este anúncio avulso já foi utilizado em outro veículo. Registre uma nova contratação.");
+        }
+        if (anuncios.countByUsuarioIdAndStatus(anuncio.getUsuario().getId(), StatusAnuncio.ATIVO)
+                >= assinatura.getLimiteAnunciosSnapshot()) {
+            throw new AnuncioIndisponivelException("O limite de anúncios ativos do plano foi atingido. Pause um anúncio ou aguarde nova vigência.");
+        }
         if (!contratos.temAceitePublicado(anuncio.getUsuario().getId())) {
             throw new AnuncioIndisponivelException("É necessário aceitar a versão comercial vigente do contrato");
         }
 
+        anuncio.setAssinaturaPublicacaoId(assinatura.getId());
         anuncio.setStatus(StatusAnuncio.ATIVO);
         anuncio.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
         anuncio.setRevisadoPorId(revisorId);

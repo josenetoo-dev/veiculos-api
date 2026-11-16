@@ -19,23 +19,45 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private ProblemDetail problem(int status, String detail, String code) {
         var p = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
         p.setProperty("code", code);
+        p.setProperty("timestamp", java.time.Instant.now().toString());
+        p.setProperty("traceId", com.josenetoo_dev.veiculos_api.security.RequestTraceFilter.traceId());
         return p;
     }
-    @ExceptionHandler({EmailJaCadastradoException.class, CpfJaCadastradoException.class, PropostaJaCanceladaException.class,
+    @ExceptionHandler({PropostaJaCanceladaException.class,
             PropostaJaAceitaException.class, PropostaJaNegadaException.class,
             NaoPodeCancelarAndNegarPropostaException.class, ContrapropostaJaRealizadaException.class,
-            AnuncioIndisponivelException.class, VerificacaoIndisponivelException.class, DataIntegrityViolationException.class})
+            VerificacaoIndisponivelException.class, DataIntegrityViolationException.class})
     public ProblemDetail conflict(Exception ex) { return problem(409, "Operação em conflito com o estado atual", "CONFLICT"); }
     @ExceptionHandler({UsuarioNaoEncontradoException.class, AnuncioNaoEncontradoException.class,
             PropostaNaoEncontradaException.class, MensagemNaoEncontradaException.class, FotoNaoEncontradaException.class, VerificacaoNaoEncontradaException.class, DenunciaNaoEncontradaException.class})
     public ProblemDetail notFound(Exception ex) { return problem(404, "Recurso não encontrado", "NOT_FOUND"); }
+    @ExceptionHandler(CpfJaCadastradoException.class)
+    public ProblemDetail duplicateCpf(Exception ex) {
+        return problem(409, "Este CPF já está vinculado a uma conta. Confira seus dados ou solicite atendimento.", "CPF_ALREADY_REGISTERED");
+    }
+    @ExceptionHandler(EmailJaCadastradoException.class)
+    public ProblemDetail duplicateEmail(Exception ex) {
+        return problem(409, "Endereço indisponível. Entre na sua conta ou utilize a recuperação de acesso.", "EMAIL_UNAVAILABLE");
+    }
+    @ExceptionHandler(AnuncioIndisponivelException.class)
+    public ProblemDetail businessConflict(AnuncioIndisponivelException ex) {
+        return problem(409, ex.getMessage(), "BUSINESS_PREREQUISITE");
+    }
+    @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class)
+    public ProblemDetail concurrent(Exception ex) {
+        return problem(409, "Outra operação alterou este recurso. Atualize a página e tente novamente.", "CONCURRENT_CHANGE");
+    }
+    @ExceptionHandler(EmailVerificationCodeException.class)
+    public ProblemDetail invalidCode(Exception ex) {
+        return problem(400, "Código inválido ou expirado. Solicite outro código se necessário.", "EMAIL_CODE_INVALID");
+    }
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail unauthorized(Exception ex) { return problem(401, "Credenciais inválidas", "AUTHENTICATION_REQUIRED"); }
     @ExceptionHandler({AcessoNegadoException.class, AccessDeniedException.class})
     public ProblemDetail forbidden(Exception ex) { return problem(403, "Acesso negado", "ACCESS_DENIED"); }
     @ExceptionHandler(com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeUnavailableException.class)
     public ProblemDetail mailUnavailable(Exception ex) {
-        return problem(503, "Alteração de e-mail temporariamente indisponível", "EMAIL_CHANGE_UNAVAILABLE");
+        return problem(503, "Envio de e-mail temporariamente indisponível. Tente solicitar um novo código mais tarde.", "EMAIL_CHANGE_UNAVAILABLE");
     }
     @ExceptionHandler(com.josenetoo_dev.veiculos_api.exception.ex.EmailChangeThrottledException.class)
     public ProblemDetail mailThrottled(Exception ex) {
@@ -63,7 +85,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail invalid(Exception ex) { return problem(400, "Requisição inválida", "INVALID_REQUEST"); }
     @ExceptionHandler(Exception.class)
     public ProblemDetail internal(Exception ex) {
-        log.error("Erro interno ao processar requisição", ex);
+        log.error("Erro interno ao processar requisição [{}]", com.josenetoo_dev.veiculos_api.security.RequestTraceFilter.traceId(), ex);
         return problem(500, "Falha interna ao processar requisição", "INTERNAL_ERROR");
     }
     @Override
