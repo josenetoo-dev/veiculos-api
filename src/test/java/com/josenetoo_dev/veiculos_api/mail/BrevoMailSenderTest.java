@@ -64,12 +64,17 @@ class BrevoMailSenderTest {
         var captor = ArgumentCaptor.forClass(HttpRequest.class);
         verify(client, times(1)).send(captor.capture(), any());
         var subscriber = HttpResponse.BodySubscribers.ofString(java.nio.charset.StandardCharsets.UTF_8);
-        captor.getValue().bodyPublisher().orElseThrow().subscribe(subscriber);
+        captor.getValue().bodyPublisher().orElseThrow().subscribe(new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
+            public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) { subscriber.onSubscribe(subscription); }
+            public void onNext(java.nio.ByteBuffer buffer) { subscriber.onNext(java.util.List.of(buffer)); }
+            public void onError(Throwable error) { subscriber.onError(error); }
+            public void onComplete() { subscriber.onComplete(); }
+        });
         var payload = new ObjectMapper().readTree(subscriber.getBody().toCompletableFuture().get());
-        assertEquals("sender@example.com", payload.get("sender").get("email").asText());
-        assertEquals("test@example.com", payload.get("to").get(0).get("email").asText());
-        assertEquals("Código fictício", payload.get("textContent").asText());
-        assertTrue(payload.get("htmlContent").asText().contains("Código fictício"));
+        assertEquals("sender@example.com", payload.get("sender").get("email").asString());
+        assertEquals("test@example.com", payload.get("to").get(0).get("email").asString());
+        assertEquals("Código fictício", payload.get("textContent").asString());
+        assertTrue(payload.get("htmlContent").asString().contains("Código fictício"));
     }
 
     @Test
