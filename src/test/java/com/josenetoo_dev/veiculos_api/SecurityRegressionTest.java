@@ -1553,7 +1553,7 @@ class SecurityRegressionTest {
  }
 
  @Test void correctionsPreserveOtherDocumentsAndKeepListingPrivate() throws Exception {
-  a.setRole(Role.ADMIN);usuarios.saveAndFlush(a);
+  a.setRole(Role.ADMIN);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
   long identity=beginIdentity(tokenB);
   long front=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
@@ -1580,7 +1580,7 @@ class SecurityRegressionTest {
  }
 
  @Test void technicalFailureRemainsInManualQueueWithoutFraudDecision() throws Exception {
-  a.setRole(Role.ADMIN);usuarios.saveAndFlush(a);
+  a.setRole(Role.ADMIN);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
   long identity=beginIdentity(tokenB);
   uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_VERSO);
   mvc.perform(post("/v1/verificacoes/"+identity+"/enviar").header("Authorization",bearer(tokenB))).andExpect(status().isOk());
@@ -1592,7 +1592,7 @@ class SecurityRegressionTest {
       .andExpect(jsonPath("$.totalElements").value(1));
   mvc.perform(get("/v1/verificacoes/revisao/pendentes?status=RASCUNHO").header("Authorization",bearer(tokenA)))
       .andExpect(status().isBadRequest());
-  assertEquals(StatusUsuario.ACTIVE,usuarios.findById(b.getId()).orElseThrow().getStatus());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,usuarios.findById(b.getId()).orElseThrow().getStatus());
   mvc.perform(post("/v1/verificacoes/revisao/"+identity+"/rejeitar").header("Authorization",bearer(tokenA))
       .contentType("application/json").content("{\"motivo\":\"Serviço indisponível temporariamente\",\"categoria\":\"FALHA_TECNICA\"}"))
       .andExpect(status().isBadRequest());
