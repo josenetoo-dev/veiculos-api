@@ -56,6 +56,7 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "REVIEWER")
                         .requestMatchers(HttpMethod.GET, "/v1/anuncio/meus").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/anuncio", "/v1/anuncio/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/perfis/*", "/v1/perfis/*/foto").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
                         .anyRequest().authenticated()

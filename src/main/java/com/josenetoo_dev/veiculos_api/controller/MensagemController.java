@@ -41,6 +41,15 @@ public class MensagemController {
                 .ok(mensagemService.listarMensagens(propostaId, pageable));
     }
 
+    @PostMapping("/leitura")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void marcarLidas(@PathVariable Long propostaId, @Valid @RequestBody Leitura leitura) {
+        mensagemService.marcarLidas(propostaId, leitura.ids());
+    }
+
+    public record Leitura(@jakarta.validation.constraints.NotEmpty
+            @jakarta.validation.constraints.Size(max = 200) java.util.List<@jakarta.validation.constraints.Positive Long> ids) {}
+
     @Operation(summary = "Excluir logicamente mensagem própria enviada há até cinco minutos")
     @DeleteMapping("/{mensagemId}")
     public ResponseEntity<Void> excluirMensagem(@PathVariable Long propostaId, @PathVariable Long mensagemId) {

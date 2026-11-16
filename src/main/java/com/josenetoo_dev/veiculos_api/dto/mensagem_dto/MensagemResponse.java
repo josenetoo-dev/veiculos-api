@@ -20,6 +20,7 @@ public class MensagemResponse {
 
     private LocalDateTime criadoEm;
 
+    private LocalDateTime lidaEm;
     private boolean excluida;
 
     private String arquivoNome;
@@ -28,6 +29,7 @@ public class MensagemResponse {
     private boolean anexoDisponivel;
 
     public MensagemResponse(Mensagem mensagem) {
+        this.lidaEm = mensagem.getLidaEm();
         this.id = mensagem.getId();
         this.propostaId = mensagem.getProposta().getId();
         this.remetenteId = mensagem.getRemetente().getId();

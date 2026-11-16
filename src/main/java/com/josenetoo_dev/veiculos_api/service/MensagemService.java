@@ -124,6 +124,21 @@ public class MensagemService {
         mensagemRepository.save(mensagem);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, Long> pendencias() {
+        return mensagemRepository.pendencias(obterUsuarioAutenticado().getId()).stream()
+                .collect(java.util.stream.Collectors.toMap(MensagemRepository.Pendencia::getPropostaId,
+                        MensagemRepository.Pendencia::getQuantidade));
+    }
+
+    @Transactional
+    public void marcarLidas(Long propostaId, java.util.List<Long> ids) {
+        var usuario = obterUsuarioAutenticado();
+        exigirParticipanteDaNegociacao(buscarProposta(propostaId), usuario);
+        mensagemRepository.marcarLidas(propostaId, usuario.getId(), ids,
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+    }
+
     private Proposta buscarProposta(Long id) {
         return propostaRepository.findById(id)
                 .orElseThrow(() -> new PropostaNaoEncontradaException("Proposta não encontrada"));

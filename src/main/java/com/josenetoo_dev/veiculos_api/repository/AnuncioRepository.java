@@ -21,6 +21,12 @@ public interface AnuncioRepository extends JpaRepository<Anuncio, Long>, org.spr
     java.util.List<Anuncio> findByUsuarioIdAndStatus(Long usuarioId, StatusAnuncio status);
     java.util.List<Anuncio> findByVeiculoIdAndStatus(Long veiculoId, StatusAnuncio status);
 
+    @org.springframework.data.jpa.repository.Query("""
+        select count(a) from Anuncio a where a.usuario.id = :usuario and a.nivelUmRevisado = true
+        and exists (select v.id from Verificacao v where v.veiculo = a.veiculo and v.status = :aprovado)
+        """)
+    long contarVeiculosRevisados(Long usuario, com.josenetoo_dev.veiculos_api.enums.StatusVerificacao aprovado);
+
     boolean existsByCodigo(String codigo);
 
     Optional<Anuncio> findByCodigo(String codigo);
