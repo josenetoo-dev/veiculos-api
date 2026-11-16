@@ -1552,11 +1552,86 @@ class SecurityRegressionTest {
       .andExpect(jsonPath("$.status").value("ATIVO"));
  }
 
+ @Test void correctionsPreserveOtherDocumentsAndKeepListingPrivate() throws Exception {
+  a.setRole(Role.ADMIN);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  long identity=beginIdentity(tokenB);
+  long front=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
+  long back=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_VERSO);
+  mvc.perform(post("/v1/verificacoes/"+identity+"/enviar").header("Authorization",bearer(tokenB))).andExpect(status().isOk());
+  String body="{\"motivo\":\"Frente ilegível: envie uma foto com melhor iluminação.\",\"categoria\":\"DOCUMENTO_ILEGIVEL\"}";
+  String path="/v1/verificacoes/revisao/"+identity+"/corrigir";
+  mvc.perform(post(path).header("Authorization",bearer(tokenB)).contentType("application/json").content(body)).andExpect(status().isForbidden());
+  for(int retry=0;retry<2;retry++) mvc.perform(post(path).header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(body)).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("CORRECAO_NECESSARIA"));
+  assertEquals(1,eventosVerificacao.count());assertEquals(2,evidencias.count());
+  mvc.perform(get("/v1/verificacoes/revisao/"+identity+"/historico").header("Authorization",bearer(tokenB))).andExpect(status().isForbidden());
+  mvc.perform(get("/v1/verificacoes/revisao/"+identity+"/historico").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].responsavel").value(a.getNome()))
+      .andExpect(jsonPath("$.content[0].categoria").value("DOCUMENTO_ILEGIVEL"))
+      .andExpect(jsonPath("$.content[0].id").doesNotExist());
+  assertNotEquals(front,uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE));
+  assertTrue(evidencias.existsById(back));
+  mvc.perform(post("/v1/verificacoes/"+identity+"/enviar").header("Authorization",bearer(tokenB)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EM_ANALISE"));
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId()+"/verificacoes")).andExpect(status().isNotFound());
+ }
+
+ @Test void technicalFailureRemainsInManualQueueWithoutFraudDecision() throws Exception {
+  a.setRole(Role.ADMIN);a.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(a);
+  long identity=beginIdentity(tokenB);
+  uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_VERSO);
+  mvc.perform(post("/v1/verificacoes/"+identity+"/enviar").header("Authorization",bearer(tokenB))).andExpect(status().isOk());
+  mvc.perform(post("/v1/verificacoes/revisao/"+identity+"/inconclusiva").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content("{\"motivo\":\"Serviço técnico indisponível; revisão humana pendente.\",\"categoria\":\"FALHA_TECNICA\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("INCONCLUSIVA"))
+      .andExpect(jsonPath("$.categoriaResultado").value("FALHA_TECNICA"));
+  mvc.perform(get("/v1/verificacoes/revisao/pendentes").header("Authorization",bearer(tokenA)))
+      .andExpect(jsonPath("$.totalElements").value(1));
+  mvc.perform(get("/v1/verificacoes/revisao/pendentes?status=RASCUNHO").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isBadRequest());
+  assertEquals(StatusUsuario.PENDING_CONTACT_VERIFICATION,usuarios.findById(b.getId()).orElseThrow().getStatus());
+  mvc.perform(post("/v1/verificacoes/revisao/"+identity+"/rejeitar").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content("{\"motivo\":\"Serviço indisponível temporariamente\",\"categoria\":\"FALHA_TECNICA\"}"))
+      .andExpect(status().isBadRequest());
+  assertEquals(StatusVerificacao.INCONCLUSIVA,verificacoes.findById(identity).orElseThrow().getStatus());
+ }
+
+ @Test void expiringVehicleReviewRemovesListingFromPublicAccessAndKeepsIdentity() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();a.setRole(Role.ADMIN);usuarios.saveAndFlush(a);
+  anuncio.setStatus(StatusAnuncio.ATIVO);anuncios.saveAndFlush(anuncio);
+  var vehicle=verificacoes.findByVeiculoId(anuncio.getVeiculo().getId()).orElseThrow();
+  String body="{\"motivo\":\"Documento precisa de revalidação administrativa.\",\"categoria\":\"REVALIDACAO_NECESSARIA\"}";
+  mvc.perform(post("/v1/verificacoes/revisao/"+vehicle.getId()+"/expirar").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(body)).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("EXPIRADA"));
+  assertEquals(StatusAnuncio.PENDENTE,anuncios.findById(anuncio.getId()).orElseThrow().getStatus());
+  assertEquals(StatusVerificacao.APROVADA,verificacoes.findByUsuarioIdentidadeId(b.getId()).orElseThrow().getStatus());
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId())).andExpect(status().isNotFound());
+  mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isConflict());
+  assertEquals(1,eventos.count());assertEquals(1,eventosVerificacao.count());
+ }
+
+ @Test void publicReviewSummarySeparatesSellerAndVehicleWithoutInventingLevelsOrSales() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  anuncio.setStatus(StatusAnuncio.ATIVO);anuncios.saveAndFlush(anuncio);
+  var identity=verificacoes.findByUsuarioIdentidadeId(b.getId()).orElseThrow();
+  identity.setRevisadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));verificacoes.saveAndFlush(identity);
+  mvc.perform(get("/v1/anuncio/"+anuncio.getId()+"/verificacoes"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.vendedor.analisadaManualmente").value(true))
+      .andExpect(jsonPath("$.veiculo.analisadaManualmente").value(false))
+      .andExpect(jsonPath("$.cpf").doesNotExist()).andExpect(jsonPath("$.documentos").doesNotExist())
+      .andExpect(jsonPath("$.nivel").doesNotExist()).andExpect(jsonPath("$.vendasComprovadas").doesNotExist());
+ }
+
  @Test void replacingDraftEvidenceKeepsOnePrivateFile() throws Exception {
   long identity=beginIdentity(tokenB);
   long first=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
   long second=uploadDoc(tokenB,identity,TipoEvidencia.IDENTIDADE_FRENTE);
-  assertEquals(first,second);
+  assertNotEquals(first,second);
   assertEquals(1,evidencias.count());
   try(var files=Files.list(PRIVATE)){assertEquals(1,files.count());}
  }

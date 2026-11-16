@@ -12,6 +12,7 @@ public interface VerificacaoRepository extends JpaRepository<Verificacao, Long> 
     Optional<Verificacao> findByVeiculoId(Long veiculoId);
     Page<Verificacao> findBySolicitanteId(Long usuarioId, Pageable pageable);
     Page<Verificacao> findByStatus(StatusVerificacao status, Pageable pageable);
+    Page<Verificacao> findByStatusIn(java.util.Collection<StatusVerificacao> status, Pageable pageable);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Verificacao v where v.id = :id")

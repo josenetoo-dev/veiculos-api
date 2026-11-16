@@ -300,6 +300,54 @@ class BiometriaRegressionTest {
         assertEquals(1,waivers.count());
     }
 
+    @Test void replacingDocumentCannotReuseBiometricWaiver() throws Exception {
+        documents();
+        reviewer.setRole(Role.ADMIN);users.saveAndFlush(reviewer);
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/biometria/dispensar")
+            .header("Authorization","Bearer "+staffToken).contentType("application/json")
+            .content("{\"motivo\":\"Análise humana autorizada para este arquivo\"}"))
+            .andExpect(status().isNoContent());
+        long old=evidence.findByVerificacaoId(caseId).stream()
+            .filter(e->e.getTipo()==TipoEvidencia.IDENTIDADE_FRENTE).findFirst().orElseThrow().getId();
+        assertNotEquals(old,addDocument(TipoEvidencia.IDENTIDADE_FRENTE));
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/enviar")
+            .header("Authorization","Bearer "+sellerToken)).andExpect(status().isConflict());
+        assertEquals(1,waivers.count());
+    }
+
+    @Test void replacingDocumentInvalidatesApprovedSessionWithoutConsultingProviderAgain() throws Exception {
+        documents();
+        String session=start();
+        when(provider.consultar(anyString(),any(byte[].class),anyFloat(),anyFloat()))
+            .thenReturn(BiometricProvider.Outcome.APROVADA_TECNICAMENTE);
+        result(session,"APROVADA_TECNICAMENTE");
+        addDocument(TipoEvidencia.IDENTIDADE_FRENTE);
+        result(session,"INCONCLUSIVA");
+        verify(provider,times(1)).consultar(anyString(),any(byte[].class),anyFloat(),anyFloat());
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/enviar")
+            .header("Authorization","Bearer "+sellerToken)).andExpect(status().isConflict());
+    }
+
+    @Test void manualIntakeNeverWaivesBiometricsOrApprovesAutomatically() throws Exception {
+        documents();
+        String path="/v1/verificacoes/"+caseId+"/analise-manual";
+        mvc.perform(post(path).header("Authorization","Bearer "+otherToken)).andExpect(status().isForbidden());
+        mvc.perform(post(path).header("Authorization","Bearer "+sellerToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("INCONCLUSIVA"));
+        mvc.perform(post(path).header("Authorization","Bearer "+sellerToken)).andExpect(status().isOk());
+        assertEquals(1,events.count());assertEquals(0,waivers.count());
+        mvc.perform(post("/v1/verificacoes/revisao/"+caseId+"/aprovar")
+            .header("Authorization","Bearer "+staffToken)).andExpect(status().isConflict());
+        reviewer.setRole(Role.ADMIN);users.saveAndFlush(reviewer);
+        mvc.perform(post("/v1/verificacoes/"+caseId+"/biometria/dispensar")
+            .header("Authorization","Bearer "+staffToken).contentType("application/json")
+            .content("{\"motivo\":\"Falha técnica da câmera, análise manual autorizada\"}"))
+            .andExpect(status().isNoContent());
+        assertEquals(StatusVerificacao.INCONCLUSIVA,cases.findById(caseId).orElseThrow().getStatus());
+        mvc.perform(post("/v1/verificacoes/revisao/"+caseId+"/aprovar")
+            .header("Authorization","Bearer "+staffToken)).andExpect(status().isOk());
+    }
+
     @Test void adminCannotWaiveOwnBiometricReview() throws Exception {
         documents();
         seller.setRole(Role.ADMIN); users.saveAndFlush(seller);

@@ -27,6 +27,8 @@ public class VerificacaoService {
     private final PrivateEvidenceStorage storage;
     private final ImageValidator validator;
     private final BiometriaService biometriaService;
+    private final AnuncioRepository anuncios;
+    private final ModeracaoEventoRepository moderacaoEventos;
 
     private Usuario actor() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -75,7 +77,7 @@ public class VerificacaoService {
     }
 
     private static void editable(Verificacao v) {
-        if (v.getStatus() != StatusVerificacao.RASCUNHO && v.getStatus() != StatusVerificacao.REJEITADA) {
+        if (!v.getStatus().editavel()) {
             throw new VerificacaoIndisponivelException("Verificação não pode ser alterada neste estado");
         }
     }
@@ -147,16 +149,20 @@ public class VerificacaoService {
         }
         if (!storage.available()) throw new ArmazenamentoPrivadoIndisponivelException();
         ImageValidator.ValidatedImage validated = validator.validate(image);
-        EvidenciaVerificacao evidence = evidencias.findByVerificacaoId(id).stream()
-                .filter(existing -> existing.getTipo() == kind).findFirst().orElseGet(EvidenciaVerificacao::new);
-        String previousKey = evidence.getArquivoChave();
+        // Cada arquivo tem uma identidade própria: biometria/dispensas anteriores
+        // nunca podem ser reaproveitadas depois da substituição do documento.
+        var previous = evidencias.findByVerificacaoId(id).stream()
+                .filter(existing -> existing.getTipo() == kind).findFirst();
+        String newKey = storage.store(validated);
+        previous.ifPresent(existing -> { evidencias.delete(existing); evidencias.flush(); });
+        EvidenciaVerificacao evidence = new EvidenciaVerificacao();
         evidence.setVerificacao(v);
         evidence.setTipo(kind);
-        evidence.setArquivoChave(storage.store(validated));
+        evidence.setArquivoChave(newKey);
         evidence.setTipoMidia("jpg".equals(validated.extension()) ? "image/jpeg" : "image/png");
         evidence.setTamanho((long) validated.bytes().length);
         var response = EvidenciaResponse.from(evidencias.saveAndFlush(evidence));
-        if (previousKey != null) storage.removeAfterCommit(previousKey);
+        previous.ifPresent(existing -> storage.removeAfterCommit(existing.getArquivoChave()));
         return response;
     }
 
@@ -201,8 +207,29 @@ public class VerificacaoService {
         v.setStatus(StatusVerificacao.EM_ANALISE);
         v.setEnviadoEm(LocalDateTime.now(ZoneOffset.UTC));
         v.setMotivoRejeicao(null);
+        v.setCategoriaResultado(null);
         v.setRevisadoEm(null);
         v.setRevisadoPorId(null);
+        return VerificacaoResponse.from(verificacoes.save(v));
+    }
+
+    /** Só encaminha para a fila humana: não dispensa biometria nem aprova documentos. */
+    @Transactional
+    public VerificacaoResponse solicitarAnaliseManual(Long id) {
+        Usuario user = actor();
+        Verificacao v = ownedCaseLocked(id, user);
+        if (v.getStatus().aguardandoAnalise()) return VerificacaoResponse.from(v);
+        editable(v);
+        requireEvidence(v);
+        v.setStatus(StatusVerificacao.INCONCLUSIVA);
+        v.setCategoriaResultado(CategoriaResultadoVerificacao.VERIFICACAO_INCONCLUSIVA);
+        v.setMotivoRejeicao("Análise manual solicitada. O anúncio permanece pendente até a conclusão das verificações.");
+        v.setEnviadoEm(LocalDateTime.now(ZoneOffset.UTC));
+        v.setRevisadoEm(null);
+        v.setRevisadoPorId(null);
+        eventos.save(new EventoVerificacao(id, user.getId(), StatusVerificacao.INCONCLUSIVA,
+                "Solicitação de análise manual pelo titular; sem aprovação ou dispensa automática",
+                CategoriaResultadoVerificacao.VERIFICACAO_INCONCLUSIVA));
         return VerificacaoResponse.from(verificacoes.save(v));
     }
 
@@ -222,6 +249,7 @@ public class VerificacaoService {
             }
             locked.setStatus(StatusVerificacao.RASCUNHO);
             locked.setMotivoRejeicao(null);
+            locked.setCategoriaResultado(null);
             locked.setEnviadoEm(null);
             locked.setRevisadoEm(null);
             locked.setRevisadoPorId(null);
@@ -231,17 +259,92 @@ public class VerificacaoService {
 
     @Transactional(readOnly = true)
     public Page<VerificacaoResponse> pendentes(Pageable pageable) {
+        return pendentes(pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<VerificacaoResponse> pendentes(Pageable pageable, StatusVerificacao status) {
         reviewer();
-        return verificacoes.findByStatus(StatusVerificacao.EM_ANALISE, pageable)
+        if (status == StatusVerificacao.RASCUNHO) {
+            throw new IllegalArgumentException("Filtro de revisão inválido");
+        }
+        return (status == null
+                ? verificacoes.findByStatusIn(List.of(StatusVerificacao.EM_ANALISE, StatusVerificacao.INCONCLUSIVA), pageable)
+                : verificacoes.findByStatus(status, pageable))
                 .map(VerificacaoResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EventoVerificacaoResponse> historico(Long id, Pageable pageable) {
+        reviewer();
+        Verificacao v = verificacoes.findById(id).orElseThrow(VerificacaoNaoEncontradaException::new);
+        requireVisible(v, actor());
+        return eventos.findByVerificacaoIdOrderByCriadoEmDescIdDesc(id, pageable).map(event ->
+                new EventoVerificacaoResponse(usuarios.findById(event.getRevisorId())
+                        .map(Usuario::getNome).orElse("Operador indisponível"), event.getResultado(),
+                        event.getCategoriaResultado(), event.getMotivo(), event.getCriadoEm()));
+    }
+
+    /** Correção e inconclusão preservam evidências; nunca equivalem a fraude ou aprovação. */
+    @Transactional
+    public VerificacaoResponse reavaliar(Long id, StatusVerificacao resultado, ReavaliarVerificacaoRequest request) {
+        Usuario operador = reviewer();
+        if (operador.getRole() != Role.ADMIN) throw new AcessoNegadoException("Somente a administração pode solicitar reavaliação");
+        if (!List.of(StatusVerificacao.CORRECAO_NECESSARIA, StatusVerificacao.INCONCLUSIVA,
+                StatusVerificacao.EXPIRADA).contains(resultado)) throw new IllegalArgumentException("Decisão inválida");
+        if (request == null || request.motivo() == null || request.motivo().strip().length() < 10
+                || request.motivo().strip().length() > 500 || request.categoria() == null
+                || request.categoria() == CategoriaResultadoVerificacao.FRAUDE_CONFIRMADA) {
+            throw new IllegalArgumentException("Informe uma justificativa e uma classificação compatível com a reavaliação");
+        }
+        Verificacao v = verificacoes.findByIdForUpdate(id).orElseThrow(VerificacaoNaoEncontradaException::new);
+        if (v.getSolicitante().getId().equals(operador.getId())) throw new AcessoNegadoException("Não é permitido analisar o próprio documento");
+        String motivo = request.motivo().strip();
+        if (v.getStatus() == resultado && motivo.equals(v.getMotivoRejeicao())
+                && v.getCategoriaResultado() == request.categoria()) return VerificacaoResponse.from(v);
+        if (resultado == StatusVerificacao.EXPIRADA ? v.getStatus() != StatusVerificacao.APROVADA
+                : !v.getStatus().aguardandoAnalise()) throw new VerificacaoIndisponivelException("O estado atual não permite esta decisão");
+        v.setStatus(resultado);
+        v.setMotivoRejeicao(motivo);
+        v.setCategoriaResultado(request.categoria());
+        v.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
+        v.setRevisadoPorId(operador.getId());
+        eventos.save(new EventoVerificacao(id, operador.getId(), resultado, motivo, request.categoria()));
+        if (resultado == StatusVerificacao.EXPIRADA) {
+            var afetados = v.getTipo() == TipoVerificacao.IDENTIDADE
+                    ? anuncios.findByUsuarioIdAndStatus(v.getSolicitante().getId(), StatusAnuncio.ATIVO)
+                    : anuncios.findByVeiculoIdAndStatus(v.getVeiculo().getId(), StatusAnuncio.ATIVO);
+            for (var candidato : afetados) {
+                var anuncio = anuncios.findByIdForUpdate(candidato.getId()).orElseThrow();
+                if (anuncio.getStatus() != StatusAnuncio.ATIVO) continue;
+                anuncio.setStatus(StatusAnuncio.PENDENTE);
+                anuncio.setRevisadoEm(null);
+                anuncio.setRevisadoPorId(null);
+                anuncio.setMotivoRejeicao(null);
+                moderacaoEventos.save(new ModeracaoEvento(anuncio.getId(), operador.getId(), StatusAnuncio.ATIVO,
+                        StatusAnuncio.PENDENTE, "Verificação documental exige revalidação"));
+            }
+        }
+        return VerificacaoResponse.from(verificacoes.save(v));
     }
 
     @Transactional
     public VerificacaoResponse decidir(Long id, boolean aprovado, String motivo) {
+        return decidir(id, aprovado, motivo, null);
+    }
+
+    @Transactional
+    public VerificacaoResponse decidir(Long id, boolean aprovado, String motivo, CategoriaResultadoVerificacao categoria) {
         Usuario staff = reviewer();
+        if (!aprovado && categoria == CategoriaResultadoVerificacao.FALHA_TECNICA) {
+            throw new IllegalArgumentException("Falhas técnicas devem permanecer em análise manual, sem rejeição por fraude");
+        }
+        if (categoria == CategoriaResultadoVerificacao.FRAUDE_CONFIRMADA && staff.getRole() != Role.ADMIN) {
+            throw new AcessoNegadoException("Somente a administração pode registrar fraude confirmada");
+        }
         Verificacao v = verificacoes.findByIdForUpdate(id)
                 .orElseThrow(() -> new VerificacaoNaoEncontradaException());
-        if (v.getStatus() != StatusVerificacao.EM_ANALISE) {
+        if (!v.getStatus().aguardandoAnalise()) {
             throw new VerificacaoIndisponivelException("Verificação não está aguardando análise");
         }
         if (v.getSolicitante().getId().equals(staff.getId())) {
@@ -261,9 +364,10 @@ public class VerificacaoService {
         String reason = aprovado ? null : motivo.strip();
         v.setStatus(result);
         v.setMotivoRejeicao(reason);
+        v.setCategoriaResultado(aprovado ? null : categoria);
         v.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
         v.setRevisadoPorId(staff.getId());
-        eventos.save(new EventoVerificacao(v.getId(), staff.getId(), result, reason));
+        eventos.save(new EventoVerificacao(v.getId(), staff.getId(), result, reason, aprovado ? null : categoria));
         return VerificacaoResponse.from(verificacoes.save(v));
     }
 }

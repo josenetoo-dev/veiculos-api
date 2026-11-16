@@ -395,4 +395,20 @@ class MySqlMigrationTest {
         assertTrue(flyway(url, "18").validateWithResult().validationSuccessful);
     }
 
+    @Test void verificationOutcomesPreservePreviousDecisions() throws Exception {
+        String url=testUrl("review_outcomes");flyway(url,"23").migrate();
+        try(var connection=testConnection(url);var statement=connection.createStatement()) {
+            statement.execute("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES (995,'Pessoa fictícia','review-outcomes@auto-minas.test','test-hash','38000000000')");
+            statement.execute("INSERT INTO verificacao(id,solicitante_id,usuario_identidade_id,tipo,status,criado_em) VALUES (996,995,995,'IDENTIDADE','APROVADA',NOW())");
+            statement.execute("INSERT INTO evento_verificacao(id,verificacao_id,revisor_id,resultado,motivo,criado_em) VALUES (997,996,995,'APROVADA','Decisão anterior',NOW())");
+        }
+        assertEquals(1,flyway(url,"24").migrate().migrationsExecuted);
+        try(var connection=testConnection(url);var statement=connection.createStatement();
+                var rows=statement.executeQuery("SELECT resultado,motivo,categoria_resultado FROM evento_verificacao WHERE id=997")) {
+            assertTrue(rows.next());assertEquals("APROVADA",rows.getString(1));
+            assertEquals("Decisão anterior",rows.getString(2));assertNull(rows.getString(3));
+        }
+        assertEquals(0,flyway(url,"24").migrate().migrationsExecuted);
+        assertTrue(flyway(url,"24").validateWithResult().validationSuccessful);
+    }
 }

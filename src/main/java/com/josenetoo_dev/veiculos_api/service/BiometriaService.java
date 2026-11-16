@@ -103,7 +103,7 @@ public class BiometriaService {
         requireConfigured();
         Usuario user=actor();
         Verificacao item=identidadeDoDono(verificationId,user);
-        if(item.getStatus()!=StatusVerificacao.RASCUNHO && item.getStatus()!=StatusVerificacao.REJEITADA) {
+        if(!item.getStatus().editavel()) {
             throw new VerificacaoIndisponivelException("Envio documental não está em edição");
         }
         EvidenciaVerificacao documento=fotoFrente(verificationId);
@@ -137,22 +137,22 @@ public class BiometriaService {
         Verificacao item=identidadeDoDono(verificationId,user);
         SessaoBiometria sessao=sessoes.findByIdAndVerificacaoId(sessionId,verificationId)
             .orElseThrow(VerificacaoNaoEncontradaException::new);
+        EvidenciaVerificacao doc=fotoFrente(verificationId);
+        if(!doc.getId().equals(sessao.getDocumentoEvidenciaId())) {
+            concluir(sessao,StatusSessaoBiometria.INCONCLUSIVA);
+            return SessaoBiometriaResponse.from(sessao);
+        }
         if(sessao.getStatus()!=StatusSessaoBiometria.CRIADA) return SessaoBiometriaResponse.from(sessao);
         // A própria AWS expira o identificador em poucos minutos; nunca reutilizá-lo.
         if(sessao.getCriadoEm().isBefore(now().minusMinutes(3))) {
             concluir(sessao,StatusSessaoBiometria.INCONCLUSIVA);
             return SessaoBiometriaResponse.from(sessao);
         }
-        if(item.getStatus()!=StatusVerificacao.RASCUNHO && item.getStatus()!=StatusVerificacao.REJEITADA) {
+        if(!item.getStatus().editavel()) {
             throw new VerificacaoIndisponivelException("Verificação já enviada");
         }
         // Persistido sob lock na verificação: no máximo 1 consulta AWS a cada 3s.
         if(sessao.getConsultadoEm()!=null && sessao.getConsultadoEm().isAfter(now().minusSeconds(3))) {
-            return SessaoBiometriaResponse.from(sessao);
-        }
-        EvidenciaVerificacao doc=fotoFrente(verificationId);
-        if(!doc.getId().equals(sessao.getDocumentoEvidenciaId())) {
-            concluir(sessao,StatusSessaoBiometria.INCONCLUSIVA);
             return SessaoBiometriaResponse.from(sessao);
         }
         sessao.setConsultadoEm(now());
@@ -198,8 +198,7 @@ public class BiometriaService {
             throw new VerificacaoIndisponivelException("Dispensa só é permitida para identidade");
         if(verificacao.getSolicitante().getId().equals(operador.getId()))
             throw new AcessoNegadoException("Não é possível dispensar a própria biometria");
-        if(verificacao.getStatus()!=StatusVerificacao.RASCUNHO
-                && verificacao.getStatus()!=StatusVerificacao.REJEITADA)
+        if(!verificacao.getStatus().editavel() && verificacao.getStatus()!=StatusVerificacao.INCONCLUSIVA)
             throw new VerificacaoIndisponivelException("Caso não está em edição");
         EvidenciaVerificacao doc=fotoFrente(verificacaoId);
         if(dispensas.existsByVerificacaoIdAndDocumentoEvidenciaId(verificacaoId,doc.getId()))

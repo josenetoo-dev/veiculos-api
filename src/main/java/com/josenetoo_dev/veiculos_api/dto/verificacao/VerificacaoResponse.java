@@ -8,11 +8,14 @@ import java.time.LocalDateTime;
 public record VerificacaoResponse(
         Long id, TipoVerificacao tipo, StatusVerificacao status,
         Long veiculoId, String motivoRejeicao,
-        LocalDateTime enviadoEm, LocalDateTime revisadoEm
+        LocalDateTime enviadoEm, LocalDateTime revisadoEm,
+        CategoriaResultadoVerificacao categoriaResultado, String solicitanteNome, String veiculoDescricao
 ) {
     public static VerificacaoResponse from(Verificacao v) {
         return new VerificacaoResponse(v.getId(), v.getTipo(), v.getStatus(),
                 v.getVeiculo() == null ? null : v.getVeiculo().getId(),
-                v.getMotivoRejeicao(), v.getEnviadoEm(), v.getRevisadoEm());
+                v.getMotivoRejeicao(), v.getEnviadoEm(), v.getRevisadoEm(), v.getCategoriaResultado(),
+                v.getSolicitante().getNome(), v.getVeiculo() == null ? null
+                    : v.getVeiculo().getMarca() + " " + v.getVeiculo().getModelo() + " " + v.getVeiculo().getAno());
     }
 }

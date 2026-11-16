@@ -42,6 +42,10 @@ public class Verificacao {
     @Column(name = "motivo_rejeicao", length = 500)
     private String motivoRejeicao;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categoria_resultado", length = 40, columnDefinition = "VARCHAR(40)")
+    private CategoriaResultadoVerificacao categoriaResultado;
+
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm = LocalDateTime.now(ZoneOffset.UTC);
 
