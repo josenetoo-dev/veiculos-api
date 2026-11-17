@@ -27,6 +27,17 @@ public interface AnuncioRepository extends JpaRepository<Anuncio, Long>, org.spr
         """)
     long contarVeiculosRevisados(Long usuario, com.josenetoo_dev.veiculos_api.enums.StatusVerificacao aprovado);
 
+    long countByUsuarioIdAndCriadoEmAfter(Long usuario, java.time.LocalDateTime inicio);
+
+    @org.springframework.data.jpa.repository.Query("""
+        select count(a) from Anuncio a where a.usuario.id = :usuario
+        and lower(a.marca) = lower(:marca) and lower(a.modelo) = lower(:modelo)
+        and a.ano = :ano and a.quilometragem = :km and a.preco = :preco
+        and a.status in :estados
+        """)
+    long contarDuplicados(Long usuario, String marca, String modelo, Integer ano, int km,
+                         java.math.BigDecimal preco, java.util.List<StatusAnuncio> estados);
+
     boolean existsByCodigo(String codigo);
 
     Optional<Anuncio> findByCodigo(String codigo);

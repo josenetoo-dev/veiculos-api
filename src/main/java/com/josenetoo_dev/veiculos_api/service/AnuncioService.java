@@ -1,4 +1,5 @@
 package com.josenetoo_dev.veiculos_api.service;
+import com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException;
 
 import com.josenetoo_dev.veiculos_api.repository.AnuncioFotoRepository;
 import com.josenetoo_dev.veiculos_api.dto.anuncio_dto.AnuncioRequest;
@@ -104,6 +105,16 @@ public class AnuncioService {
 
         Usuario usuario = obterUsuarioAutenticado();
 
+        usuarioRepository.findByIdForUpdate(usuario.getId()).orElseThrow();
+        if (anuncioRepository.countByUsuarioIdAndCriadoEmAfter(usuario.getId(),
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1)) >= 10) {
+            throw new AnuncioIndisponivelException("Muitos anúncios enviados em um minuto. Aguarde antes de enviar novamente.");
+        }
+        if (anuncioRepository.contarDuplicados(usuario.getId(), request.getMarca().trim(), request.getModelo().trim(),
+                request.getAno(), request.getQuilometragem(), request.getPreco(),
+                java.util.List.of(StatusAnuncio.PENDENTE, StatusAnuncio.ATIVO)) > 0) {
+            throw new AnuncioIndisponivelException("Você já tem um anúncio ativo ou em análise com estes dados. Acesse Meus anúncios para editar.");
+        }
         anuncio.setUsuario(usuario);
 
         anuncio.setVersao(request.getVersao());
