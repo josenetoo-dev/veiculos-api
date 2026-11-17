@@ -604,6 +604,7 @@ class SecurityRegressionTest {
       .contentType("application/json").content(payload)).andExpect(status().isConflict());
  }
  @Test void repeatedContactReturnsExistingNegotiation() throws Exception {
+  a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
   mvc.perform(post("/v1/proposta").header("Authorization",bearer(tokenA)).contentType("application/json")
       .content("{\"anuncioId\":"+anuncio.getId()+",\"valor\":49000,\"descricao\":\"Teste de conversa repetida\"}"))
       .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(proposta.getId()));
