@@ -132,6 +132,62 @@ class SecurityRegressionTest {
  String bearer(String t){return "Bearer "+t;}
  long fileCount() throws Exception {try(var s=Files.list(UPLOAD)){return s.count();}}
  MockMultipartFile image(String name,String type) throws Exception {var bytes=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB),"png",bytes);return new MockMultipartFile("fotos",name,type,bytes.toByteArray());}
+ @Test
+ @org.springframework.test.context.jdbc.Sql("/db/migration/V27__recommendation_engine.sql")
+ @org.springframework.test.context.jdbc.Sql(statements={
+    "DROP TABLE recommendation_home_benefit","DROP TABLE recommendation_signal","DROP INDEX ix_rec_inventory"
+ },executionPhase=org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TEST_METHOD)
+ void recommendationLifecycle() throws Exception {
+  var db=context.getBean(org.springframework.jdbc.core.JdbcTemplate.class);
+  String base="/v1/recommendations";
+  anuncio.setDestaque(true);
+  anuncio.setUf("MG");
+  var sub=assinaturas.findAll().getFirst();
+  anuncio.setAssinaturaPublicacaoId(sub.getId());
+  anuncios.saveAndFlush(anuncio);
+  mvc.perform(get(base+"/home").param("uf","MG").param("maxPrice","50000"))
+     .andExpect(status().isOk()).andExpect(jsonPath("$.recommendations[0].id").value(anuncio.getId()))
+     .andExpect(jsonPath("$.sponsored").isEmpty());
+  mvc.perform(get(base+"/home").param("uf","SP")).andExpect(jsonPath("$.recommendations").isEmpty());
+  mvc.perform(get(base+"/home").param("maxPrice","49999")).andExpect(jsonPath("$.recommendations").isEmpty());
+  db.execute("SET QUERY_STATISTICS TRUE");
+  try {
+    mvc.perform(get(base+"/home")).andExpect(status().isOk());
+    assertEquals(2,db.queryForObject("""
+      SELECT COALESCE(SUM(EXECUTION_COUNT),0) FROM INFORMATION_SCHEMA.QUERY_STATISTICS
+      WHERE SQL_STATEMENT LIKE 'SELECT a.id,a.titulo,%'
+      """,Integer.class));
+  } finally {db.execute("SET QUERY_STATISTICS FALSE");}
+  String event="""
+      {"kind":"DETAILS","eventId":"%s","listingId":%d,"consent":true}
+      """.formatted(java.util.UUID.randomUUID(),anuncio.getId());
+  mvc.perform(post(base+"/events").contentType("application/json").content(event.replace("true","false")))
+     .andExpect(status().isBadRequest());
+  mvc.perform(post(base+"/events").contentType("application/json").content(event.replace("DETAILS","CONTACT")))
+     .andExpect(status().isBadRequest());
+  var anon=mvc.perform(post(base+"/events").contentType("application/json").content(event))
+      .andExpect(status().isNoContent()).andReturn().getResponse().getCookie("am_rec");
+  assertNotNull(anon);
+  mvc.perform(get(base+"/home").cookie(anon)).andExpect(status().isOk());
+  db.update("DELETE FROM recommendation_signal WHERE user_id IS NULL");
+  for(int i=0;i<2;i++) mvc.perform(post(base+"/events").header("Authorization",bearer(tokenA))
+      .contentType("application/json").content(event)).andExpect(status().isNoContent());
+  assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+  mvc.perform(delete(base+"/profile")).andExpect(status().isUnauthorized());
+  mvc.perform(delete(base+"/profile").header("Authorization",bearer(tokenB))).andExpect(status().isNoContent());
+  assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+  mvc.perform(delete(base+"/profile").header("Authorization",bearer(tokenA))).andExpect(status().isNoContent());
+  assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+  db.update("INSERT INTO recommendation_home_benefit(subscription_id) VALUES(?)",sub.getId());
+  mvc.perform(get(base+"/home")).andExpect(jsonPath("$.sponsored[0].id").value(anuncio.getId()))
+     .andExpect(jsonPath("$.recommendations").isEmpty());
+  for(var state:StatusAnuncio.values()) {
+    if(state==StatusAnuncio.ATIVO) continue;
+    anuncio.setStatus(state); anuncios.saveAndFlush(anuncio);
+    mvc.perform(get(base+"/home")).andExpect(jsonPath("$.sponsored").isEmpty())
+       .andExpect(jsonPath("$.recommendations").isEmpty());
+  }
+ }
  @Test void anonymousCannotReadPrivateAccount() throws Exception {mvc.perform(get("/v1/usuario/me")).andExpect(status().isUnauthorized());}
  @Test void commercialCatalogIsPublicAndUsesConfiguredMonthlyBrlValues() throws Exception {
   mvc.perform(get("/v1/planos")).andExpect(status().isOk())
