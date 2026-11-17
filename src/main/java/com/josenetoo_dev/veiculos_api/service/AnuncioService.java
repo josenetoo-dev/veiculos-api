@@ -1,4 +1,5 @@
 package com.josenetoo_dev.veiculos_api.service;
+import com.josenetoo_dev.veiculos_api.exception.ex.AnuncioIndisponivelException;
 
 import com.josenetoo_dev.veiculos_api.repository.AnuncioFotoRepository;
 import com.josenetoo_dev.veiculos_api.dto.anuncio_dto.AnuncioRequest;
