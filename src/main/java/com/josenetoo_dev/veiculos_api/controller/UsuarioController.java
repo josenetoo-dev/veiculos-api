@@ -34,6 +34,11 @@ public class UsuarioController {
         return perfilVendedorService.atualizar(request);
     }
 
+    @GetMapping("/me/contato/email/situacao")
+    public com.josenetoo_dev.veiculos_api.service.ContatoEmailService.Situacao situacaoEmail() {
+        return contatoEmailService.situacao();
+    }
+
     @Operation(summary = "Enviar código ao e-mail da conta para ativar o contato")
     @PostMapping("/me/contato/email/solicitar")
     public ResponseEntity<Void> solicitarContatoEmail() {

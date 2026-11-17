@@ -45,6 +45,20 @@ public class ContatoEmailService {
         }
     }
 
+    public record Situacao(boolean codigoEnviado, long reenviarEmSegundos) {}
+
+    @Transactional
+    public Situacao situacao() {
+        Usuario usuario = userLocked();
+        var agora = LocalDateTime.now(ZoneOffset.UTC);
+        boolean enviado = usuario.getContactEmailTokenHash() != null
+                && usuario.getContactEmailExpiresAt() != null
+                && usuario.getContactEmailExpiresAt().isAfter(agora);
+        long restante = enviado && usuario.getContactEmailRequestedAt() != null
+                ? Math.max(0, java.time.Duration.between(agora, usuario.getContactEmailRequestedAt().plusMinutes(1)).toSeconds() + 1) : 0;
+        return new Situacao(enviado, restante);
+    }
+
     @Transactional
     public void solicitar() {
         // Sem SMTP autorizado e configurado, o fluxo fica indisponível.

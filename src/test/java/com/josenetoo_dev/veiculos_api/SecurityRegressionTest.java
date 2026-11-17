@@ -1666,4 +1666,35 @@ class SecurityRegressionTest {
   assertEquals(1,evidencias.count());
   try(var files=Files.list(PRIVATE)){assertEquals(1,files.count());}
  }
+ @Test void privacyHandlingIsAdminOnlyAndVisibleToOwner() throws Exception {
+  String path="/v1/privacidade/solicitacoes";
+  var created=mvc.perform(post(path).header("Authorization",bearer(tokenA)))
+      .andExpect(status().isAccepted()).andReturn();
+  long id=((Number)com.jayway.jsonpath.JsonPath.read(created.getResponse().getContentAsString(),"$.id")).longValue();
+  String payload="{\"status\":\"EM_ANALISE\",\"resposta\":\"Estamos analisando os dados vinculados à sua conta.\"}";
+  mvc.perform(put(path+"/admin/"+id).header("Authorization",bearer(tokenB))
+      .contentType("application/json").content(payload)).andExpect(status().isForbidden());
+  c.setRole(Role.ADMIN);c.setStatus(StatusUsuario.ACTIVE);usuarios.saveAndFlush(c);
+  mvc.perform(put(path+"/admin/"+id).header("Authorization",bearer(tokenC))
+      .contentType("application/json").content(payload)).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("EM_ANALISE"));
+  mvc.perform(post(path).header("Authorization",bearer(tokenA))).andExpect(status().isAccepted())
+      .andExpect(jsonPath("$.id").value(id));
+  assertEquals(1,privacyRequests.count());
+  mvc.perform(get(path).header("Authorization",bearer(tokenA))).andExpect(status().isOk())
+      .andExpect(jsonPath("$.content[0].resposta").value("Estamos analisando os dados vinculados à sua conta."));
+  mvc.perform(get(path+"/admin/"+id+"/historico").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isForbidden());
+  mvc.perform(get(path+"/admin/"+id+"/historico").header("Authorization",bearer(tokenC)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.historico").isNotEmpty());
+ }
+ @Test void pendingEmailStatusDoesNotExposeCode() throws Exception {
+  String path="/v1/usuario/me/contato/email";
+  mvc.perform(get(path+"/situacao")).andExpect(status().isUnauthorized());
+  mvc.perform(get(path+"/situacao").header("Authorization",bearer(tokenA)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.codigoEnviado").value(false))
+      .andExpect(jsonPath("$.reenviarEmSegundos").value(0))
+      .andExpect(jsonPath("$.token").doesNotExist());
+ }
+
 }
