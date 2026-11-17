@@ -26,7 +26,9 @@ public class Signals {
     private final Environment config;
     public Signals(JdbcTemplate db, Environment config) { this.db=db; this.config=config; }
 
+    @org.springframework.transaction.annotation.Transactional
     public void record(Event e, String session, Long user) {
+        if (user!=null) lockUser(user);
         if (!e.consent()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Consentimento necessário");
         if (e.kind()==Kind.VIEW && (e.dwellMillis()==null || e.dwellMillis()<5000)) throw invalid();
         List<String> features;
@@ -88,7 +90,14 @@ public class Signals {
                         r.getString(5)),r.getDouble(6),Duration.between(r.getTimestamp(7).toLocalDateTime(),now)
                         .toSeconds()/86400d),args.toArray()),halfLife);
     }
-    public void delete(long user) { db.update("DELETE FROM recommendation_signal WHERE user_id=?",user); }
+    private void lockUser(long user) {
+        db.queryForObject("SELECT id FROM usuario WHERE id=? FOR UPDATE",Long.class,user);
+    }
+    @org.springframework.transaction.annotation.Transactional
+    public void delete(long user) {
+        lockUser(user);
+        db.update("DELETE FROM recommendation_signal WHERE user_id=?",user);
+    }
     @Scheduled(fixedDelayString="PT6H",initialDelayString="PT5M")
     public void expire() {
         var now=LocalDateTime.now(ZoneOffset.UTC);
