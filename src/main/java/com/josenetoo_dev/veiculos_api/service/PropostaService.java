@@ -51,6 +51,14 @@ public class PropostaService {
             throw new AnuncioIndisponivelException("Este anúncio não está disponível para receber propostas");
         }
 
+        Long compradorId = usuario.getId(), vendedorId = anuncio.getUsuario().getId();
+        // A ordem dos locks serializa aberturas concorrentes entre os mesmos participantes.
+        usuarioRepository.findByIdForUpdate(Math.min(compradorId, vendedorId)).orElseThrow();
+        usuarioRepository.findByIdForUpdate(Math.max(compradorId, vendedorId)).orElseThrow();
+        var anteriores = propostaRepository.entreParticipantes(compradorId, vendedorId,
+                org.springframework.data.domain.PageRequest.of(0, 1));
+        if (!anteriores.isEmpty()) return new PropostaResponse(anteriores.getFirst());
+
         proposta.setStatus(StatusProposta.PENDENTE);
         proposta.setValor(request.getValor());
         proposta.setDescricao(request.getDescricao());
