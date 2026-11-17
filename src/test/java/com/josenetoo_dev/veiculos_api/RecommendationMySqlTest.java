@@ -82,6 +82,9 @@ class RecommendationMySqlTest {
             for (var result : executor.invokeAll(tasks)) result.get(20,TimeUnit.SECONDS);
         }
         assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+        var repeated = new Signals.Event(UUID.randomUUID(),Signals.Kind.DETAILS,10000L,null,null,true);
+        transaction.executeWithoutResult(status -> signals.record(repeated,session,1L));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
         db.update("""
             INSERT INTO usuario(id,nome,email,senha,telefone)
             VALUES(2,'Second','second@example.com','test-only-hash','00000000000')
@@ -91,6 +94,14 @@ class RecommendationMySqlTest {
         transaction.executeWithoutResult(status -> signals.delete(1));
         assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
         transaction.executeWithoutResult(status -> signals.delete(2));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+        signals.record(event,UUID.randomUUID().toString(),null);
+        db.update("UPDATE recommendation_signal SET created_at=TIMESTAMPADD(DAY,-8,UTC_TIMESTAMP())");
+        signals.expire();
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
+        transaction.executeWithoutResult(status -> signals.record(event,session,1L));
+        db.update("UPDATE recommendation_signal SET created_at=TIMESTAMPADD(DAY,-181,UTC_TIMESTAMP())");
+        signals.expire();
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM recommendation_signal",Integer.class));
     }
 }
