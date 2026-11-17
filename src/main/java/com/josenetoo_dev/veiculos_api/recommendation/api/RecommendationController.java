@@ -22,7 +22,7 @@ public class RecommendationController {
     private synchronized void limit(String key) {
         long current=System.currentTimeMillis()/60000;
         if (minute!=current) {requests.clear();minute=current;}
-        if ((!requests.containsKey(key) && requests.size()>=20000) || requests.merge(key,1,Integer::sum)>60)
+        if ((!requests.containsKey(key) && requests.size()>=20000) || requests.merge(key,1,(previous,increment)->Math.min(61,previous+increment))>60)
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
     }
     @PostMapping("/events")

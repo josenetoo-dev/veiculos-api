@@ -29,6 +29,7 @@ public class Signals {
     @org.springframework.transaction.annotation.Transactional
     public void record(Event e, String session, Long user) {
         if (user!=null) lockUser(user);
+        session = sessionKey(session, user);
         if (!e.consent()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Consentimento necessário");
         if (e.kind()==Kind.VIEW && (e.dwellMillis()==null || e.dwellMillis()<5000)) throw invalid();
         List<String> features;
@@ -71,7 +72,13 @@ public class Signals {
     private static ResponseStatusException invalid() {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST,"Interação inválida");
     }
+    private static String sessionKey(String session, Long user) {
+        if (session == null || user == null) return session;
+        return UUID.nameUUIDFromBytes((session + "/" + user)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
     public Profile profile(String session, Long user, boolean historical) {
+        session = sessionKey(session, user);
         var now=LocalDateTime.now(ZoneOffset.UTC);
         int days=historical ? 180 : 7;
         double halfLife=config.getProperty(historical?"recommendation.history-half-life":"recommendation.session-half-life",
