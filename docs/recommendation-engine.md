@@ -10,7 +10,7 @@ O módulo usa o JWT existente. O controlador cuida de consentimento, cookie e li
 | GET /v1/recommendations/home | Parâmetros opcionais minPrice, maxPrice (reais, inclusivos) e uf. Devolve sponsored, brands, recommendations, carousels e categories. A consulta pública sem sinais não cria cookie. |
 | DELETE /v1/recommendations/profile | JWT obrigatório. Apaga histórico e sinais das sessões associados à conta. Idempotente, 204. |
 
-Após consentimento, o primeiro evento emite o cookie HttpOnly am_rec, válido por sete dias. O cliente deve conservar esse cookie e interromper o envio ao retirar consentimento. Eventos anônimos anteriores ao login permanecem anônimos. A limpeza ocorre a cada seis horas, com cortes de leitura de sete e 180 dias. A base armazena UF e atributos de catálogo, sem texto livre de pesquisa, e-mail, coordenadas ou IP. O limite por minuto é de 60 tentativas por conta ou endereço de conexão anônima em memória, por instância. Proxies compartilhados podem compartilhar essa cota.
+Após consentimento, o primeiro evento emite o cookie HttpOnly am_rec, válido por sete dias. O cliente deve conservar esse cookie e interromper o envio ao retirar consentimento. Eventos anônimos anteriores ao login permanecem anônimos. Sessões autenticadas usam uma chave derivada do cookie e do usuário para isolar contas no mesmo navegador. A limpeza ocorre a cada seis horas, com cortes de leitura de sete e 180 dias. A base armazena UF e atributos de catálogo, sem texto livre de pesquisa, e-mail, coordenadas ou IP. O limite por minuto é de 60 tentativas por conta ou endereço de conexão anônima em memória, por instância. Proxies compartilhados podem compartilhar essa cota.
 
 ## Cálculo
 
@@ -24,4 +24,8 @@ A V27 cria recommendation_signal, com índices de sessão, conta e retenção, e
 
 Duas consultas limitam o inventário aos oito patrocinados e aos 240 orgânicos mais recentes dentro dos filtros. O perfil lê no máximo 500 sinais por origem. A Home deduplica veículos, prioriza até três itens por marca na primeira passada e usa até três carrosséis com estoque mínimo de dois veículos. Um anúncio orgânico pode reaparecer no carrossel da própria marca. Se a leitura de perfis falhar, o serviço usa o inventário filtrado com popularidade e recência. A disponibilidade do catálogo e do banco continua necessária.
 
-O limite de candidatos favorece anúncios recentes em estoques grandes. O teste de integração mede o número de consultas de inventário em H2. Latência p95 e planos de execução com a distribuição de dados de produção exigem medição em ambiente representativo.
+O limite de candidatos favorece anúncios recentes em estoques grandes. O teste de integração mede o número de consultas de inventário em H2. RecommendationMySqlTest gera 10 mil anúncios e 10 mil propostas em banco isolado, aquece o catálogo e mede 30 consultas orgânicas com filtros de preço e UF. Também verifica o índice da seleção cronológica, deduplicação concorrente com oito threads, isolamento entre contas, repetição semântica e retenção.
+
+Na execução 44135347651, MySQL 8.4 apresentou mediana de 11,394 ms e p95 de 20,100 ms para a consulta do catálogo filtrado. O EXPLAIN da seleção cronológica utilizou ix_rec_inventory com leitura reversa do índice. Essa medição usa conexões JDBC novas e dados sintéticos no runner do GitHub. Ela não mede a latência HTTP da Home completa nem reproduz a distribuição de produção. O teste imprime as métricas em cada execução, sem impor um limite de latência dependente do runner.
+
+Evidência disponível em https://github.com/josenetoo-dev/veiculos-api/actions/runs/44135347651.
