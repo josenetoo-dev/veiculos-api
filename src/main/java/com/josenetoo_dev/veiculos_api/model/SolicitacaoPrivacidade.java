@@ -13,5 +13,9 @@ public class SolicitacaoPrivacidade {
  @JoinColumn(name = "titular_id", nullable = false) private Usuario titular;
  @Column(nullable = false, length = 30) private String tipo = "EXCLUSAO";
  @Column(nullable = false, length = 30) private String status = "SOLICITADA";
+ @Column(name = "resposta_publica", length = 2000) private String respostaPublica;
+ @Column(name = "respondido_em") private LocalDateTime respondidoEm;
+ @Column(name = "responsavel_id") private Long responsavelId;
+ @Column(name = "historico_atendimento", columnDefinition = "LONGTEXT") private String historicoAtendimento;
  @Column(name = "criado_em", nullable = false) private LocalDateTime criadoEm = LocalDateTime.now(ZoneOffset.UTC);
 }
