@@ -67,7 +67,7 @@ public class PlanoComercialService {
         // de confirmação externa.
         for (AssinaturaVendedor active : assinaturas.findByVendedorIdAndStatusOrderByCriadoEmDesc(
                 user.getId(), StatusAssinatura.ATIVA)) {
-            if (active.getVencimentoEm() == null || !active.getVencimentoEm().isAfter(
+            if (active.getVencimentoEm() != null && !active.getVencimentoEm().isAfter(
                     LocalDateTime.now(ZoneOffset.UTC))) continue;
             if (active.getPlanoCodigoSnapshot().equals(plan.getCodigo())) {
                 throw new AnuncioIndisponivelException("Este plano já está ativo na sua conta");
