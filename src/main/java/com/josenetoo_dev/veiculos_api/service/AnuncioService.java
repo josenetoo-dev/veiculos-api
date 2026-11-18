@@ -261,7 +261,7 @@ public class AnuncioService {
             verificacaoService.invalidarVeiculoAlterado(anuncio.getVeiculo().getId());
         }
 
-        anuncio.setVersao(request.getVersao());
+        anuncio.setVersao(versaoAtualizada);
         anuncio.setHistoricoVeiculo(request.getHistoricoVeiculo());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
         anuncio.setDocumentacao(request.getDocumentacao());
@@ -278,7 +278,7 @@ public class AnuncioService {
                 ? null : request.getCidade().strip());
         anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
-        anuncio.setSegundaMao(request.getSegundaMao() == null ? anuncio.isSegundaMao() : request.getSegundaMao());
+        anuncio.setSegundaMao(segundaMaoAtualizada);
         // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
         anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setRevisadoEm(null);
