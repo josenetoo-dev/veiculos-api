@@ -278,7 +278,7 @@ public class AnuncioService {
                 ? null : request.getCidade().strip());
         anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
-        anuncio.setSegundaMao(request.isSegundaMao());
+        anuncio.setSegundaMao(request.getSegundaMao() == null ? anuncio.isSegundaMao() : request.getSegundaMao());
         // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
         anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setRevisadoEm(null);
