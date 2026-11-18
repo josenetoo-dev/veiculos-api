@@ -118,6 +118,7 @@ public class AnuncioService {
         anuncio.setUsuario(usuario);
 
         anuncio.setVersao(request.getVersao() == null || request.getVersao().isBlank() ? "Não informada" : request.getVersao().strip());
+        anuncio.setHistoricoVeiculo(request.getHistoricoVeiculo());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
         anuncio.setDocumentacao(request.getDocumentacao());
         anuncio.setGarantia(request.getGarantia());
@@ -261,6 +262,7 @@ public class AnuncioService {
         }
 
         anuncio.setVersao(request.getVersao());
+        anuncio.setHistoricoVeiculo(request.getHistoricoVeiculo());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
         anuncio.setDocumentacao(request.getDocumentacao());
         anuncio.setGarantia(request.getGarantia());
