@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface PropostaRepository extends JpaRepository<Proposta, Long> {
     Page<Proposta> findByCompradorIdOrAnuncioUsuarioId(Long compradorId, Long anuncianteId, Pageable pageable);
 
+    java.util.Optional<Proposta> findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(Long compradorId, Long anuncioId);
+
     @Query("""
         select p from Proposta p where
         (p.comprador.id = :primeiro and p.anuncio.usuario.id = :segundo)
