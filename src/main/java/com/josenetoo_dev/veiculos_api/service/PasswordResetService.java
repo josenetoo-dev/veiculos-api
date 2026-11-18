@@ -31,6 +31,7 @@ public class PasswordResetService {
     private final UsuarioRepository users;
     private final PasswordEncoder passwords;
     private final PasswordResetMailer mailer;
+    private final OneTimeEmailCodeService otp;
 
     @Transactional
     public void request(PasswordResetStartRequest request) {
@@ -45,10 +46,8 @@ public class PasswordResetService {
         if (user.getPasswordResetRequestedAt()!=null &&
                 user.getPasswordResetRequestedAt().isAfter(now.minusMinutes(1))) return;
 
-        byte[] random=new byte[32];
-        RANDOM.nextBytes(random);
-        String token=Base64.getUrlEncoder().withoutPadding().encodeToString(random);
-        user.setPasswordResetTokenHash(hash(token));
+        String token=otp.reserve();
+        user.setPasswordResetTokenHash(otp.hash(token));
         user.setPasswordResetExpiresAt(now.plusMinutes(15));
         user.setPasswordResetRequestedAt(now);
         user.setPasswordResetFailedAttempts(0);
@@ -75,7 +74,7 @@ public class PasswordResetService {
         }
 
         byte[] expected=user.getPasswordResetTokenHash().getBytes(StandardCharsets.US_ASCII);
-        byte[] actual=hash(request.token()).getBytes(StandardCharsets.US_ASCII);
+        byte[] actual=otp.hash(request.token()).getBytes(StandardCharsets.US_ASCII);
         if (!MessageDigest.isEqual(expected,actual)) {
             int failures=user.getPasswordResetFailedAttempts()+1;
             user.setPasswordResetFailedAttempts(failures);
@@ -97,12 +96,4 @@ public class PasswordResetService {
         users.saveAndFlush(user);
     }
 
-    private static String hash(String value) {
-        try {
-            byte[] sum=MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(sum);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 indisponível",ex);
-        }
-    }
 }
