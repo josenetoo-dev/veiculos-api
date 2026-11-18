@@ -459,7 +459,7 @@ class SecurityRegressionTest {
 
  @Test void cannotEditAnotherListing() throws Exception {
   String body="""
-   {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"Alterado","descricao":"Carro","preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,"cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false}
+   {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"Alterado","descricao":"Carro","preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,"cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"}}
    """.formatted(anuncio.getCombustivel().name(),anuncio.getCambio().name(),anuncio.getCategoria().name());
   mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenA)).contentType("application/json").content(body)).andExpect(status().isForbidden());
   assertEquals("Onix",anuncios.findById(anuncio.getId()).orElseThrow().getTitulo());
@@ -631,7 +631,7 @@ class SecurityRegressionTest {
   return """
      {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"%s","descricao":"Descricao do carro",
       "preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,
-      "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false}
+      "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"}}
       """.formatted(title, anuncio.getCombustivel().name(), anuncio.getCambio().name(), anuncio.getCategoria().name());
  }
  private void makeReviewerActiveSellerAndPendingListing() {
@@ -1453,7 +1453,7 @@ class SecurityRegressionTest {
   String json = """
   {"marca":"Chevrolet","modelo":"Onix","versao":"LT","ano":2022,
    "preco":64900,"quilometragem":50000,"cor":"Branco","combustivel":"FLEX",
-   "cambio":"MANUAL","categoria":"SEMINOVOS","segundaMao":true,
+   "cambio":"MANUAL","categoria":"SEMINOVOS","segundaMao":true,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"},
    "titulo":"Onix LT","descricao":"Carro para homologação",
    "documentacao":"A verificar","garantia":"Não informada",
    "cidade":"Várzea da Palma","uf":"MG"}""";
