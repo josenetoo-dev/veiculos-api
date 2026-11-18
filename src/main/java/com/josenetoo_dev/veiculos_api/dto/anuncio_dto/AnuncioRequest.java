@@ -54,6 +54,12 @@ public class AnuncioRequest {
     @Size(max = 255)
     private String marca;
 
+    @AssertTrue(message = "Selecione uma marca de veículo válida")
+    public boolean isMarcaValida() {
+        return marca == null || !marca.strip().matches(
+            "(?i)^(selecione( um| uma)?( carro| marca| veículo)?|marca|carro)$");
+    }
+
     @NotBlank
     @Size(max = 255)
     private String modelo;
@@ -61,6 +67,11 @@ public class AnuncioRequest {
     @NotNull
     @Min(1900)
     private Integer ano;
+
+    @AssertTrue(message = "Ano acima do próximo ano não é permitido")
+    public boolean isAnoValido() {
+        return ano == null || ano <= java.time.Year.now().getValue() + 1;
+    }
 
     @NotNull
     @PositiveOrZero
