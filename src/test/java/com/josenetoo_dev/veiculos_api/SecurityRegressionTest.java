@@ -1265,7 +1265,7 @@ class SecurityRegressionTest {
   String invalid=String.format(java.util.Locale.ROOT,"%06d",(Integer.parseInt(valid)+1)%1_000_000);
   for(int i=1;i<=5;i++){
    mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
-        .content("{\"email\":\"a@example.com\",\"token\":\"000000\",\"newPassword\":\"novaSenhaABC123\"}"))
+        .content("{\"email\":\"a@example.com\",\"token\":\""+invalid+"\",\"newPassword\":\"novaSenhaABC123\"}"))
         .andExpect(status().isBadRequest());
    assertEquals(i,usuarios.findById(a.getId()).orElseThrow().getPasswordResetFailedAttempts());
   }
