@@ -86,6 +86,18 @@ public class PropostaService {
         return proposta;
     }
 
+    /**
+     * Consulta específica da conversa autenticada. Preserva propostas duplicadas
+     * legadas do mesmo comprador+anúncio sem carregar todas as negociações do usuário.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<Long> idsDaConversa(Long propostaId) {
+        var proposta = buscarPorId(propostaId);
+        return propostaRepository.findAllByCompradorIdAndAnuncioIdOrderByIdAsc(
+                    proposta.getComprador().getId(), proposta.getAnuncio().getId())
+                .stream().map(Proposta::getId).toList();
+    }
+
     @Transactional
     public PropostaResponse cancelarProposta(Long id) {
         Proposta proposta = buscarProposta(id);
