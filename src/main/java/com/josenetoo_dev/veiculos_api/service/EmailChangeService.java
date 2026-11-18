@@ -37,6 +37,7 @@ public class EmailChangeService {
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwords;
     private final EmailChangeMailer mailer;
+    private final OneTimeEmailCodeService otp;
 
     private Usuario lockedCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -76,12 +77,10 @@ public class EmailChangeService {
                 && user.getPendingEmailRequestedAt().isAfter(now.minusMinutes(1))) {
             throw new EmailChangeThrottledException();
         }
-        byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
-        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String code = otp.reserve();
 
         user.setPendingEmail(target);
-        user.setPendingEmailTokenHash(hash(code));
+        user.setPendingEmailTokenHash(otp.hash(code));
         user.setPendingEmailExpiresAt(now.plusMinutes(15));
         user.setPendingEmailRequestedAt(now);
         usuarios.saveAndFlush(user);
@@ -99,7 +98,7 @@ public class EmailChangeService {
             throw new IllegalArgumentException("Código inválido ou expirado");
         }
 
-        byte[] actual = hash(confirmation.token()).getBytes(StandardCharsets.US_ASCII);
+        byte[] actual = otp.hash(confirmation.token()).getBytes(StandardCharsets.US_ASCII);
         byte[] expected = user.getPendingEmailTokenHash().getBytes(StandardCharsets.US_ASCII);
         if (!MessageDigest.isEqual(actual, expected)) {
             throw new IllegalArgumentException("Código inválido ou expirado");
@@ -126,12 +125,4 @@ public class EmailChangeService {
         usuarios.saveAndFlush(user);
     }
 
-    private static String hash(String token) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(token.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Algoritmo de hash indisponível", e);
-        }
-    }
 }
