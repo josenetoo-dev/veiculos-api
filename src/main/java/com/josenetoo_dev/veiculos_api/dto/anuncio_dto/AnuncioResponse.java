@@ -5,6 +5,7 @@ import com.josenetoo_dev.veiculos_api.enums.Categoria;
 import com.josenetoo_dev.veiculos_api.enums.StatusAnuncio;
 import com.josenetoo_dev.veiculos_api.enums.TipoCombustivel;
 import com.josenetoo_dev.veiculos_api.model.Anuncio;
+import com.josenetoo_dev.veiculos_api.model.HistoricoVeiculoDeclarado;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -19,6 +20,8 @@ public class AnuncioResponse {
     private String codigo;
 
     private String versao;
+
+    private HistoricoVeiculoDeclarado historicoVeiculo;
 
     private boolean destaque;
 
@@ -71,6 +74,7 @@ public class AnuncioResponse {
         this.id = anuncio.getId();
         this.codigo = anuncio.getCodigo();
         this.versao = anuncio.getVersao();
+        this.historicoVeiculo = anuncio.getHistoricoVeiculo();
         this.destaque = anuncio.isDestaque();
         this.laudoCautelar = anuncio.getLaudoCautelar();
         this.documentacao = anuncio.getDocumentacao();
