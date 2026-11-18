@@ -12,6 +12,8 @@ public interface PropostaRepository extends JpaRepository<Proposta, Long> {
 
     java.util.Optional<Proposta> findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(Long compradorId, Long anuncioId);
 
+    java.util.List<Proposta> findAllByCompradorIdAndAnuncioIdOrderByIdAsc(Long compradorId, Long anuncioId);
+
     @Query("""
         select p from Proposta p where
         (p.comprador.id = :primeiro and p.anuncio.usuario.id = :segundo)
