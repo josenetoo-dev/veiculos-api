@@ -35,6 +35,12 @@ public class PropostaController {
                 .ok(new PropostaResponse(propostaService.buscarPorId(id)));
     }
 
+    @Operation(summary = "Propostas relacionadas ao mesmo comprador e anúncio")
+    @GetMapping("/{id}/relacionadas")
+    public ResponseEntity<java.util.List<Long>> propostasRelacionadas(@PathVariable Long id) {
+        return ResponseEntity.ok(propostaService.idsDaConversa(id));
+    }
+
     @Operation(summary = "Cancelar proposta")
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<PropostaResponse> cancelarProposta(@PathVariable Long id) {
