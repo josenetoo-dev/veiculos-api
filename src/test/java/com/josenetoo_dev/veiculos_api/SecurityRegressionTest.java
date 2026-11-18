@@ -459,7 +459,7 @@ class SecurityRegressionTest {
 
  @Test void cannotEditAnotherListing() throws Exception {
   String body="""
-   {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"Alterado","descricao":"Carro","preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,"cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false}
+   {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"Alterado","descricao":"Carro","preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,"cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"}}
    """.formatted(anuncio.getCombustivel().name(),anuncio.getCambio().name(),anuncio.getCategoria().name());
   mvc.perform(put("/v1/anuncio/"+anuncio.getId()).header("Authorization",bearer(tokenA)).contentType("application/json").content(body)).andExpect(status().isForbidden());
   assertEquals("Onix",anuncios.findById(anuncio.getId()).orElseThrow().getTitulo());
@@ -631,7 +631,7 @@ class SecurityRegressionTest {
   return """
      {"versao":"LT","documentacao":"Regular","garantia":"Nenhuma","titulo":"%s","descricao":"Descricao do carro",
       "preco":50000,"marca":"Chevrolet","modelo":"Onix","ano":2022,"quilometragem":100,
-      "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false}
+      "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"}}
       """.formatted(title, anuncio.getCombustivel().name(), anuncio.getCambio().name(), anuncio.getCategoria().name());
  }
  private void makeReviewerActiveSellerAndPendingListing() {
@@ -1001,7 +1001,7 @@ class SecurityRegressionTest {
   var captor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(captor.capture());
   assertArrayEquals(new String[]{"a@example.com"},java.util.Arrays.stream(captor.getValue().getAllRecipients()).map(Object::toString).toArray(String[]::new));
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(captor.getValue()));
+  var matcher=java.util.regex.Pattern.compile("(?m)^([0-9]{6})$").matcher(contactMailText(captor.getValue()));
   assertTrue(matcher.find());
   String code=matcher.group(1);
   mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
@@ -1013,7 +1013,7 @@ class SecurityRegressionTest {
   assertNotNull(before.getContactEmailExpiresAt());
   mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
       .header("Authorization",bearer(tokenA)).contentType("application/json")
-      .content("{\"token\":\"not-the-correct-but-long-enough-code\"}"))
+      .content("{\"token\":\"000000\"}"))
       .andExpect(status().isBadRequest());
   String confirmation=mvc.perform(post("/v1/usuario/me/contato/email/confirmar")
       .header("Authorization",bearer(tokenA)).contentType("application/json")
@@ -1054,7 +1054,7 @@ class SecurityRegressionTest {
       .header("Authorization",bearer(tokenA))).andExpect(status().isAccepted());
   var mailCaptor=org.mockito.ArgumentCaptor.forClass(jakarta.mail.internet.MimeMessage.class);
   org.mockito.Mockito.verify(emailSender).send(mailCaptor.capture());
-  var matcher=java.util.regex.Pattern.compile("(?m)^([A-Za-z0-9_-]{40,})$").matcher(contactMailText(mailCaptor.getValue()));
+  var matcher=java.util.regex.Pattern.compile("(?m)^([0-9]{6})$").matcher(contactMailText(mailCaptor.getValue()));
   assertTrue(matcher.find());
   a=usuarios.findById(a.getId()).orElseThrow();
   a.setContactEmailExpiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
@@ -1213,7 +1213,7 @@ class SecurityRegressionTest {
   var mail=org.mockito.ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
   org.mockito.Mockito.verify(emailSender).send(mail.capture());
   assertArrayEquals(new String[]{"a@example.com"}, mail.getValue().getTo());
-  var code=java.util.regex.Pattern.compile("Código: ([A-Za-z0-9_-]{40,})")
+  var code=java.util.regex.Pattern.compile("Código: ([0-9]{6})")
     .matcher(mail.getValue().getText());
   assertTrue(code.find());
   return code.group(1);
@@ -1262,9 +1262,10 @@ class SecurityRegressionTest {
  @Test void wrongResetTokenPersistsAttemptCounterAndRevokesAtFive() throws Exception {
   requestPasswordReset("a@example.com");
   String valid=passwordResetToken();
+  String invalid=String.format(java.util.Locale.ROOT,"%06d",(Integer.parseInt(valid)+1)%1_000_000);
   for(int i=1;i<=5;i++){
    mvc.perform(post("/auth/password-reset/confirm").contentType("application/json")
-        .content("{\"email\":\"a@example.com\",\"token\":\"wrong-token-that-is-long-enough-1234567890\",\"newPassword\":\"novaSenhaABC123\"}"))
+        .content("{\"email\":\"a@example.com\",\"token\":\""+invalid+"\",\"newPassword\":\"novaSenhaABC123\"}"))
         .andExpect(status().isBadRequest());
    assertEquals(i,usuarios.findById(a.getId()).orElseThrow().getPasswordResetFailedAttempts());
   }
@@ -1453,7 +1454,7 @@ class SecurityRegressionTest {
   String json = """
   {"marca":"Chevrolet","modelo":"Onix","versao":"LT","ano":2022,
    "preco":64900,"quilometragem":50000,"cor":"Branco","combustivel":"FLEX",
-   "cambio":"MANUAL","categoria":"SEMINOVOS","segundaMao":true,
+   "cambio":"MANUAL","categoria":"SEMINOVOS","segundaMao":true,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"},
    "titulo":"Onix LT","descricao":"Carro para homologação",
    "documentacao":"A verificar","garantia":"Não informada",
    "cidade":"Várzea da Palma","uf":"MG"}""";
@@ -1520,7 +1521,7 @@ class SecurityRegressionTest {
       .andExpect(status().isAccepted());
   for (int attempt=0; attempt<5; attempt++) {
    mvc.perform(post("/v1/usuario/me/contato/email/confirmar").header("Authorization",bearer(tokenA))
-       .contentType("application/json").content("{\"token\":\"incorrect-but-long-enough-token-123456\"}"))
+       .contentType("application/json").content("{\"token\":\"000000\"}"))
        .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("EMAIL_CODE_INVALID"))
        .andExpect(jsonPath("$.traceId").isNotEmpty()).andExpect(jsonPath("$.timestamp").isNotEmpty());
   }

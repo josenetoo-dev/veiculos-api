@@ -30,6 +30,7 @@ public class ContatoEmailService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final UsuarioRepository usuarios;
     private final ContatoEmailMailer mailer;
+    private final OneTimeEmailCodeService otp;
     private final com.josenetoo_dev.veiculos_api.security.JwtUtil jwtUtil;
 
     private Usuario userLocked() {
@@ -81,11 +82,9 @@ public class ContatoEmailService {
                 && usuario.getContactEmailRequestedAt().isAfter(now.minusMinutes(1))) {
             throw new EmailChangeThrottledException();
         }
-        byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = otp.reserve();
         usuario.setContactEmailFailedAttempts(0);
-        usuario.setContactEmailTokenHash(hash(token));
+        usuario.setContactEmailTokenHash(otp.hash(token));
         usuario.setContactEmailExpiresAt(now.plusMinutes(15));
         usuario.setContactEmailRequestedAt(now);
         usuarios.saveAndFlush(usuario);
@@ -102,7 +101,7 @@ public class ContatoEmailService {
             throw new EmailVerificationCodeException();
         }
         byte[] expected = usuario.getContactEmailTokenHash().getBytes(StandardCharsets.US_ASCII);
-        byte[] actual = hash(request.token()).getBytes(StandardCharsets.US_ASCII);
+        byte[] actual = otp.hash(request.token()).getBytes(StandardCharsets.US_ASCII);
         if (!MessageDigest.isEqual(expected, actual)) {
             usuario.setContactEmailFailedAttempts(usuario.getContactEmailFailedAttempts() + 1);
             if (usuario.getContactEmailFailedAttempts() >= 5) {
@@ -122,12 +121,4 @@ public class ContatoEmailService {
         return jwtUtil.gerarToken(String.valueOf(usuario.getId()));
     }
 
-    private static String hash(String raw) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponível", e);
-        }
-    }
 }

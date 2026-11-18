@@ -35,6 +35,9 @@ public class Anuncio {
     @Column(nullable = false)
     private String versao;
 
+    @Embedded
+    private HistoricoVeiculoDeclarado historicoVeiculo;
+
     @Column(nullable = false)
     private boolean destaque;
 

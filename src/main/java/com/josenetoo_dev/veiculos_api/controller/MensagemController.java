@@ -21,6 +21,15 @@ import org.springframework.http.MediaType;
 @RequiredArgsConstructor
 public class MensagemController {
     private final MensagemService mensagemService;
+    private final com.josenetoo_dev.veiculos_api.service.ChatEvents chatEvents;
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter acompanhar(
+            @PathVariable Long propostaId) {
+        // Verificação no servidor, antes da assinatura. Nunca confiar apenas no BFF.
+        mensagemService.verificarParticipante(propostaId);
+        return chatEvents.subscribe(propostaId);
+    }
 
     @Operation(summary = "Mandar mensagem no chat de uma proposta")
     @PostMapping

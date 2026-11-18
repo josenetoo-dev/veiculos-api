@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import com.josenetoo_dev.veiculos_api.model.HistoricoVeiculoDeclarado;
+import jakarta.validation.Valid;
 
 @Getter
 @Setter
@@ -17,9 +19,12 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class AnuncioRequest {
 
-    @NotBlank
     @Size(max = 255)
     private String versao;
+
+    @Valid
+    @NotNull(message = "Responda ao histórico e às condições do veículo")
+    private HistoricoVeiculoDeclarado historicoVeiculo;
 
     @Size(max = 255)
     private String laudoCautelar;
@@ -49,6 +54,12 @@ public class AnuncioRequest {
     @Size(max = 255)
     private String marca;
 
+    @AssertTrue(message = "Selecione uma marca de veículo válida")
+    public boolean isMarcaValida() {
+        return marca == null || !marca.strip().matches(
+            "(?i)^(selecione( um| uma)?( carro| marca| veículo)?|marca|carro)$");
+    }
+
     @NotBlank
     @Size(max = 255)
     private String modelo;
@@ -56,6 +67,11 @@ public class AnuncioRequest {
     @NotNull
     @Min(1900)
     private Integer ano;
+
+    @AssertTrue(message = "Ano acima do próximo ano não é permitido")
+    public boolean isAnoValido() {
+        return ano == null || ano <= java.time.Year.now().getValue() + 1;
+    }
 
     @NotNull
     @PositiveOrZero
@@ -84,7 +100,7 @@ public class AnuncioRequest {
     @NotNull
     private TipoCombustivel combustivel;
 
-    private boolean segundaMao;
+    private Boolean segundaMao;
 
     @NotNull
     private Cambio cambio;

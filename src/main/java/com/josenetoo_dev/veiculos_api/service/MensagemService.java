@@ -30,6 +30,7 @@ public class MensagemService {
     private final MensagemDeletionPolicy deletionPolicy;
     private final ImageValidator imageValidator;
     private final PrivateEvidenceStorage privateStorage;
+    private final ChatEvents chatEvents;
 
     // Chat vinculado a uma proposta: só o comprador e o dono do anúncio daquela proposta podem participar
 
@@ -46,7 +47,9 @@ public class MensagemService {
         mensagem.setProposta(proposta);
         mensagem.setRemetente(usuario);
 
-        return new MensagemResponse(mensagemRepository.save(mensagem));
+        var saved = mensagemRepository.save(mensagem);
+        chatEvents.afterCommit(propostaId);
+        return new MensagemResponse(saved);
     }
 
     @Transactional
@@ -65,7 +68,9 @@ public class MensagemService {
         message.setArquivoNome(safeFilename(file.getOriginalFilename(), image.extension()));
         message.setTipoMidia(image.extension().equals("png") ? "image/png" : "image/jpeg");
         message.setArquivoTamanho((long) image.bytes().length);
-        return new MensagemResponse(mensagemRepository.saveAndFlush(message));
+        var saved = mensagemRepository.saveAndFlush(message);
+        chatEvents.afterCommit(propostaId);
+        return new MensagemResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -122,6 +127,7 @@ public class MensagemService {
             privateStorage.removeAfterCommit(mensagem.getArquivoChave());
         }
         mensagemRepository.save(mensagem);
+        chatEvents.afterCommit(propostaId);
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +143,12 @@ public class MensagemService {
         exigirParticipanteDaNegociacao(buscarProposta(propostaId), usuario);
         mensagemRepository.marcarLidas(propostaId, usuario.getId(), ids,
                 java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        chatEvents.afterCommit(propostaId);
+    }
+
+    @Transactional(readOnly = true)
+    public void verificarParticipante(Long propostaId) {
+        exigirParticipanteDaNegociacao(buscarProposta(propostaId), obterUsuarioAutenticado());
     }
 
     private Proposta buscarProposta(Long id) {

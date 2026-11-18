@@ -117,7 +117,8 @@ public class AnuncioService {
         }
         anuncio.setUsuario(usuario);
 
-        anuncio.setVersao(request.getVersao());
+        anuncio.setVersao(request.getVersao() == null || request.getVersao().isBlank() ? "Não informada" : request.getVersao().strip());
+        anuncio.setHistoricoVeiculo(request.getHistoricoVeiculo());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
         anuncio.setDocumentacao(request.getDocumentacao());
         anuncio.setGarantia(request.getGarantia());
@@ -133,10 +134,13 @@ public class AnuncioService {
                 ? null : request.getCidade().strip());
         anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
-        anuncio.setSegundaMao(request.isSegundaMao());
+        anuncio.setSegundaMao(request.getSegundaMao() == null ? true : request.getSegundaMao());
         // Nenhum anúncio novo é publicado automaticamente.
         anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setCambio(request.getCambio());
+        if (request.getCategoria() == com.josenetoo_dev.veiculos_api.enums.Categoria.MOTOS) {
+            throw new AnuncioIndisponivelException("A categoria Motos não aceita novos anúncios");
+        }
         anuncio.setCategoria(request.getCategoria());
         // Veiculo e campos legados do anuncio são persistidos na mesma transação.
         anuncio.sincronizarVeiculo();
@@ -235,7 +239,16 @@ public class AnuncioService {
                     "Anúncio vendido não pode ser editado");
         }
 
-        boolean mudouVeiculo = !java.util.Objects.equals(anuncio.getVersao(), request.getVersao())
+        if (request.getCategoria() == com.josenetoo_dev.veiculos_api.enums.Categoria.MOTOS
+                && anuncio.getCategoria() != com.josenetoo_dev.veiculos_api.enums.Categoria.MOTOS) {
+            throw new AnuncioIndisponivelException("A categoria Motos não está disponível para novos cadastros");
+        }
+        String versaoAtualizada = request.getVersao() == null || request.getVersao().isBlank()
+                ? anuncio.getVersao() : request.getVersao().strip();
+        boolean segundaMaoAtualizada = request.getSegundaMao() == null
+                ? anuncio.isSegundaMao() : request.getSegundaMao();
+
+        boolean mudouVeiculo = !java.util.Objects.equals(anuncio.getVersao(), versaoAtualizada)
                 || !java.util.Objects.equals(anuncio.getMarca(), request.getMarca())
                 || !java.util.Objects.equals(anuncio.getModelo(), request.getModelo())
                 || !java.util.Objects.equals(anuncio.getAno(), request.getAno())
@@ -243,12 +256,13 @@ public class AnuncioService {
                 || !java.util.Objects.equals(anuncio.getCor(), request.getCor())
                 || anuncio.getCombustivel() != request.getCombustivel()
                 || anuncio.getCambio() != request.getCambio()
-                || anuncio.isSegundaMao() != request.isSegundaMao();
+                || anuncio.isSegundaMao() != segundaMaoAtualizada;
         if (mudouVeiculo && anuncio.getVeiculo() != null) {
             verificacaoService.invalidarVeiculoAlterado(anuncio.getVeiculo().getId());
         }
 
-        anuncio.setVersao(request.getVersao());
+        anuncio.setVersao(versaoAtualizada);
+        anuncio.setHistoricoVeiculo(request.getHistoricoVeiculo());
         anuncio.setLaudoCautelar(request.getLaudoCautelar());
         anuncio.setDocumentacao(request.getDocumentacao());
         anuncio.setGarantia(request.getGarantia());
@@ -264,7 +278,7 @@ public class AnuncioService {
                 ? null : request.getCidade().strip());
         anuncio.setUf(request.getUf());
         anuncio.setCombustivel(request.getCombustivel());
-        anuncio.setSegundaMao(request.isSegundaMao());
+        anuncio.setSegundaMao(segundaMaoAtualizada);
         // Qualquer edição exige nova moderação; o próprio vendedor não aprova.
         anuncio.setStatus(StatusAnuncio.PENDENTE);
         anuncio.setRevisadoEm(null);

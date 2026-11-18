@@ -62,6 +62,22 @@ public class PlanoComercialService {
         exigirIdentificacao(user);
         PlanoComercial plan = planos.findByCodigoAndAtivoTrue(request.codigoPlano().trim().toUpperCase())
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Plano não encontrado"));
+        // Uma assinatura vigente nunca deve gerar nova intenção para o mesmo plano.
+        // Downgrade exige política comercial própria; não trocar benefícios antes
+        // de confirmação externa.
+        for (AssinaturaVendedor active : assinaturas.findByVendedorIdAndStatusOrderByCriadoEmDesc(
+                user.getId(), StatusAssinatura.ATIVA)) {
+            if (active.getVencimentoEm() != null && !active.getVencimentoEm().isAfter(
+                    LocalDateTime.now(ZoneOffset.UTC))) continue;
+            if (active.getPlanoCodigoSnapshot().equals(plan.getCodigo())) {
+                throw new AnuncioIndisponivelException("Este plano já está ativo na sua conta");
+            }
+            if ("MENSAL".equals(active.getPeriodicidadeSnapshot())
+                    && "MENSAL".equals(plan.getPeriodicidade())
+                    && plan.getMensalidade().compareTo(active.getMensalidadeSnapshot()) <= 0) {
+                throw new AnuncioIndisponivelException("Downgrade não está disponível nesta etapa");
+            }
+        }
         for (AssinaturaVendedor existing : assinaturas.findByVendedorIdAndStatusOrderByCriadoEmDesc(user.getId(), StatusAssinatura.INTENCAO)) {
             if (existing.getPlanoCodigoSnapshot().equals(plan.getCodigo())) return new AssinaturaResponse(existing);
         }
