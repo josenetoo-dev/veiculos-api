@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class AnuncioRequest {
 
-    @NotBlank
     @Size(max = 255)
     private String versao;
 
@@ -84,7 +83,7 @@ public class AnuncioRequest {
     @NotNull
     private TipoCombustivel combustivel;
 
-    private boolean segundaMao;
+    private Boolean segundaMao;
 
     @NotNull
     private Cambio cambio;
