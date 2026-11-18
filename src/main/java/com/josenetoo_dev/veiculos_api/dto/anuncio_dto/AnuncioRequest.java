@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import com.josenetoo_dev.veiculos_api.model.HistoricoVeiculoDeclarado;
+import jakarta.validation.Valid;
 
 @Getter
 @Setter
@@ -19,6 +21,10 @@ public class AnuncioRequest {
 
     @Size(max = 255)
     private String versao;
+
+    @Valid
+    @NotNull(message = "Responda ao histórico e às condições do veículo")
+    private HistoricoVeiculoDeclarado historicoVeiculo;
 
     @Size(max = 255)
     private String laudoCautelar;
