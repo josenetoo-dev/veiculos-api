@@ -17,6 +17,9 @@ public class Mensagem {
     @Column(name = "acompanhar_leitura", nullable = false)
     private boolean acompanharLeitura = true;
 
+    @Column(name = "envio_proposta_id", length = 36)
+    private String envioPropostaId;
+
     @Column(name = "lida_em")
     private LocalDateTime lidaEm;
 

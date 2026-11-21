@@ -27,6 +27,7 @@ public class PropostaService {
     private final PropostaRepository propostaRepository;
     private final AnuncioRepository anuncioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final MensagemService mensagens;
 
     @Transactional
     public PropostaResponse mandarProposta(PropostaRequest request) {
@@ -56,7 +57,13 @@ public class PropostaService {
         // comprador + vendedor (dono do anúncio) + anúncio, nunca apenas o par.
         var anterior = propostaRepository.findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(
                 usuario.getId(), anuncio.getId());
-        if (anterior.isPresent()) return new PropostaResponse(anterior.get());
+        if (anterior.isPresent()) {
+            var existente = anterior.get();
+            if (request.getEnvioId() != null) {
+                mensagens.enviarMensagemDaProposta(existente, usuario, request.getDescricao(), request.getEnvioId());
+            }
+            return new PropostaResponse(existente);
+        }
 
         proposta.setStatus(StatusProposta.PENDENTE);
         proposta.setValor(request.getValor());
@@ -65,6 +72,7 @@ public class PropostaService {
         proposta.setComprador(usuario);
 
         Proposta propostaSalva = propostaRepository.save(proposta);
+        mensagens.enviarMensagemDaProposta(propostaSalva, usuario, request.getDescricao(), request.getEnvioId());
 
         return new PropostaResponse(propostaSalva);
     }

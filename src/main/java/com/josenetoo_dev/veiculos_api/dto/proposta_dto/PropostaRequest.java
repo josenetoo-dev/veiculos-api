@@ -3,16 +3,15 @@ package com.josenetoo_dev.veiculos_api.dto.proposta_dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
 @JsonIgnoreProperties("compradorId")
 public class PropostaRequest {
@@ -29,4 +28,12 @@ public class PropostaRequest {
     @NotNull
     @Positive
     private Long anuncioId;
+
+    private UUID envioId;
+
+    public PropostaRequest(BigDecimal valor, String descricao, Long anuncioId) {
+        this.valor = valor;
+        this.descricao = descricao;
+        this.anuncioId = anuncioId;
+    }
 }

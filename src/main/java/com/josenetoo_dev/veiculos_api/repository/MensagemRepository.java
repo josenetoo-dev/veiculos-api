@@ -12,6 +12,8 @@ public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
 
     Page<Mensagem> findByPropostaIdAndExcluidaEmIsNullOrderByCriadoEmAsc(Long propostaId, Pageable pageable);
 
+    boolean existsByPropostaIdAndEnvioPropostaId(Long propostaId, String envioPropostaId);
+
     interface Pendencia {
         Long getPropostaId();
         long getQuantidade();
