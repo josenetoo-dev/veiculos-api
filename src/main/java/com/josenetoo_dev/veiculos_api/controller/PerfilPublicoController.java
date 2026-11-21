@@ -25,7 +25,7 @@ public class PerfilPublicoController {
     private final ImageValidator imagens;
 
     public record Veiculo(long id, String titulo) {}
-    public record Perfil(String nome, boolean temFoto, int nivel, List<Veiculo> veiculos, boolean temMais) {}
+    public record Perfil(String nome, boolean temFoto, int nivel, List<Veiculo> veiculos, boolean temMais, boolean equipeAutoMinas) {}
 
     private Usuario visivel(Long id) {
         return usuarios.findById(id).filter(u -> u.getStatus().podeAutenticar())
@@ -42,8 +42,9 @@ public class PerfilPublicoController {
         boolean nivelUm = temFoto && usuario.getStatus() == StatusUsuario.ACTIVE
                 && verificacoes.existsByUsuarioIdentidadeIdAndStatus(id, StatusVerificacao.APROVADA)
                 && anuncios.contarVeiculosRevisados(id, StatusVerificacao.APROVADA) > 0;
+        boolean equipeAutoMinas = usuario.getRole() == Role.ADMIN || usuario.getRole() == Role.REVIEWER;
         return new Perfil(usuario.getNome(), temFoto, nivelUm ? 1 : 0,
-                ativos.map(a -> new Veiculo(a.getId(), a.getTitulo())).getContent(), ativos.hasNext());
+                ativos.map(a -> new Veiculo(a.getId(), a.getTitulo())).getContent(), ativos.hasNext(), equipeAutoMinas);
     }
 
     @GetMapping("/v1/perfis/{id}/foto")

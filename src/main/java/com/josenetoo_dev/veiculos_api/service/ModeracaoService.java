@@ -25,6 +25,7 @@ public class ModeracaoService {
     private final UsuarioRepository usuarios;
     private final ModeracaoEventoRepository eventos;
     private final VerificacaoRepository verificacoes;
+    private final AnuncioFotoRepository fotos;
 
     private Long revisorId() {
         Long id;
@@ -105,6 +106,9 @@ public class ModeracaoService {
             throw new AnuncioIndisponivelException("O vendedor precisa adicionar uma foto pública em Minha conta");
         if (!requisitosConferidos)
             throw new AnuncioIndisponivelException("Confira identidade, CPF, maioridade e vínculo com o veículo antes de publicar");
+        if (fotos.countByAnuncioId(id) < 2) {
+            throw new AnuncioIndisponivelException("Adicione pelo menos 2 fotos do veículo antes de publicar");
+        }
         anuncio.setNivelUmRevisado(true);
         // Publicação básica é gratuita. Planos opcionais não bloqueiam a moderação.
         anuncio.setAssinaturaPublicacaoId(null);

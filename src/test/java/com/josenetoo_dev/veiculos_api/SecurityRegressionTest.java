@@ -634,6 +634,16 @@ class SecurityRegressionTest {
       "cor":"Branco","combustivel":"%s","cambio":"%s","categoria":"%s","segundaMao":false,"historicoVeiculo":{"colisao":"NAO_SEI_INFORMAR","repintura":"NAO_SEI_INFORMAR","pecasAcidente":"NAO_SEI_INFORMAR","leilao":"NAO_SEI_INFORMAR","alagamento":"NAO_SEI_INFORMAR","problemaMecanico":"NAO_SEI_INFORMAR","sinistro":"NAO_SEI_INFORMAR"}}
       """.formatted(title, anuncio.getCombustivel().name(), anuncio.getCambio().name(), anuncio.getCategoria().name());
  }
+ private void addListingPhotos(int quantidade) {
+  for (int i = 0; i < quantidade; i++) {
+   var foto = new AnuncioFoto();
+   foto.setAnuncio(anuncio);
+   foto.setTipoFoto(TipoFoto.OUTRO);
+   foto.setOrdem((int) fotos.countByAnuncioId(anuncio.getId()));
+   foto.setUrl("/uploads/fotos/" + java.util.UUID.randomUUID() + ".png");
+   fotos.saveAndFlush(foto);
+  }
+ }
  private void makeReviewerActiveSellerAndPendingListing() {
   a.setRole(Role.REVIEWER);
   a.setStatus(StatusUsuario.ACTIVE);
@@ -651,6 +661,7 @@ class SecurityRegressionTest {
   var vv=Verificacao.veiculo(b, anuncio.getVeiculo());
   vv.setStatus(StatusVerificacao.APROVADA);
   verificacoes.saveAndFlush(vv);
+  addListingPhotos(2);
  }
  @Test void identicalListingCannotBeSubmittedTwice() throws Exception {
   String payload=listingJson("Teste duplicidade");
@@ -665,6 +676,37 @@ class SecurityRegressionTest {
       .content("{\"anuncioId\":"+anuncio.getId()+",\"valor\":49000,\"descricao\":\"Teste de conversa repetida\"}"))
       .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(proposta.getId()));
   assertEquals(1,propostas.count());
+ }
+ @Test void sendingOfferPersistsMessageAndRetryDoesNotDuplicateIt() throws Exception {
+  a.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(a);
+  c.setStatus(StatusUsuario.ACTIVE); usuarios.saveAndFlush(c);
+  for (String buyerToken : new String[]{tokenA, tokenC}) {
+   String offer = """
+       {"anuncioId":%d,"valor":49000,"descricao":"Gostaria de negociar","envioId":"%s"}
+       """.formatted(anuncio.getId(), java.util.UUID.randomUUID());
+   long conversation = idFromJson(mvc.perform(post("/v1/proposta").header("Authorization", bearer(buyerToken))
+       .contentType("application/json").content(offer)).andExpect(status().isCreated()).andReturn());
+   mvc.perform(post("/v1/proposta").header("Authorization", bearer(buyerToken))
+       .contentType("application/json").content(offer)).andExpect(status().isCreated())
+       .andExpect(jsonPath("$.id").value(conversation));
+   mvc.perform(get("/v1/proposta/" + conversation + "/mensagens").header("Authorization", bearer(tokenB)))
+       .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+       .andExpect(jsonPath("$.content[0].conteudo").value("Gostaria de negociar"));
+  }
+  assertEquals(2, propostas.count());
+ }
+ @Test void publicationRequiresAtLeastTwoListingPhotos() throws Exception {
+  makeReviewerActiveSellerAndPendingListing();
+  fotos.deleteAll();
+  String url = "/v1/moderacao/anuncios/" + anuncio.getId() + "/aprovar";
+  for (int count = 0; count < 2; count++) {
+   mvc.perform(post(url).header("Authorization", bearer(tokenA)).contentType("application/json")
+       .content("{\"requisitosConferidos\":true}")).andExpect(status().isConflict());
+   addListingPhotos(1);
+  }
+  mvc.perform(post(url).header("Authorization", bearer(tokenA)).contentType("application/json")
+      .content("{\"requisitosConferidos\":true}")).andExpect(status().isOk())
+      .andExpect(jsonPath("$.status").value("ATIVO"));
  }
  @Test void newListingIsPendingAndCannotBypassReview() throws Exception {
   mvc.perform(post("/v1/anuncio").header("Authorization",bearer(tokenB))
@@ -956,6 +998,7 @@ class SecurityRegressionTest {
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APROVADA"));
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
+  addListingPhotos(2);
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
        .header("Authorization",bearer(tokenA)))
        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVO"));
@@ -1635,6 +1678,7 @@ class SecurityRegressionTest {
   }
   anuncio.setStatus(StatusAnuncio.PENDENTE);anuncios.saveAndFlush(anuncio);
   eventosAssinatura.deleteAll();assinaturas.deleteAll();aceitesContrato.deleteAll();
+  addListingPhotos(2);
   mvc.perform(post("/v1/moderacao/anuncios/"+anuncio.getId()+"/aprovar").contentType("application/json").content("{\"requisitosConferidos\":true}")
       .header("Authorization",bearer(tokenA))).andExpect(status().isOk())
       .andExpect(jsonPath("$.status").value("ATIVO"));

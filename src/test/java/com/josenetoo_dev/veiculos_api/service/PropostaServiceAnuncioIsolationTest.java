@@ -31,6 +31,7 @@ class PropostaServiceAnuncioIsolationTest {
     @Mock private PropostaRepository propostas;
     @Mock private AnuncioRepository anuncios;
     @Mock private UsuarioRepository usuarios;
+    @Mock private MensagemService mensagens;
     @InjectMocks private PropostaService service;
 
     private Usuario comprador;
@@ -86,6 +87,7 @@ class PropostaServiceAnuncioIsolationTest {
         assertEquals(200L,created.getAnuncio());
         verify(propostas).findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(11L,200L);
         verify(propostas).save(any(Proposta.class));
+        verify(mensagens).enviarMensagemDaProposta(any(Proposta.class), eq(comprador), eq("Interesse no segundo veículo"), isNull());
         verify(propostas,never()).entreParticipantes(any(),any(),any());
     }
 

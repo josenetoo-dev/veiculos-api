@@ -41,15 +41,28 @@ public class MensagemService {
 
         exigirParticipanteDaNegociacao(proposta, usuario);
 
+        return new MensagemResponse(salvarTexto(proposta, usuario, request.getConteudo(), null));
+    }
+
+    // A abertura de proposta já serializa os envios pelo lock do anúncio.
+    void enviarMensagemDaProposta(Proposta proposta, Usuario comprador, String texto, java.util.UUID envioId) {
+        String chave = envioId == null ? null : envioId.toString();
+        if (chave == null || !mensagemRepository.existsByPropostaIdAndEnvioPropostaId(proposta.getId(), chave)) {
+            salvarTexto(proposta, comprador, texto, chave);
+        }
+    }
+
+    private Mensagem salvarTexto(Proposta proposta, Usuario usuario, String texto, String envioId) {
         Mensagem mensagem = new Mensagem();
-        mensagem.setConteudo(request.getConteudo());
+        mensagem.setConteudo(texto);
+        mensagem.setEnvioPropostaId(envioId);
         mensagem.setCriadoEm(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         mensagem.setProposta(proposta);
         mensagem.setRemetente(usuario);
 
         var saved = mensagemRepository.save(mensagem);
-        chatEvents.afterCommit(propostaId);
-        return new MensagemResponse(saved);
+        chatEvents.afterCommit(proposta.getId());
+        return saved;
     }
 
     @Transactional
