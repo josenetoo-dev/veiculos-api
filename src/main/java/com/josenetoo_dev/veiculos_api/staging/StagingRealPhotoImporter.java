@@ -88,7 +88,7 @@ public class StagingRealPhotoImporter implements ApplicationRunner {
     private final AnuncioFotoRepository photos;
     private final ImageStorage storage;
     private final TransactionTemplate transactions;
-    private final ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
     @Value("${STAGING_REAL_PHOTOS_ENABLED:false}")
     private boolean enabled;
 
