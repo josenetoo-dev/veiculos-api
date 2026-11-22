@@ -76,6 +76,7 @@ public class StagingDemoCatalog {
         for (int index = 1; index <= 150; index++) {
             final String code = String.format(Locale.ROOT, "DEMO-%03d", index);
             Model model = MODELS.get((index - 1) % MODELS.size());
+            final int ordinal = index;
             int variation = (index - 1) / MODELS.size();
             int year = 2020 + variation;
             String color = COLORS[(index - 1) % COLORS.length];
@@ -90,12 +91,12 @@ public class StagingDemoCatalog {
                 a.setModelo(model.modelo);
                 a.setVersao(model.versao);
                 a.setAno(year);
-                a.setQuilometragem(12000 + (index * 733) % 89000);
+                a.setQuilometragem(12000 + (ordinal * 733) % 89000);
                 a.setCor(color);
                 a.setCidade("Várzea da Palma");
                 a.setUf("MG");
                 a.setCombustivel(TipoCombustivel.FLEX);
-                a.setCambio(index % 3 == 0 ? Cambio.MANUAL : Cambio.AUTOMATICO);
+                a.setCambio(ordinal % 3 == 0 ? Cambio.MANUAL : Cambio.AUTOMATICO);
                 a.setPreco(BigDecimal.valueOf(model.preco + variation * 2200));
                 a.setSegundaMao(true);
                 a.setCategoria(Categoria.SEMINOVOS);
