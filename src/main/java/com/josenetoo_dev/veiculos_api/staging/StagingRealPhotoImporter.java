@@ -195,8 +195,7 @@ public class StagingRealPhotoImporter implements ApplicationRunner {
         ByteArrayOutputStream jpeg = new ByteArrayOutputStream();
         if (!ImageIO.write(output, "jpeg", jpeg) || jpeg.size() > ImageValidator.MAX_BYTES)
             throw new IOException("Falha ao converter imagem JPEG");
-        String source = "https://commons.wikimedia.org/wiki/File:" +
-                filename.replace(' ', '_');
+        String source = "https://commons.wikimedia.org/?curid=" + page.path("pageid").asLong();
         return new RealImage(jpeg.toByteArray(), source, artist, license);
     }
 
