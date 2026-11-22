@@ -33,6 +33,7 @@ public class StagingDemoData implements ApplicationRunner {
     private final UsuarioRepository users;
     private final AnuncioRepository ads;
     private final PasswordEncoder encoder;
+    private final StagingDemoCatalog demoCatalog;
 
     @Value("${STAGING_DEMO_ADMIN_PASSWORD:}")
     private String adminPassword;
@@ -108,6 +109,7 @@ public class StagingDemoData implements ApplicationRunner {
             ads.save(ad);
         }
         ads.flush();
+        demoCatalog.ensure(seller);
     }
 
     private Usuario createIfMissing(String email, String name, String password, Role role) {
