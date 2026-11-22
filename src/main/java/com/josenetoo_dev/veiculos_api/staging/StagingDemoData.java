@@ -26,6 +26,7 @@ import java.util.UUID;
  * não por terem sido verificados oficialmente. NÃO copiar este banco para produção.
  */
 @Component
+@org.springframework.core.annotation.Order(10)
 @Profile("staging & !prod")
 @ConditionalOnProperty(name = "app.staging.demo.enabled", havingValue = "true")
 @RequiredArgsConstructor
