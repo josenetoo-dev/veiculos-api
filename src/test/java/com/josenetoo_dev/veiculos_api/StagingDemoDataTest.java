@@ -31,11 +31,12 @@ class StagingDemoDataTest {
     @Autowired StagingDemoData seeder;
     @Autowired UsuarioRepository users;
     @Autowired AnuncioRepository ads;
+    @Autowired AnuncioFotoRepository photos;
     @Autowired PasswordEncoder passwords;
 
     @Test void demoCreatesOnlySyntheticUsersAndAdsAndIsIdempotent() {
         assertEquals(3, users.count());
-        assertEquals(5, ads.count());
+        assertEquals(150, ads.count());
         var admin=users.findByEmail("admin-demo@auto-minas.test").orElseThrow();
         var buyer=users.findByEmail("comprador-demo@auto-minas.test").orElseThrow();
         var seller=users.findByEmail("vendedor-demo@auto-minas.test").orElseThrow();
@@ -46,7 +47,7 @@ class StagingDemoDataTest {
         assertTrue(passwords.matches("staging-only-admin-password-123",admin.getSenha()));
         assertTrue(passwords.matches("staging-only-buyer-password-123",buyer.getSenha()));
         assertTrue(passwords.matches("staging-only-seller-password-123",seller.getSenha()));
-        assertEquals(5, ads.findByStatus(StatusAnuncio.ATIVO,
+        assertEquals(150, ads.findByStatus(StatusAnuncio.ATIVO,
                 org.springframework.data.domain.Pageable.unpaged()).getTotalElements());
         ads.findAll().forEach(ad -> {
             assertTrue(ad.getTitulo().startsWith("[DEMO]"));
@@ -55,8 +56,10 @@ class StagingDemoDataTest {
             assertEquals("vendedor-demo@auto-minas.test", ad.getUsuario().getEmail());
         });
 
+        assertEquals(450, photos.count());
         seeder.run(new DefaultApplicationArguments(new String[0]));
         assertEquals(3, users.count());
-        assertEquals(5, ads.count());
+        assertEquals(150, ads.count());
+        assertEquals(450, photos.count());
     }
 }
