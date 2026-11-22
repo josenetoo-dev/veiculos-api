@@ -172,7 +172,7 @@ public class StagingRealPhotoImporter implements ApplicationRunner {
         String url = info.path("thumburl").asText(info.path("url").asText());
         URI media = URI.create(url);
         if (!"https".equals(media.getScheme()) || !"upload.wikimedia.org".equals(media.getHost())) {
-            throw new IOException("Host de imagem inesperado");
+            throw new IOException("Host de imagem inesperado: " + media.getHost() + "; Wikimedia JSON: " + response.body().substring(0, Math.min(200, response.body().length())));
         }
         HttpResponse<byte[]> file = http.send(request(media), HttpResponse.BodyHandlers.ofByteArray());
         if (file.statusCode() != 200 || file.body().length > 15_000_000) {
