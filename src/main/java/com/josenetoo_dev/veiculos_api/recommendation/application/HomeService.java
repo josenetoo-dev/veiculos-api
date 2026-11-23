@@ -35,7 +35,8 @@ public class HomeService {
         }
         var seen=new HashSet<Long>();
         double share=Math.max(0,Math.min(.5,sponsoredShare));
-        int slots=ranked.isEmpty()?0:Math.min(8,(int)Math.floor(Math.min(16,ranked.size())*share/(1-share)));
+        int slots=ranked.isEmpty()?(ads.isEmpty()?0:1)
+                :Math.min(8,(int)Math.floor(Math.min(16,ranked.size())*share/(1-share)));
         var sponsored=rotate(paidRanked,slots,java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay())
                 .stream().filter(a->seen.add(a.vehicle())).toList();
         var organic=ranked.stream().filter(a->seen.add(a.vehicle())).toList();
