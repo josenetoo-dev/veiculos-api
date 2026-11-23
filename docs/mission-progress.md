@@ -28,3 +28,11 @@
 - `PUT /v1/planos/AUTO_MINAS_PRO/preco` permite configurar preço somente por ADMIN. A intenção só é criada após preço positivo; o processamento financeiro continua manual e desabilitado por padrão.
 - Teste MySQL verifica preservação das linhas antigas, oferta única e ausência de preço inventado.
 - Ranking da Home reconhece automaticamente PRO vigente e financeiramente confirmado sem depender do vínculo de publicação que a moderação limpa. Concessões legadas explícitas continuam válidas até o vencimento. Rotação alterna vendedores após relevância, com participação patrocinada inicial de 30% (configurável por `app.recommendations.sponsored-share`).
+
+## Retomada após os módulos adicionais
+
+- Backend em PRs draft: #35 proteção inicial contra abuso, #36 oferta PRO, #37 acompanhamento de denúncias, #38 favoritos e #39 buscas salvas (Flyway V32–V35). Os PRs encadeados dependem da integração ordenada; nenhum foi integrado à main.
+- Frontend em PRs draft: #43 Home/recomendações, #44 oferta PRO, #45 avisos/checklist, #46 testes DEMO e anúncio real, #47 denúncias, #48 favoritos, #49 semelhantes, #50 comparador, #51 sugestões, #52 buscas salvas. Os PRs #48–#52 estão encadeados e dependem da API quando indicado.
+- CI aprovado até os commits anteriores de cada módulo; conferir a execução mais recente de cada PR antes de integrar. A homologação frontend usa backend `main`, portanto ainda não valida em conjunto os endpoints de favoritos e buscas salvas.
+- Pendentes centrais: métricas e fluxo financeiro PRO, consentimento e eventos de recomendações, questionário, alertas e feedback negativo; níveis 2–4, posse, duplicidade de imagens, preços, auditoria ampla e proteção documental. O antiabuso ainda precisa de chaves por conta, proxies confiáveis e desafios progressivos.
+- Publicação bloqueada pela missão incompleta e pela ausência de ensaio de backup/restauração e confirmação operacional dos destinos. Preço PRO e cobrança real continuam desativados.
