@@ -54,8 +54,9 @@ public class AbuseRateStore {
     public void cleanup() {
         // Longest configured window must be <= 24 hours. Bounded batches avoid long transactions.
         db.update("DELETE FROM abuse_rate_event WHERE occurred_at < ? LIMIT 10000", Instant.now().minusSeconds(86400));
-        db.update("DELETE k FROM abuse_rate_key k LEFT JOIN abuse_rate_event e ON e.key_hash=k.key_hash "
-                + "WHERE e.id IS NULL AND k.last_seen < ? LIMIT 10000", Instant.now().minusSeconds(86400));
+        db.update("DELETE FROM abuse_rate_key WHERE last_seen < ? "
+                + "AND NOT EXISTS (SELECT 1 FROM abuse_rate_event WHERE abuse_rate_event.key_hash=abuse_rate_key.key_hash) "
+                + "LIMIT 10000", Instant.now().minusSeconds(86400));
     }
 
     private String hash(String identity) {
