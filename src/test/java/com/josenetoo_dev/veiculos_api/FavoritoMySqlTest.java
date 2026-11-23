@@ -20,12 +20,17 @@ class FavoritoMySqlTest {
         var db=new JdbcTemplate(source);
         db.update("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES(901,'A','favorite-a@example.test','hash','39000000000'),(902,'B','favorite-b@example.test','hash','39000000001')");
         db.update("""
+            INSERT INTO veiculo(id,cadastrado_por_id,marca,modelo,versao,ano,quilometragem,cor,combustivel,cambio,segunda_mao)
+            VALUES (901,901,'Fiat','Argo','LT',2022,100,'Branco','FLEX','MANUAL',false),
+                   (902,901,'Fiat','Argo','LT',2022,100,'Branco','FLEX','MANUAL',false)
+            """);
+        db.update("""
             INSERT INTO anuncio(id,codigo,versao,destaque,documentacao,garantia,titulo,descricao,preco,
-              marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id)
+              marca,modelo,ano,quilometragem,cor,combustivel,segunda_mao,status,cambio,categoria,criado_em,usuario_id,veiculo_id)
             VALUES (901,'AM-FAV-901','LT',false,'Declarada','Nenhuma','Carro','Teste',10000,
-              'Fiat','Argo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),901),
+              'Fiat','Argo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),901,901),
               (902,'DEMO-FAV-902','LT',false,'Declarada','Nenhuma','Demo','Teste',10000,
-              'Fiat','Argo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),901)
+              'Fiat','Argo',2022,100,'Branco','FLEX',false,'ATIVO','MANUAL','SEMINOVOS',NOW(),901,902)
             """);
         var controller=new FavoritoController(db);
         Principal a=()->"901", b=()->"902";
