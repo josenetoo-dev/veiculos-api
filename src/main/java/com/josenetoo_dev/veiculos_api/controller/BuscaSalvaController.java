@@ -36,7 +36,14 @@ public class BuscaSalvaController {
                     || (Set.of("minPrice","maxPrice","yearMin").contains(entry.getKey()) && !value.matches("\\d{1,12}"))
                     || (entry.getKey().equals("state") && !value.matches("[A-Za-z]{2}"))
                     || (entry.getKey().equals("sort") && !Set.of("recentes","menor-preco","maior-preco","menor-km").contains(value))) invalid();
+            if (entry.getKey().equals("fuel") && !Set.of("gasolina","etanol","flex","diesel","eletrico","hibrido")
+                    .contains(value.toLowerCase(java.util.Locale.ROOT))) invalid();
+            if (entry.getKey().equals("transmission") && !Set.of("manual","automatico","automatizado")
+                    .contains(value.toLowerCase(java.util.Locale.ROOT))) invalid();
         }
+        String min=input.filtros().get("minPrice"),max=input.filtros().get("maxPrice"),year=input.filtros().get("yearMin");
+        if (min!=null && max!=null && Long.parseLong(min)>Long.parseLong(max)) invalid();
+        if (year!=null && (Long.parseLong(year)<1886 || Long.parseLong(year)>java.time.Year.now().getValue()+1)) invalid();
     }
     private static void invalid() { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Busca inválida"); }
     private String encode(Map<String,String> filters) {
