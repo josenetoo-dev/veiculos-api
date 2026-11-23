@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties={
   "spring.datasource.url=jdbc:h2:mem:biometria;MODE=MySQL;DB_CLOSE_DELAY=-1",
   "spring.datasource.username=sa", "spring.datasource.password=",
-  "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false", "app.abuse.enabled=false",
+  "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",
   "jwt.secret=biometria-test-secret-must-have-32-bytes",
   "verification.biometric.enabled=true",
   "verification.biometric.liveness-threshold=90",

@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
     "spring.datasource.username=sa",
     "spring.datasource.password=",
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.flyway.enabled=false", "app.abuse.enabled=false",
+    "spring.flyway.enabled=false",
     "jwt.secret=staging-test-only-secret-at-least-32-bytes",
     "app.staging.demo.enabled=true",
     "STAGING_DEMO_ADMIN_PASSWORD=staging-only-admin-password-123",

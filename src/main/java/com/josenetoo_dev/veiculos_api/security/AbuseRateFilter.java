@@ -23,11 +23,12 @@ public class AbuseRateFilter extends OncePerRequestFilter {
 
     public AbuseRateFilter(AbuseRateStore store,
             @Value("${app.abuse.enabled:true}") boolean enabled,
+            @Value("${spring.flyway.enabled:true}") boolean schemaManaged,
             @Value("${app.abuse.auth-per-minute:80}") int authLimit,
             @Value("${app.abuse.write-per-minute:120}") int writeLimit,
             @Value("${app.abuse.events-per-minute:120}") int eventsLimit) {
         this.store = store;
-        this.enabled = enabled;
+        this.enabled = enabled && schemaManaged;
         this.authLimit = authLimit;
         this.writeLimit = writeLimit;
         this.eventsLimit = eventsLimit;
