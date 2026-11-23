@@ -1,5 +1,10 @@
 # Missão mestre — estado da main auditada em 2026-11-23
 
+## Decisão de produto em 2026-11-23
+
+- Buscas salvas foram retiradas da homologação a pedido do responsável. A API e a interface não expõem mais o recurso.
+- A migração V35 já foi aplicada no banco de homologação; a tabela e eventuais registros foram preservados para não alterar checksums Flyway nem destruir dados. Não há acesso comercial ao recurso.
+
 ## Base observada
 
 - Backend Java 21/Spring Boot 4.1, MySQL/Flyway V1–V31; frontend Next.js/React/TypeScript.
