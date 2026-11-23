@@ -71,12 +71,12 @@ public class DenunciaService {
     }
 
     @Transactional(readOnly = true)
-    public Page<DenunciaResponse> minhas(Pageable pageable) {
-        return denuncias.findByDenuncianteId(current().getId(), pageable).map(DenunciaResponse::from);
+    public Page<DenunciaAcompanhamentoResponse> minhas(Pageable pageable) {
+        return denuncias.findByDenuncianteId(current().getId(), pageable).map(DenunciaAcompanhamentoResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public DenunciaResponse consultar(Long id) {
+    public DenunciaAcompanhamentoResponse consultar(Long id) {
         Usuario user = current();
         Denuncia item = denuncias.findById(id)
                 .orElseThrow(() -> new DenunciaNaoEncontradaException());
@@ -84,13 +84,29 @@ public class DenunciaService {
                 && user.getRole() != Role.ADMIN && user.getRole() != Role.REVIEWER) {
             throw new AcessoNegadoException("Denúncia de outro usuário");
         }
-        return DenunciaResponse.from(item);
+        return DenunciaAcompanhamentoResponse.from(item);
     }
 
     @Transactional(readOnly = true)
     public Page<DenunciaResponse> pendentes(Pageable pageable) {
         reviewer();
-        return denuncias.findByStatus(StatusDenuncia.ABERTA, pageable).map(DenunciaResponse::from);
+        return denuncias.findByStatusIn(java.util.List.of(StatusDenuncia.ABERTA,StatusDenuncia.EM_ANALISE), pageable)
+                .map(DenunciaResponse::from);
+    }
+
+    @Transactional
+    public DenunciaResponse iniciarAnalise(Long id) {
+        Usuario user = reviewer();
+        Denuncia item = denuncias.findByIdForUpdate(id).orElseThrow(DenunciaNaoEncontradaException::new);
+        if (item.getStatus() != StatusDenuncia.ABERTA)
+            throw new VerificacaoIndisponivelException("Denúncia já analisada ou encerrada");
+        if (item.getDenunciante().getId().equals(user.getId())
+                || item.getAnuncio().getUsuario().getId().equals(user.getId()))
+            throw new AcessoNegadoException("Revisor envolvido na denúncia");
+        item.setStatus(StatusDenuncia.EM_ANALISE);
+        item.setRevisadoPorId(user.getId());
+        item.setRevisadoEm(LocalDateTime.now(ZoneOffset.UTC));
+        return DenunciaResponse.from(denuncias.save(item));
     }
 
     @Transactional
@@ -101,7 +117,7 @@ public class DenunciaService {
         }
         Denuncia report = denuncias.findByIdForUpdate(id)
                 .orElseThrow(() -> new DenunciaNaoEncontradaException());
-        if (report.getStatus() != StatusDenuncia.ABERTA) {
+        if (report.getStatus() != StatusDenuncia.ABERTA && report.getStatus() != StatusDenuncia.EM_ANALISE) {
             throw new VerificacaoIndisponivelException("Denúncia já concluída");
         }
         if (report.getDenunciante().getId().equals(user.getId())
