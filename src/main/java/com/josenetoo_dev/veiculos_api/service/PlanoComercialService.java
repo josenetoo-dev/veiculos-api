@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -53,6 +54,19 @@ public class PlanoComercialService {
     }
 
     @Transactional
+    public PlanoResponse atualizarPrecoPro(BigDecimal mensalidade) {
+        currentUser.admin();
+        if (mensalidade == null || mensalidade.signum() <= 0 || mensalidade.scale() > 2
+                || mensalidade.compareTo(new BigDecimal("99999999.99")) > 0)
+            throw new IllegalArgumentException("Mensalidade inválida");
+        var plan = planos.findByCodigo("AUTO_MINAS_PRO")
+                .orElseThrow(() -> new AnuncioNaoEncontradoException("Plano PRO não encontrado"));
+        plan.setMensalidade(mensalidade);
+        plan.setAtualizadoEm(LocalDateTime.now(ZoneOffset.UTC));
+        return new PlanoResponse(planos.saveAndFlush(plan));
+    }
+
+    @Transactional
     public AssinaturaResponse registrarIntencao(IntencaoAssinaturaRequest request) {
         Usuario user = currentUser.current();
         user = usuarios.findByIdForUpdate(user.getId()).orElseThrow();
@@ -62,6 +76,8 @@ public class PlanoComercialService {
         exigirIdentificacao(user);
         PlanoComercial plan = planos.findByCodigoAndAtivoTrue(request.codigoPlano().trim().toUpperCase())
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Plano não encontrado"));
+        if (plan.getMensalidade() == null || plan.getMensalidade().signum() <= 0)
+            throw new AnuncioIndisponivelException("Preço ainda não definido. Contratação indisponível");
         // Uma assinatura vigente nunca deve gerar nova intenção para o mesmo plano.
         // Downgrade exige política comercial própria; não trocar benefícios antes
         // de confirmação externa.

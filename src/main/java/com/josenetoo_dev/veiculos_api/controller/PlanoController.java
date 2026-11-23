@@ -22,4 +22,13 @@ public class PlanoController {
             @Valid @org.springframework.web.bind.annotation.RequestBody com.josenetoo_dev.veiculos_api.dto.comercial.AtualizarBeneficiosRequest request) {
         return service.atualizarBeneficios(codigo, request);
     }
+
+    public record PrecoProRequest(@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.DecimalMin("0.01")
+                                  java.math.BigDecimal mensalidade) {}
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.web.bind.annotation.PutMapping("/AUTO_MINAS_PRO/preco")
+    public PlanoResponse atualizarPreco(@Valid @org.springframework.web.bind.annotation.RequestBody PrecoProRequest request) {
+        return service.atualizarPrecoPro(request.mensalidade());
+    }
 }

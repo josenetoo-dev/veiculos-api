@@ -21,3 +21,9 @@
 - O limitador cobre apenas parte dos vetores; faltam chaves por identificador de conta com tratamento de enumeração, desafios progressivos e testes E2E de recuperação legítima.
 - Todo o restante das entregas 1–30 permanece parcial ou pendente de implementação e validação. Não publicar esta branch isolada como missão concluída.
 - Build local bloqueado por DNS de Maven Central neste ambiente. Validar CI antes de integrar.
+
+## Próxima PR encadeada — oferta PRO
+
+- Flyway V33 desativa novas ofertas legadas, preservando suas linhas e assinaturas; insere `AUTO_MINAS_PRO` sem mensalidade aprovada.
+- `PUT /v1/planos/AUTO_MINAS_PRO/preco` permite configurar preço somente por ADMIN. A intenção só é criada após preço positivo; o processamento financeiro continua manual e desabilitado por padrão.
+- Teste MySQL verifica preservação das linhas antigas, oferta única e ausência de preço inventado.
