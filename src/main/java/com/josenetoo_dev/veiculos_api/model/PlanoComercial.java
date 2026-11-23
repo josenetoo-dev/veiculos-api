@@ -21,7 +21,7 @@ public class PlanoComercial {
     private String codigo;
     @Column(nullable = false, length = 80)
     private String nome;
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(precision = 10, scale = 2)
     private BigDecimal mensalidade;
     /** Percentual, por exemplo 0.65 representa 0,65%. */
     @Column(name = "comissao_percentual", nullable = false, precision = 5, scale = 2)

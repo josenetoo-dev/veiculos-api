@@ -10,6 +10,18 @@ import static org.mockito.Mockito.*;
 
 class HomeServiceTest {
     @Test
+    void rotationSpreadsPositionsBetweenSellersAndMovesDaily() {
+        var price=BigDecimal.valueOf(30000);
+        var candidates=List.of(
+            new Listing(1,"A","A","M","C",price,"MG",1,0,true,11),
+            new Listing(2,"B","A","M","C",price,"MG",2,0,true,11),
+            new Listing(3,"C","A","M","C",price,"MG",3,0,true,22),
+            new Listing(4,"D","A","M","C",price,"MG",4,0,true,22));
+        var today=HomeService.rotate(candidates,3,0);
+        assertEquals(List.of(11L,22L,11L),today.stream().map(Listing::seller).toList());
+        assertEquals(22,HomeService.rotate(candidates,3,1).getFirst().seller());
+    }
+    @Test
     void brokenProfileFallsBackAndKeepsDiversityAndAdvertisingBoundaries() {
         var catalog = mock(ListingCatalog.class);
         var signals = mock(Signals.class);
