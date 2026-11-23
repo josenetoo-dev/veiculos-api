@@ -32,9 +32,10 @@ public class AbuseRateStore {
         String key = hash(identity);
         return transactions.execute(status -> {
             Instant now = Instant.now();
-            db.update("INSERT IGNORE INTO abuse_rate_key (key_hash,last_seen) VALUES (?,?)", key, now);
-            db.queryForObject("SELECT last_seen FROM abuse_rate_key WHERE key_hash=? FOR UPDATE",
-                    (rs, row) -> rs.getTimestamp(1), key);
+            // A single upsert acquires the exclusive InnoDB row lock. INSERT IGNORE
+            // followed by SELECT FOR UPDATE can deadlock under simultaneous first use.
+            db.update("INSERT INTO abuse_rate_key (key_hash,last_seen) VALUES (?,?) "
+                    + "ON DUPLICATE KEY UPDATE last_seen=VALUES(last_seen)", key, now);
             Instant cutoff = now.minusSeconds(seconds);
             // One key is locked, so simultaneous requests on other nodes cannot pass the same quota.
             Integer count = db.queryForObject("SELECT COUNT(*) FROM abuse_rate_event WHERE key_hash=? AND occurred_at>?",
