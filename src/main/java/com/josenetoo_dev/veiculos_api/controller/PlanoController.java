@@ -31,4 +31,8 @@ public class PlanoController {
     public PlanoResponse atualizarPreco(@Valid @org.springframework.web.bind.annotation.RequestBody PrecoProRequest request) {
         return service.atualizarPrecoPro(request.mensalidade());
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/AUTO_MINAS_PRO/precos")
+    public List<java.util.Map<String,Object>> historicoPrecos() { return service.historicoPrecosPro(); }
 }

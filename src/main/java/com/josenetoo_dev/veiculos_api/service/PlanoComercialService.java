@@ -31,6 +31,7 @@ public class PlanoComercialService {
     private final EventoAssinaturaRepository eventos;
     private final CurrentUserService currentUser;
     private final tools.jackson.databind.ObjectMapper objectMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate db;
 
     @Transactional(readOnly = true)
     public List<PlanoResponse> listarPlanos() {
@@ -55,15 +56,27 @@ public class PlanoComercialService {
 
     @Transactional
     public PlanoResponse atualizarPrecoPro(BigDecimal mensalidade) {
-        currentUser.admin();
+        var admin = currentUser.admin();
         if (mensalidade == null || mensalidade.signum() <= 0 || mensalidade.scale() > 2
                 || mensalidade.compareTo(new BigDecimal("99999999.99")) > 0)
             throw new IllegalArgumentException("Mensalidade inválida");
         var plan = planos.findByCodigo("AUTO_MINAS_PRO")
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Plano PRO não encontrado"));
+        BigDecimal old = plan.getMensalidade();
         plan.setMensalidade(mensalidade);
         plan.setAtualizadoEm(LocalDateTime.now(ZoneOffset.UTC));
-        return new PlanoResponse(planos.saveAndFlush(plan));
+        var saved = planos.saveAndFlush(plan);
+        db.update("INSERT INTO plano_preco_evento(plano_id,ator_id,mensalidade_anterior,mensalidade_nova,registrado_em) VALUES (?,?,?,?,?)",
+                saved.getId(), admin.getId(), old, mensalidade, LocalDateTime.now(ZoneOffset.UTC));
+        return new PlanoResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String,Object>> historicoPrecosPro() {
+        currentUser.admin();
+        return db.queryForList("SELECT e.ator_id,e.mensalidade_anterior,e.mensalidade_nova,e.registrado_em "
+                + "FROM plano_preco_evento e JOIN plano_comercial p ON p.id=e.plano_id "
+                + "WHERE p.codigo='AUTO_MINAS_PRO' ORDER BY e.id DESC LIMIT 100");
     }
 
     @Transactional
