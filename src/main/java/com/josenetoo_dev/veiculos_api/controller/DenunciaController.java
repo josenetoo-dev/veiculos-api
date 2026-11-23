@@ -22,12 +22,12 @@ public class DenunciaController {
     }
 
     @GetMapping("/minhas")
-    public Page<DenunciaResponse> minhas(@PageableDefault(size=10) Pageable pageable) {
+    public Page<DenunciaAcompanhamentoResponse> minhas(@PageableDefault(size=10) Pageable pageable) {
         return service.minhas(pageable);
     }
 
     @GetMapping("/{id}")
-    public DenunciaResponse consultar(@PathVariable Long id) {
+    public DenunciaAcompanhamentoResponse consultar(@PathVariable Long id) {
         return service.consultar(id);
     }
 
@@ -36,6 +36,10 @@ public class DenunciaController {
     public Page<DenunciaResponse> pendentes(@PageableDefault(size=10) Pageable pageable) {
         return service.pendentes(pageable);
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN','REVIEWER')")
+    @PostMapping("/revisao/{id}/iniciar")
+    public DenunciaResponse iniciar(@PathVariable Long id) { return service.iniciarAnalise(id); }
 
     @PreAuthorize("hasAnyRole('ADMIN','REVIEWER')")
     @PostMapping("/revisao/{id}/confirmar")

@@ -6,7 +6,11 @@ import java.math.BigDecimal;
 public final class Ranking {
     private Ranking() {}
     public record Listing(long id, String titulo, String marca, String modelo, String categoria,
-                          BigDecimal preco, String uf, long vehicle, int popularity, boolean sponsored) {
+                          BigDecimal preco, String uf, long vehicle, int popularity, boolean sponsored, long seller) {
+        public Listing(long id, String titulo, String marca, String modelo, String categoria,
+                       BigDecimal preco, String uf, long vehicle, int popularity, boolean sponsored) {
+            this(id,titulo,marca,modelo,categoria,preco,uf,vehicle,popularity,sponsored,-1);
+        }
         public List<String> features() {
             return Arrays.asList(marca, modelo, categoria, Long.toString(preco.longValue()/10000), uf);
         }
