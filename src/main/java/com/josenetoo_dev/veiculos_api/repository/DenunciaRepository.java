@@ -6,11 +6,13 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface DenunciaRepository extends JpaRepository<Denuncia, Long> {
     boolean existsByAnuncioIdAndDenuncianteId(Long anuncioId, Long userId);
     Page<Denuncia> findByDenuncianteId(Long userId, Pageable pageable);
     Page<Denuncia> findByStatus(StatusDenuncia status, Pageable pageable);
+    Page<Denuncia> findByStatusIn(Collection<StatusDenuncia> statuses, Pageable pageable);
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from Denuncia d where d.id = :id")
     Optional<Denuncia> findByIdForUpdate(@Param("id") Long id);
