@@ -27,3 +27,4 @@
 - Flyway V33 desativa novas ofertas legadas, preservando suas linhas e assinaturas; insere `AUTO_MINAS_PRO` sem mensalidade aprovada.
 - `PUT /v1/planos/AUTO_MINAS_PRO/preco` permite configurar preço somente por ADMIN. A intenção só é criada após preço positivo; o processamento financeiro continua manual e desabilitado por padrão.
 - Teste MySQL verifica preservação das linhas antigas, oferta única e ausência de preço inventado.
+- Ranking da Home reconhece automaticamente PRO vigente e financeiramente confirmado sem depender do vínculo de publicação que a moderação limpa. Concessões legadas explícitas continuam válidas até o vencimento. Rotação alterna vendedores após relevância, com participação patrocinada inicial de 30% (configurável por `app.recommendations.sponsored-share`).

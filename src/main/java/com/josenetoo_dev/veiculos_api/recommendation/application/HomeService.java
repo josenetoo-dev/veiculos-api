@@ -14,20 +14,30 @@ public class HomeService {
                        List<Carousel> carousels,List<String> categories) {}
     private final ListingCatalog catalog;
     private final Signals signals;
+    @org.springframework.beans.factory.annotation.Value("${app.recommendations.sponsored-share:0.30}")
+    private double sponsoredShare = 0.30;
     public HomeService(ListingCatalog catalog, Signals signals) {this.catalog=catalog; this.signals=signals;}
     public Home home(BigDecimal min,BigDecimal max,String uf,String session,Long user) {
         var ads=catalog.load(min,max,uf,true);
         var inventory=catalog.load(min,max,uf,false);
         List<Listing> ranked;
+        List<Listing> paidRanked;
         try {
-            ranked=Ranking.order(inventory,signals.profile(session,user,false),signals.profile(session,user,true));
+            var recent=signals.profile(session,user,false);
+            var history=signals.profile(session,user,true);
+            ranked=Ranking.order(inventory,recent,history);
+            paidRanked=Ranking.order(ads,recent,history);
         } catch (RuntimeException failure) {
             LoggerFactory.getLogger(HomeService.class).warn("Personalização indisponível",failure);
             var empty=new Profile(List.of(),1);
             ranked=Ranking.order(inventory,empty,empty);
+            paidRanked=Ranking.order(ads,empty,empty);
         }
         var seen=new HashSet<Long>();
-        var sponsored=ads.stream().filter(a->seen.add(a.vehicle())).toList();
+        double share=Math.max(0,Math.min(.5,sponsoredShare));
+        int slots=ranked.isEmpty()?0:Math.min(8,(int)Math.floor(Math.min(16,ranked.size())*share/(1-share)));
+        var sponsored=rotate(paidRanked,slots,java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay())
+                .stream().filter(a->seen.add(a.vehicle())).toList();
         var organic=ranked.stream().filter(a->seen.add(a.vehicle())).toList();
         var byBrand=new LinkedHashMap<String,List<Listing>>();
         for (var a:organic) byBrand.computeIfAbsent(a.marca(),ignored->new ArrayList<>()).add(a);
@@ -46,5 +56,26 @@ public class HomeService {
         }
         return new Home(sponsored,brands,List.copyOf(picks),sections,
                 organic.stream().map(Listing::categoria).distinct().sorted().toList());
+    }
+
+    /** Round-robin sellers after relevance ranking; daily offset changes the first seller. */
+    public static List<Listing> rotate(List<Listing> ranked, int slots, long day) {
+        if (slots<=0) return List.of();
+        var groups=new LinkedHashMap<Long,ArrayDeque<Listing>>();
+        for (var ad:ranked) groups.computeIfAbsent(ad.seller(),ignored->new ArrayDeque<>()).add(ad);
+        var sellers=new ArrayList<>(groups.keySet());
+        if (sellers.isEmpty()) return List.of();
+        Collections.rotate(sellers,(int)Math.floorMod(day,sellers.size()));
+        var result=new ArrayList<Listing>();
+        while (result.size()<slots) {
+            boolean added=false;
+            for (long seller:sellers) {
+                var next=groups.get(seller).poll();
+                if (next!=null) {result.add(next);added=true;}
+                if (result.size()==slots) break;
+            }
+            if (!added) break;
+        }
+        return result;
     }
 }
