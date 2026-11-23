@@ -37,6 +37,8 @@ class BuscaSalvaMySqlTest {
                 ()->controller.criar(a,new BuscaSalvaController.Input("Escape",Map.of("sort","injetado"))));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 ()->controller.criar(a,new BuscaSalvaController.Input("Inversa",Map.of("minPrice","90000","maxPrice","10000"))));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                ()->controller.criar(a,new BuscaSalvaController.Input("Combustível",Map.of("fuel","inexistente"))));
         controller.remover(a,saved.id());
         assertTrue(controller.minhas(a).isEmpty());
         for (int i=0;i<20;i++) db.update("INSERT INTO busca_salva(usuario_id,nome,filtros_json) VALUES(971,?,?)",
