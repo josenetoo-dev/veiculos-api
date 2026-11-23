@@ -1,6 +1,5 @@
 package com.josenetoo_dev.veiculos_api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.josenetoo_dev.veiculos_api.controller.BuscaSalvaController;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +20,7 @@ class BuscaSalvaMySqlTest {
         var source=new DriverManagerDataSource(url,config.user(),config.password());
         var db=new JdbcTemplate(source);
         db.update("INSERT INTO usuario(id,nome,email,senha,telefone) VALUES(971,'A','search-a@example.test','hash','39000000000'),(972,'B','search-b@example.test','hash','39000000001')");
-        var controller=new BuscaSalvaController(db,new ObjectMapper());
+        var controller=new BuscaSalvaController(db);
         Principal a=()->"971", b=()->"972";
         var original=new BuscaSalvaController.Input("Até 70 mil",Map.of("maxPrice","70000","state","MG"));
         var tx=new TransactionTemplate(new DataSourceTransactionManager(source));

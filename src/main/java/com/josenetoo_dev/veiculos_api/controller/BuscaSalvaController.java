@@ -23,8 +23,8 @@ public class BuscaSalvaController {
     private static final Set<String> KEYS=Set.of("q","brand","city","state","fuel","transmission",
             "minPrice","maxPrice","yearMin","sort");
     private final JdbcTemplate db;
-    private final ObjectMapper json;
-    public BuscaSalvaController(JdbcTemplate db,ObjectMapper json) { this.db=db; this.json=json; }
+    private final ObjectMapper json=new ObjectMapper();
+    public BuscaSalvaController(JdbcTemplate db) { this.db=db; }
 
     private long user(Principal principal) { return Long.parseLong(principal.getName()); }
     private void validate(Input input) {
