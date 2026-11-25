@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.josenetoo_dev.veiculos_api.service.PersistentLoginService persistentLogin;
     private final com.josenetoo_dev.veiculos_api.service.PasswordResetService resetService;
     private final com.josenetoo_dev.veiculos_api.service.UsuarioService usuarioService;
 
@@ -60,5 +61,25 @@ public class AuthController {
         usuarioService.revogarSessoesDoUsuarioAutenticado();
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(persistentLogin.refresh(request.refreshToken()));
+    }
+
+    @PostMapping("/session/revoke")
+    public ResponseEntity<Void> revoke(@RequestBody RefreshRequest request) {
+        persistentLogin.revoke(request.refreshToken());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/session/renew")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<LoginResponse> renew(@RequestBody RefreshRequest request,
+                                                org.springframework.security.core.Authentication authentication) {
+        return ResponseEntity.ok(persistentLogin.renew(request.refreshToken(), Long.valueOf(authentication.getName())));
+    }
+
+    public record RefreshRequest(String refreshToken) {}
 
 }
