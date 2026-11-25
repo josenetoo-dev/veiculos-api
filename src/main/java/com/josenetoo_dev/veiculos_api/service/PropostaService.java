@@ -38,10 +38,6 @@ public class PropostaService {
         Anuncio anuncio = anuncioRepository.findByIdForUpdate(request.getAnuncioId())
                 .orElseThrow(() -> new AnuncioNaoEncontradoException("Anuncio não encontrado"));
 
-        if (anuncio.getCodigo() != null && anuncio.getCodigo().matches("DEMO-\\d{3}")) {
-            throw new AnuncioIndisponivelException("Anúncio demonstrativo: veículo fictício, não disponível para negociação");
-        }
-
         Usuario usuario = obterUsuarioAutenticado();
         if (usuario.getStatus() != com.josenetoo_dev.veiculos_api.enums.StatusUsuario.ACTIVE) {
             throw new AnuncioIndisponivelException("Confirme seu e-mail antes de enviar uma proposta");

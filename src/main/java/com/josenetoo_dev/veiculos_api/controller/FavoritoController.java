@@ -34,7 +34,7 @@ public class FavoritoController {
     public void adicionar(Principal principal,@PathVariable long id) {
         long user=Long.parseLong(principal.getName());
         db.queryForObject("SELECT id FROM usuario WHERE id=? FOR UPDATE",Long.class,user);
-        if (db.queryForList("SELECT id FROM anuncio WHERE id=? AND status='ATIVO' AND (codigo IS NULL OR codigo NOT LIKE 'DEMO-%')",
+        if (db.queryForList("SELECT id FROM anuncio WHERE id=? AND status='ATIVO'",
                 Long.class,id).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Anúncio indisponível");
         if (existe(principal,id)) return;
         if (db.queryForObject("SELECT COUNT(*) FROM anuncio_favorito WHERE usuario_id=?",Long.class,user)>=100)
