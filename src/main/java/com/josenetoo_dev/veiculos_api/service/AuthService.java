@@ -8,7 +8,6 @@ import com.josenetoo_dev.veiculos_api.exception.ex.CredenciaisInvalidasException
 import com.josenetoo_dev.veiculos_api.exception.ex.EmailJaCadastradoException;
 import com.josenetoo_dev.veiculos_api.model.Usuario;
 import com.josenetoo_dev.veiculos_api.repository.UsuarioRepository;
-import com.josenetoo_dev.veiculos_api.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,7 @@ public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final PersistentLoginService persistentLogin;
     private final org.springframework.context.ApplicationEventPublisher events;
 
     @Transactional
@@ -49,7 +48,7 @@ public class AuthService {
         return new UsuarioResponse(usuario);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         String normalizedEmail = request.getEmail().strip().toLowerCase(Locale.ROOT);
         Usuario usuario = usuarioRepository.findByEmailIgnoreCase(normalizedEmail)
@@ -59,9 +58,7 @@ public class AuthService {
             throw new CredenciaisInvalidasException("Email ou senha inválidos");
         }
 
-        String token = jwtUtil.gerarToken(String.valueOf(usuario.getId()));
-
-        return new LoginResponse(token);
+        return persistentLogin.create(usuario);
     }
 
 }

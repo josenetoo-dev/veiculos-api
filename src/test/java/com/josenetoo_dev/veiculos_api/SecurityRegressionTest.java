@@ -57,6 +57,7 @@ class SecurityRegressionTest {
  @Autowired MockMvc mvc;
  @Autowired org.springframework.context.ApplicationContext context;
  @Autowired UsuarioRepository usuarios;
+ @Autowired com.josenetoo_dev.veiculos_api.repository.LoginSessionRepository loginSessions;
  @Autowired AnuncioRepository anuncios;
  @Autowired VeiculoRepository veiculos;
  @Autowired AnuncioFotoRepository fotos;
@@ -94,7 +95,7 @@ class SecurityRegressionTest {
   vendasDeclaradas.deleteAll(); aceitesContrato.deleteAll(); eventosAssinatura.deleteAll(); assinaturas.deleteAll(); contratos.deleteAll(); planos.deleteAll();
   denuncias.deleteAll(); mensagens.deleteAll(); propostas.deleteAll(); fotos.deleteAll(); eventos.deleteAll();
   evidencias.deleteAll(); eventosVerificacao.deleteAll(); verificacoes.deleteAll();
-  anuncios.deleteAll(); veiculos.deleteAll(); usuarios.deleteAll();
+  anuncios.deleteAll(); veiculos.deleteAll(); loginSessions.deleteAll(); usuarios.deleteAll();
   try(var files=Files.list(UPLOAD)){ for(Path f:files.toList()) Files.delete(f); }
   try(var files=Files.list(PRIVATE)){ for(Path f:files.toList()) Files.delete(f); }
   a=user("A", "a@example.com"); b=user("B", "b@example.com"); c=user("C", "c@example.com");

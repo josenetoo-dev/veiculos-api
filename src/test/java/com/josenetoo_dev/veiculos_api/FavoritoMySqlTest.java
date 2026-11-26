@@ -39,8 +39,8 @@ class FavoritoMySqlTest {
         assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM anuncio_favorito",Integer.class));
         assertEquals(java.util.List.of(901L),controller.meus(a));
         assertTrue(controller.meus(b).isEmpty());
-        assertThrows(org.springframework.web.server.ResponseStatusException.class,
-                ()->tx.executeWithoutResult(s->controller.adicionar(a,902)));
+        tx.executeWithoutResult(s->controller.adicionar(a,902));
+        assertEquals(java.util.List.of(902L,901L),controller.meus(a));
         controller.remover(b,901);
         assertTrue(controller.existe(a,901));
         controller.remover(a,901);

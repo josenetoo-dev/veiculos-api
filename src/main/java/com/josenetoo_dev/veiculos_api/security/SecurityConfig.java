@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/v1/planos", "/v1/contratos/atual").permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/auth/session/renew").authenticated()
                         .requestMatchers(
                                 "/auth/**",
                                 "/swagger-ui/**",

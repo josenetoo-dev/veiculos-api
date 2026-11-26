@@ -109,4 +109,24 @@ class PropostaServiceAnuncioIsolationTest {
         assertEquals(100L,reused.getAnuncio());
         verify(propostas,never()).save(any());
     }
+
+    @Test
+    void demoListingSupportsSimulatedNegotiation() {
+        carroA.setCodigo("DEMO-001");
+        when(anuncios.findByIdForUpdate(100L)).thenReturn(Optional.of(carroA));
+        when(propostas.findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(11L,100L))
+                .thenReturn(Optional.empty());
+        when(propostas.save(any(Proposta.class))).thenAnswer(call -> {
+            Proposta saved = call.getArgument(0);
+            saved.setId(60L);
+            return saved;
+        });
+
+        var created = service.mandarProposta(new PropostaRequest(
+                new BigDecimal("50000"), "Proposta de demonstração", 100L));
+
+        assertEquals(60L, created.getId());
+        verify(mensagens).enviarMensagemDaProposta(any(Proposta.class), eq(comprador),
+                eq("Proposta de demonstração"), isNull());
+    }
 }
