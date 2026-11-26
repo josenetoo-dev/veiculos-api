@@ -33,6 +33,7 @@ import java.util.UUID;
 public class StagingDemoData implements ApplicationRunner {
     private final UsuarioRepository users;
     private final AnuncioRepository ads;
+    private final PropostaRepository proposals;
     private final PasswordEncoder encoder;
     private final StagingDemoCatalog demoCatalog;
 
@@ -42,6 +43,8 @@ public class StagingDemoData implements ApplicationRunner {
     private String buyerPassword;
     @Value("${STAGING_DEMO_SELLER_PASSWORD:}")
     private String sellerPassword;
+    @Value("${STAGING_DEMO_OWNER_EMAIL:}")
+    private String presentationOwnerEmail;
 
     private static final String ADMIN_EMAIL = "admin-demo@auto-minas.test";
     private static final String SELLER_EMAIL = "vendedor-demo@auto-minas.test";
@@ -111,6 +114,35 @@ public class StagingDemoData implements ApplicationRunner {
         }
         ads.flush();
         demoCatalog.ensure(seller);
+        assignPresentationOwner(seller);
+    }
+
+    /** Only synthetic listings without conversations can change owner safely. */
+    private void assignPresentationOwner(Usuario syntheticSeller) {
+        if (presentationOwnerEmail == null || presentationOwnerEmail.isBlank()) return;
+        var target = users.findByEmailIgnoreCase(presentationOwnerEmail.strip());
+        if (target.isEmpty() || target.get().getRole() != Role.USER
+                || target.get().getStatus() != StatusUsuario.ACTIVE) {
+            org.slf4j.LoggerFactory.getLogger(StagingDemoData.class)
+                    .warn("Presentation owner unavailable or not an active user; synthetic listings unchanged");
+            return;
+        }
+        int changed = 0;
+        int keptWithConversations = 0;
+        for (int index = 1; index <= 150; index++) {
+            var ad = ads.findByCodigo(String.format(java.util.Locale.ROOT, "DEMO-%03d", index)).orElse(null);
+            if (ad == null || !ad.getUsuario().getId().equals(syntheticSeller.getId())) continue;
+            if (proposals.existsByAnuncioId(ad.getId())) {
+                keptWithConversations++;
+                continue;
+            }
+            ad.setUsuario(target.get());
+            changed++;
+        }
+        ads.flush();
+        org.slf4j.LoggerFactory.getLogger(StagingDemoData.class).info(
+                "Presentation ownership: {} synthetic listings assigned to user id {}; {} retained due to existing conversations",
+                changed, target.get().getId(), keptWithConversations);
     }
 
     private Usuario createIfMissing(String email, String name, String password, Role role) {
