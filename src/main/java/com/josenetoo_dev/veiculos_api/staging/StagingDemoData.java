@@ -4,6 +4,7 @@ import com.josenetoo_dev.veiculos_api.enums.*;
 import com.josenetoo_dev.veiculos_api.model.Anuncio;
 import com.josenetoo_dev.veiculos_api.model.Usuario;
 import com.josenetoo_dev.veiculos_api.repository.AnuncioRepository;
+import com.josenetoo_dev.veiculos_api.repository.PropostaRepository;
 import com.josenetoo_dev.veiculos_api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
