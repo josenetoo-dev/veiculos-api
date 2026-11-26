@@ -32,6 +32,7 @@ class StagingDemoDataTest {
     @Autowired UsuarioRepository users;
     @Autowired AnuncioRepository ads;
     @Autowired AnuncioFotoRepository photos;
+    @Autowired PropostaRepository proposals;
     @Autowired PasswordEncoder passwords;
 
     @Test void demoCreatesOnlySyntheticUsersAndAdsAndIsIdempotent() {
@@ -57,6 +58,23 @@ class StagingDemoDataTest {
         });
 
         assertEquals(450, photos.count());
+        var adWithConversation = ads.findByCodigo("DEMO-001").orElseThrow();
+        var conversation = new com.josenetoo_dev.veiculos_api.model.Proposta();
+        conversation.setAnuncio(adWithConversation);
+        conversation.setComprador(buyer);
+        conversation.setValor(adWithConversation.getPreco());
+        conversation.setDescricao("Conversa anterior preservada");
+        conversation.setStatus(StatusProposta.PENDENTE);
+        proposals.saveAndFlush(conversation);
+        org.springframework.test.util.ReflectionTestUtils.setField(seeder, "presentationOwnerEmail", buyer.getEmail());
+        try {
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+            assertEquals(seller.getId(), ads.findByCodigo("DEMO-001").orElseThrow().getUsuario().getId());
+            assertEquals(buyer.getId(), ads.findByCodigo("DEMO-002").orElseThrow().getUsuario().getId());
+            assertEquals(1, proposals.count());
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(seeder, "presentationOwnerEmail", "");
+        }
         seeder.run(new DefaultApplicationArguments(new String[0]));
         assertEquals(3, users.count());
         assertEquals(150, ads.count());

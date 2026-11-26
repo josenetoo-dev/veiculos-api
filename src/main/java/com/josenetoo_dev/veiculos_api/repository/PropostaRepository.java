@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface PropostaRepository extends JpaRepository<Proposta, Long> {
+    boolean existsByAnuncioId(Long anuncioId);
     Page<Proposta> findByCompradorIdOrAnuncioUsuarioId(Long compradorId, Long anuncianteId, Pageable pageable);
 
     java.util.Optional<Proposta> findFirstByCompradorIdAndAnuncioIdOrderByIdAsc(Long compradorId, Long anuncioId);
