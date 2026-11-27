@@ -48,6 +48,8 @@ public class StagingDemoData implements ApplicationRunner {
     private String presentationOwnerEmail;
     @Value("${STAGING_DEMO_SECOND_SELLER_EMAIL:}")
     private String secondSellerEmail;
+    @Value("${STAGING_DEMO_ADMIN_EMAIL:}")
+    private String presentationAdminEmail;
 
     private static final String ADMIN_EMAIL = "admin-demo@auto-minas.test";
     private static final String SELLER_EMAIL = "vendedor-demo@auto-minas.test";
@@ -119,6 +121,7 @@ public class StagingDemoData implements ApplicationRunner {
         demoCatalog.ensure(seller);
         assignPresentationOwner(seller);
         assignSecondSeller(seller);
+        promotePresentationAdmin();
     }
 
     /** Only synthetic listings without conversations can change owner safely. */
@@ -171,6 +174,30 @@ public class StagingDemoData implements ApplicationRunner {
         org.slf4j.LoggerFactory.getLogger(StagingDemoData.class).info(
                 "Second presentation seller: {} demo listings assigned to user id {}",
                 changed, target.get().getId());
+    }
+
+    /** Explicit staging-only promotion of an existing account with confirmed contact email. */
+    private void promotePresentationAdmin() {
+        if (presentationAdminEmail == null || presentationAdminEmail.isBlank()) return;
+        var target = users.findByEmailIgnoreCase(presentationAdminEmail.strip());
+        if (target.isEmpty() || target.get().getStatus() != StatusUsuario.ACTIVE
+                || target.get().getContactEmailVerifiedAt() == null) {
+            org.slf4j.LoggerFactory.getLogger(StagingDemoData.class)
+                    .warn("Presentation admin account unavailable or email unverified; role unchanged");
+            return;
+        }
+        Usuario account = target.get();
+        if (account.getRole() == Role.ADMIN) return;
+        if (account.getRole() != Role.USER) {
+            org.slf4j.LoggerFactory.getLogger(StagingDemoData.class)
+                    .warn("Presentation admin account has an unexpected role; role unchanged");
+            return;
+        }
+        account.setRole(Role.ADMIN);
+        account.setTokenVersion(account.getTokenVersion() + 1);
+        users.saveAndFlush(account);
+        org.slf4j.LoggerFactory.getLogger(StagingDemoData.class)
+                .info("Presentation admin granted to user id {}; prior sessions revoked", account.getId());
     }
 
     private Usuario createIfMissing(String email, String name, String password, Role role) {
