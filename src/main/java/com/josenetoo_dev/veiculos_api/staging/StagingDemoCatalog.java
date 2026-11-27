@@ -73,7 +73,7 @@ public class StagingDemoCatalog {
 
     /** Chamar na transação do seeder; idempotente por código DEMO-NNN e três fotos por anúncio. */
     public void ensure(Usuario seller) {
-        for (int index = 1; index <= 150; index++) {
+        for (int index = 1; index <= 160; index++) {
             final String code = String.format(Locale.ROOT, "DEMO-%03d", index);
             Model model = MODELS.get((index - 1) % MODELS.size());
             final int ordinal = index;
