@@ -46,6 +46,8 @@ public class StagingDemoData implements ApplicationRunner {
     private String sellerPassword;
     @Value("${STAGING_DEMO_OWNER_EMAIL:}")
     private String presentationOwnerEmail;
+    @Value("${STAGING_DEMO_SECOND_SELLER_EMAIL:}")
+    private String secondSellerEmail;
 
     private static final String ADMIN_EMAIL = "admin-demo@auto-minas.test";
     private static final String SELLER_EMAIL = "vendedor-demo@auto-minas.test";
@@ -116,6 +118,7 @@ public class StagingDemoData implements ApplicationRunner {
         ads.flush();
         demoCatalog.ensure(seller);
         assignPresentationOwner(seller);
+        assignSecondSeller(seller);
     }
 
     /** Only synthetic listings without conversations can change owner safely. */
@@ -144,6 +147,30 @@ public class StagingDemoData implements ApplicationRunner {
         org.slf4j.LoggerFactory.getLogger(StagingDemoData.class).info(
                 "Presentation ownership: {} synthetic listings assigned to user id {}; {} retained due to existing conversations",
                 changed, target.get().getId(), keptWithConversations);
+    }
+
+    /** Separate, newly generated demo listings allow the first presentation account to contact this seller. */
+    private void assignSecondSeller(Usuario syntheticSeller) {
+        if (secondSellerEmail == null || secondSellerEmail.isBlank()) return;
+        var target = users.findByEmailIgnoreCase(secondSellerEmail.strip());
+        if (target.isEmpty() || target.get().getRole() != Role.USER
+                || target.get().getStatus() != StatusUsuario.ACTIVE) {
+            org.slf4j.LoggerFactory.getLogger(StagingDemoData.class)
+                    .warn("Second presentation seller unavailable or not active; ten new demo listings remain synthetic");
+            return;
+        }
+        int changed = 0;
+        for (int index = 151; index <= 160; index++) {
+            var ad = ads.findByCodigo(String.format(java.util.Locale.ROOT, "DEMO-%03d", index)).orElse(null);
+            if (ad == null || !ad.getUsuario().getId().equals(syntheticSeller.getId())) continue;
+            if (proposals.existsByAnuncioId(ad.getId())) continue;
+            ad.setUsuario(target.get());
+            changed++;
+        }
+        ads.flush();
+        org.slf4j.LoggerFactory.getLogger(StagingDemoData.class).info(
+                "Second presentation seller: {} demo listings assigned to user id {}",
+                changed, target.get().getId());
     }
 
     private Usuario createIfMissing(String email, String name, String password, Role role) {

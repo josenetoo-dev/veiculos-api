@@ -37,7 +37,7 @@ class StagingDemoDataTest {
 
     @Test void demoCreatesOnlySyntheticUsersAndAdsAndIsIdempotent() {
         assertEquals(3, users.count());
-        assertEquals(150, ads.count());
+        assertEquals(160, ads.count());
         var admin=users.findByEmail("admin-demo@auto-minas.test").orElseThrow();
         var buyer=users.findByEmail("comprador-demo@auto-minas.test").orElseThrow();
         var seller=users.findByEmail("vendedor-demo@auto-minas.test").orElseThrow();
@@ -48,7 +48,7 @@ class StagingDemoDataTest {
         assertTrue(passwords.matches("staging-only-admin-password-123",admin.getSenha()));
         assertTrue(passwords.matches("staging-only-buyer-password-123",buyer.getSenha()));
         assertTrue(passwords.matches("staging-only-seller-password-123",seller.getSenha()));
-        assertEquals(150, ads.findByStatus(StatusAnuncio.ATIVO,
+        assertEquals(160, ads.findByStatus(StatusAnuncio.ATIVO,
                 org.springframework.data.domain.Pageable.unpaged()).getTotalElements());
         ads.findAll().forEach(ad -> {
             assertTrue(ad.getTitulo().startsWith("[DEMO]"));
@@ -57,7 +57,7 @@ class StagingDemoDataTest {
             assertEquals("vendedor-demo@auto-minas.test", ad.getUsuario().getEmail());
         });
 
-        assertEquals(450, photos.count());
+        assertEquals(480, photos.count());
         var adWithConversation = ads.findByCodigo("DEMO-001").orElseThrow();
         var conversation = new com.josenetoo_dev.veiculos_api.model.Proposta();
         conversation.setAnuncio(adWithConversation);
@@ -75,9 +75,26 @@ class StagingDemoDataTest {
         } finally {
             org.springframework.test.util.ReflectionTestUtils.setField(seeder, "presentationOwnerEmail", "");
         }
-        seeder.run(new DefaultApplicationArguments(new String[0]));
-        assertEquals(3, users.count());
-        assertEquals(150, ads.count());
-        assertEquals(450, photos.count());
+        var secondSeller = new com.josenetoo_dev.veiculos_api.model.Usuario();
+        secondSeller.setNome("Outro vendedor de teste");
+        secondSeller.setEmail("segundo-vendedor@example.test");
+        secondSeller.setTelefone("38000000001");
+        secondSeller.setSenha(passwords.encode("temporary-test-password"));
+        secondSeller.setStatus(StatusUsuario.ACTIVE);
+        secondSeller.setRole(Role.USER);
+        users.saveAndFlush(secondSeller);
+        org.springframework.test.util.ReflectionTestUtils.setField(seeder, "secondSellerEmail", secondSeller.getEmail());
+        try {
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+            assertEquals(secondSeller.getId(), ads.findByCodigo("DEMO-151").orElseThrow().getUsuario().getId());
+            assertEquals(secondSeller.getId(), ads.findByCodigo("DEMO-160").orElseThrow().getUsuario().getId());
+            assertEquals(buyer.getId(), ads.findByCodigo("DEMO-002").orElseThrow().getUsuario().getId());
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(seeder, "secondSellerEmail", "");
+        }
+        assertEquals(4, users.count());
+        assertEquals(160, ads.count());
+        assertEquals(480, photos.count());
     }
 }
