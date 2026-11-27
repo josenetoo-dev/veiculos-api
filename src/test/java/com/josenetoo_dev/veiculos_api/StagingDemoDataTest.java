@@ -93,6 +93,23 @@ class StagingDemoDataTest {
         } finally {
             org.springframework.test.util.ReflectionTestUtils.setField(seeder, "secondSellerEmail", "");
         }
+        org.springframework.test.util.ReflectionTestUtils.setField(seeder, "presentationAdminEmail", secondSeller.getEmail());
+        try {
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+            assertEquals(Role.USER, users.findById(secondSeller.getId()).orElseThrow().getRole());
+            secondSeller.setContactEmailVerifiedAt(java.time.LocalDateTime.now());
+            users.saveAndFlush(secondSeller);
+            long previousVersion = secondSeller.getTokenVersion();
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+            var promoted = users.findById(secondSeller.getId()).orElseThrow();
+            assertEquals(Role.ADMIN, promoted.getRole());
+            assertEquals(previousVersion + 1, promoted.getTokenVersion());
+            seeder.run(new DefaultApplicationArguments(new String[0]));
+            assertEquals(previousVersion + 1, users.findById(secondSeller.getId()).orElseThrow().getTokenVersion());
+            assertEquals(secondSeller.getId(), ads.findByCodigo("DEMO-151").orElseThrow().getUsuario().getId());
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(seeder, "presentationAdminEmail", "");
+        }
         assertEquals(4, users.count());
         assertEquals(160, ads.count());
         assertEquals(480, photos.count());
