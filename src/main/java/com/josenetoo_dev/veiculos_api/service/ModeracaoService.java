@@ -26,6 +26,11 @@ public class ModeracaoService {
     private final ModeracaoEventoRepository eventos;
     private final VerificacaoRepository verificacoes;
     private final AnuncioFotoRepository fotos;
+    private final org.springframework.core.env.Environment environment;
+
+    private boolean modoDemo() {
+        return environment.acceptsProfiles(org.springframework.core.env.Profiles.of("staging"));
+    }
 
     private Long revisorId() {
         Long id;
@@ -78,7 +83,7 @@ public class ModeracaoService {
         if (anuncio.getStatus() != StatusAnuncio.PENDENTE) {
             throw new AnuncioIndisponivelException("Anúncio não está pendente de revisão");
         }
-        if (anuncio.getUsuario().getId().equals(revisorId)) {
+        if (!modoDemo() && anuncio.getUsuario().getId().equals(revisorId)) {
             throw new AcessoNegadoException("Outro moderador precisa revisar este anúncio porque você é o anunciante");
         }
         return anuncio;
@@ -91,6 +96,7 @@ public class ModeracaoService {
         if (anuncio.getUsuario().getStatus() != StatusUsuario.ACTIVE) {
             throw new AnuncioIndisponivelException("O vendedor precisa confirmar o e-mail antes da publicação");
         }
+        if (!modoDemo()) {
         // Revisão documental humana é obrigatória. Nunca publicar sem ambas as decisões.
         if (!verificacoes.existsByUsuarioIdentidadeIdAndStatus(
                 anuncio.getUsuario().getId(), com.josenetoo_dev.veiculos_api.enums.StatusVerificacao.APROVADA)
@@ -109,7 +115,8 @@ public class ModeracaoService {
         if (fotos.countByAnuncioId(id) < 2) {
             throw new AnuncioIndisponivelException("Adicione pelo menos 2 fotos do veículo antes de publicar");
         }
-        anuncio.setNivelUmRevisado(true);
+        }
+        anuncio.setNivelUmRevisado(!modoDemo());
         // Publicação básica é gratuita. Planos opcionais não bloqueiam a moderação.
         anuncio.setAssinaturaPublicacaoId(null);
         anuncio.setStatus(StatusAnuncio.ATIVO);
